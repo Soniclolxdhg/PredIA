@@ -1,0 +1,44 @@
+# Dependencias de paquetes
+node_modules/
+*/node_modules/
+
+# Salida compilada y builds
+dist/
+*/dist/
+.angular/
+*/.angular/
+
+# Variables de entorno (seguridad y credenciales)
+.env
+.env.*
+!.env.example
+*.env
+*/.env
+*/.env.*
+!*/.env.example
+
+# Archivos de registro y depuración
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Cobertura de pruebas (Jest / Karma)
+coverage/
+*/coverage/
+
+# Archivos del sistema operativo y editores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Documentación interna e informes privados
+PredIA/
+/PredIA/
