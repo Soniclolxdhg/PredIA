@@ -1,6 +1,6 @@
-// PredIA - Sistema de Gestión Agrícola
-// Definición Técnica de Base de Datos - PostgreSQL 16 con Prisma ORM v5.x
-// Estándar de codificación: Español en entidades, relaciones y atributos
+// PredIA - Sistema de Gestión Agrícola (Santa Laura Ltda.)
+// Modelo Relacional Oficial - PostgreSQL 16 con Prisma ORM v5.x
+// Nomenclatura 100% en Español para entidades, atributos, funciones y enums
 
 generator clientePrisma {
   provider = "prisma-client-js"
@@ -12,20 +12,24 @@ datasource db {
 }
 
 // ==========================================
-// 1. ENUMERACIONES (ENUMS) EN ESPAÑOL
+// 1. ENUMERACIONES (ENUMS EN ESPAÑOL)
 // ==========================================
 
 enum RolUsuario {
   ADMINISTRADOR
-  OPERADOR_CAMPO
   AGRONOMO
-  CONTADOR
+  BODEGUERO
+  GERENTE
+}
+
+enum EstadoNave {
+  DISPONIBLE
+  EN_CULTIVO
+  MANTENCION
 }
 
 enum EstadoCiclo {
-  EN_PLANIFICACION
   ACTIVO
-  EN_COSECHA
   FINALIZADO
   CANCELADO
 }
@@ -34,371 +38,434 @@ enum TipoLabor {
   SIEMBRA
   RIEGO
   FERTILIZACION
-  PODA
-  APLICACION_FITOSANITARIA
+  FITOSANITARIO
   COSECHA
-  LIMPIEZA
-}
-
-enum EstadoLabor {
-  PENDIENTE
-  EN_PROGRESO
-  COMPLETADA
-  CANCELADA
 }
 
 enum CategoriaInsumo {
-  FERTILIZANTE
-  PESTICIDA
   SEMILLA
-  HERRAMIENTA
-  SUSTRATO
+  ALMACIGO
+  FERTILIZANTE
+  DESINFECTANTE
   OTRO
 }
 
-enum TipoMovimientoKardex {
+enum TipoMovimientoBodega {
   ENTRADA_COMPRA
   SALIDA_LABOR
-  SALIDA_MERMA
-  AJUSTE_INVENTARIO
+  AJUSTE_MERMA
 }
 
-enum EstadoNotaVenta {
-  EMITIDA
-  PAGADA
-  ANULADA
+enum ModalidadPago {
+  DIARIO
+  SEMANAL
+  QUINCENAL
+  MENSUAL
+}
+
+enum CargoTrabajador {
+  OPERARIO_CAMPO
+  COSECHADOR
+  CHOFER
+  MECANICO
+}
+
+enum EstadoPago {
+  PENDIENTE
+  PAGADO
+  CONCILIADO
+}
+
+enum CalidadGrado {
+  PRIMERA
+  SEGUNDA
+  DESCARTE
+}
+
+enum EstadoDespacho {
+  PENDIENTE
+  DESPACHADO
+  ENTREGADO
+}
+
+enum TipoAlerta {
+  STOCK_MINIMO
+  HELADA
+}
+
+enum EstadoAlerta {
+  ABIERTA
+  ATENDIDA
+}
+
+enum NivelRiesgoClimatico {
+  BAJO
+  MEDIO
+  ALTO
 }
 
 // ==========================================
-// 2. MODELOS: AUTENTICACIÓN Y SEGURIDAD
+// 2. MODELOS: USUARIOS Y AUDITORÍA
 // ==========================================
 
-/// Tabla 1: Usuarios del sistema (RBAC y Argon2)
+/// Entidad: USUARIO (Tabla 4)
 model Usuario {
-  id              String         @id @default(uuid()) @db.Uuid
-  correo          String         @unique @db.VarChar(150)
-  contrasenaHash  String         @db.VarChar(255)
-  nombre          String         @db.VarChar(100)
-  apellido        String         @db.VarChar(100)
-  rol             RolUsuario     @default(OPERADOR_CAMPO)
-  activo          Boolean        @default(true)
-  creadoEn        DateTime       @default(now()) @map("creado_en")
-  actualizadoEn   DateTime       @updatedAt @map("actualizado_en")
+  idUsuario       Int          @id @default(autoincrement()) @map("id_usuario")
+  nombreCompleto  String       @map("nombre_completo") @db.VarChar(100)
+  rut             String       @unique @db.VarChar(12)
+  email           String       @unique @db.VarChar(100)
+  hashPassword    String       @map("hash_password") @db.VarChar(255)
+  rol             RolUsuario   @default(AGRONOMO)
+  activo          Boolean      @default(true)
+  fechaCreacion   DateTime     @default(now()) @map("fecha_creacion")
 
   // Relaciones
-  registrosAuditoria RegistroAuditoria[]
-  mermasRegistradas  MermaInsumo[]
+  laboresResponsable LaborAgricola[]
+  movimientosBodega  MovimientoBodega[]
+  cosechasPesadas    Cosecha[]
+  ventasGeneradas    Venta[]
+  auditorias         Auditoria[]
 
   @@map("usuarios")
 }
 
-/// Tabla 2: Registros de Auditoría (Trazabilidad ISO 27001)
-model RegistroAuditoria {
-  id            String    @id @default(uuid()) @db.Uuid
-  idUsuario     String?   @map("id_usuario") @db.Uuid
-  accion        String    @db.VarChar(100)
-  modulo        String    @db.VarChar(100)
-  detalles      Json      @db.JsonB
-  ipOrigen      String?   @map("ip_origen") @db.VarChar(45)
-  agenteUsuario String?   @map("agente_usuario") @db.VarChar(255)
-  creadoEn      DateTime  @default(now()) @map("creado_en")
+/// Entidad: AUDITORIA (Tabla 17 - Trazabilidad ISO/IEC 27001)
+model Auditoria {
+  idAuditoria    BigInt    @id @default(autoincrement()) @map("id_auditoria")
+  idUsuario      Int?      @map("id_usuario")
+  entidad        String    @db.VarChar(40)
+  idRegistro     Int       @map("id_registro")
+  accion         String    @db.VarChar(10) // INSERT, UPDATE, DELETE
+  valoresPrevios Json?     @map("valores_previos") @db.JsonB
+  fechaEvento    DateTime  @default(now()) @map("fecha_evento")
 
   // Relaciones
-  usuario       Usuario?  @relation(fields: [idUsuario], references: [id], onDelete: SetNull)
+  usuario        Usuario?  @relation(fields: [idUsuario], references: [idUsuario], onDelete: SetNull)
 
   @@index([idUsuario])
-  @@index([modulo])
-  @@index([creadoEn])
-  @@map("registros_auditoria")
+  @@index([entidad])
+  @@index([fechaEvento])
+  @@map("auditorias")
 }
 
 // ==========================================
-// 3. MODELOS: PRODUCCIÓN AGRÍCOLA
+// 3. MODELOS: INFRAESTRUCTURA Y PRODUCCIÓN
 // ==========================================
 
-/// Tabla 3: Naves de cultivo / Invernaderos
+/// Entidad: NAVE (Tabla 5)
 model Nave {
-  id              String         @id @default(uuid()) @db.Uuid
-  codigo          String         @unique @db.VarChar(50)
-  nombre          String         @db.VarChar(150)
-  superficieM2    Decimal        @map("superficie_m2") @db.Decimal(12, 2)
-  tipoEstructura  String?        @map("tipo_estructura") @db.VarChar(100)
-  activo          Boolean        @default(true)
-  creadoEn        DateTime       @default(now()) @map("creado_en")
-  actualizadoEn   DateTime       @updatedAt @map("actualizado_en")
+  idNave         Int          @id @default(autoincrement()) @map("id_nave")
+  codigoNave     String       @unique @map("codigo_nave") @db.VarChar(20)
+  nombre         String       @db.VarChar(50)
+  superficieM2   Decimal      @map("superficie_m2") @db.Decimal(8, 2)
+  tipoEstructura String?      @map("tipo_estructura") @db.VarChar(50)
+  estado         EstadoNave   @default(DISPONIBLE)
 
   // Relaciones
-  ciclosCultivo   CicloCultivo[]
+  ciclosCultivo  CicloCultivo[]
 
   @@map("naves")
 }
 
-/// Tabla 4: Ciclos de Cultivo
+/// Entidad: CICLO_CULTIVO (Tabla 6 - Unidad Central de Costeo)
 model CicloCultivo {
-  id                String         @id @default(uuid()) @db.Uuid
-  idNave            String         @map("id_nave") @db.Uuid
-  variedad          String         @db.VarChar(100)
-  fechaInicio       DateTime       @map("fecha_inicio") @db.Date
-  fechaFinEstimada  DateTime?      @map("fecha_fin_estimada") @db.Date
-  fechaFinReal      DateTime?      @map("fecha_fin_real") @db.Date
-  estado            EstadoCiclo    @default(EN_PLANIFICACION)
-  telemetria        Json?          @db.JsonB
-  creadoEn          DateTime       @default(now()) @map("creado_en")
-  actualizadoEn     DateTime       @updatedAt @map("actualizado_en")
+  idCiclo               Int           @id @default(autoincrement()) @map("id_ciclo")
+  idNave                Int           @map("id_nave")
+  temporada             String        @db.VarChar(20) // PRIMAVERA_2026, OTONO_2026
+  variedad              String        @db.VarChar(50)
+  fechaInicio           DateTime      @map("fecha_inicio") @db.Date
+  fechaTerminoEstimada  DateTime?     @map("fecha_termino_estimada") @db.Date
+  fechaCierreReal       DateTime?     @map("fecha_cierre_real") @db.Date
+  estado                EstadoCiclo   @default(ACTIVO)
+  totalKgCosechados     Decimal       @default(0) @map("total_kg_cosechados") @db.Decimal(10, 2)
+  costoTotalAcumulado   Decimal       @default(0) @map("costo_total_acumulado") @db.Decimal(12, 2)
+  costoUnitarioKg       Decimal       @default(0) @map("costo_unitario_kg") @db.Decimal(12, 2)
 
   // Relaciones
-  nave              Nave           @relation(fields: [idNave], references: [id], onDelete: Restrict)
-  laboresCampo      LaborCampo[]
-  costosIndirectos  CostoIndirecto[]
-  liquidaciones     LiquidacionCostoCiclo[]
-  notasVenta        NotaVenta[]
+  nave                  Nave          @relation(fields: [idNave], references: [idNave], onDelete: Restrict)
+  laboresAgricolas      LaborAgricola[]
+  asistenciasJornal     AsistenciaJornal[]
+  costosIndirectos      CostoIndirecto[]
+  cosechas              Cosecha[]
+  proyeccionesCiclo     ProyeccionCiclo[]
 
   @@index([idNave])
   @@index([estado])
   @@map("ciclos_cultivo")
 }
 
-/// Tabla 5: Labores de Campo
-model LaborCampo {
-  id              String         @id @default(uuid()) @db.Uuid
-  idCicloCultivo  String         @map("id_ciclo_cultivo") @db.Uuid
-  tipoLabor       TipoLabor      @map("tipo_labor")
-  fechaProgramada DateTime       @map("fecha_programada") @db.Date
-  fechaEjecucion  DateTime?      @map("fecha_ejecucion") @db.Date
-  descripcion     String?        @db.Text
-  estado          EstadoLabor    @default(PENDIENTE)
-  creadoEn        DateTime       @default(now()) @map("creado_en")
-  actualizadoEn   DateTime       @updatedAt @map("actualizado_en")
+/// Entidad: LABOR_AGRICOLA (Tabla 7)
+model LaborAgricola {
+  idLabor               Int           @id @default(autoincrement()) @map("id_labor")
+  idCiclo               Int           @map("id_ciclo")
+  idUsuarioResponsable  Int           @map("id_usuario_responsable")
+  tipoLabor             TipoLabor     @map("tipo_labor")
+  fechaEjecucion        DateTime      @map("fecha_ejecucion") @db.Date
+  horasDedicadas        Decimal       @map("horas_dedicadas") @db.Decimal(5, 2)
+  observacionesTecnicas String?       @map("observaciones_tecnicas") @db.Text
+  fechaRegistro         DateTime      @default(now()) @map("fecha_registro")
 
   // Relaciones
-  cicloCultivo    CicloCultivo   @relation(fields: [idCicloCultivo], references: [id], onDelete: Cascade)
-  jornales        Jornal[]
+  cicloCultivo          CicloCultivo  @relation(fields: [idCiclo], references: [idCiclo], onDelete: Cascade)
+  usuarioResponsable    Usuario       @relation(fields: [idUsuarioResponsable], references: [idUsuario], onDelete: Restrict)
+  movimientosBodega     MovimientoBodega[]
+  asistenciasJornal     AsistenciaJornal[]
 
-  @@index([idCicloCultivo])
-  @@index([tipoLabor])
-  @@map("labores_campo")
+  @@index([idCiclo])
+  @@index([idUsuarioResponsable])
+  @@map("labores_agricolas")
 }
 
 // ==========================================
-// 4. MODELOS: INVENTARIO, KARDEX Y MERMAS
+// 4. MODELOS: INVENTARIO, BODEGA Y KARDEX
 // ==========================================
 
-/// Tabla 6: Insumos Agrícolas
+/// Entidad: INSUMO (Tabla 8)
 model Insumo {
-  id              String           @id @default(uuid()) @db.Uuid
-  codigo          String           @unique @db.VarChar(50)
-  nombre          String           @db.VarChar(150)
-  categoria       CategoriaInsumo
-  unidadMedida    String           @map("unidad_medida") @db.VarChar(30)
-  stockActual     Decimal          @default(0) @map("stock_actual") @db.Decimal(12, 2)
-  costoUnitario   Decimal          @map("costo_unitario") @db.Decimal(12, 2)
-  stockMinimo     Decimal          @default(0) @map("stock_minimo") @db.Decimal(12, 2)
-  activo          Boolean          @default(true)
-  creadoEn        DateTime         @default(now()) @map("creado_en")
-  actualizadoEn   DateTime         @updatedAt @map("actualizado_en")
+  idInsumo               Int             @id @default(autoincrement()) @map("id_insumo")
+  codigoInsumo           String          @unique @map("codigo_insumo") @db.VarChar(30)
+  nombre                 String          @db.VarChar(100)
+  categoria              CategoriaInsumo
+  unidadMedida           String          @map("unidad_medida") @db.VarChar(20)
+  stockActual            Decimal         @default(0) @map("stock_actual") @db.Decimal(10, 2)
+  stockMinimoAlerta      Decimal         @default(0) @map("stock_minimo_alerta") @db.Decimal(10, 2)
+  costoUnitarioPromedio  Decimal         @default(0) @map("costo_unitario_promedio") @db.Decimal(12, 2)
+  esMaterialVegetal      Boolean         @default(false) @map("es_material_vegetal")
 
   // Relaciones
-  movimientosKardex MovimientoKardex[]
-  mermas            MermaInsumo[]
+  movimientosBodega      MovimientoBodega[]
+  alertas                Alerta[]
 
   @@map("insumos")
 }
 
-/// Tabla 7: Kardex de Inventario (Movimientos y Trazabilidad)
-model MovimientoKardex {
-  id              String               @id @default(uuid()) @db.Uuid
-  idInsumo        String               @map("id_insumo") @db.Uuid
-  tipoMovimiento  TipoMovimientoKardex @map("tipo_movimiento")
-  cantidad        Decimal              @db.Decimal(12, 2)
-  costoUnitario   Decimal              @map("costo_unitario") @db.Decimal(12, 2)
-  costoTotal      Decimal              @map("costo_total") @db.Decimal(12, 2)
-  idReferencia    String?              @map("id_referencia") @db.VarChar(100)
-  saldoStock      Decimal              @map("saldo_stock") @db.Decimal(12, 2)
-  observaciones   String?              @db.Text
-  creadoEn        DateTime             @default(now()) @map("creado_en")
+/// Entidad: MOVIMIENTO_BODEGA (Tabla 9 - Kardex y Mermas)
+model MovimientoBodega {
+  idMovimiento          Int                  @id @default(autoincrement()) @map("id_movimiento")
+  idInsumo              Int                  @map("id_insumo")
+  idUsuario             Int                  @map("id_usuario")
+  idLabor               Int?                 @map("id_labor")
+  tipoMovimiento        TipoMovimientoBodega @map("tipo_movimiento")
+  fechaMovimiento       DateTime             @default(now()) @map("fecha_movimiento")
+  cantidadNominal       Decimal              @map("cantidad_nominal") @db.Decimal(10, 2)
+  porcentajeMerma       Decimal              @default(0) @map("porcentaje_merma") @db.Decimal(5, 2)
+  cantidadNeta          Decimal              @map("cantidad_neta") @db.Decimal(10, 2)
+  costoUnitarioCompra   Decimal              @map("costo_unitario_compra") @db.Decimal(12, 2)
+  montoTotalMovimiento  Decimal              @map("monto_total_movimiento") @db.Decimal(12, 2)
+  documentoReferencia   String?              @map("documento_referencia") @db.VarChar(50)
 
   // Relaciones
-  insumo          Insumo               @relation(fields: [idInsumo], references: [id], onDelete: Restrict)
+  insumo                Insumo               @relation(fields: [idInsumo], references: [idInsumo], onDelete: Restrict)
+  usuario               Usuario              @relation(fields: [idUsuario], references: [idUsuario], onDelete: Restrict)
+  laborAgricola         LaborAgricola?       @relation(fields: [idLabor], references: [idLabor], onDelete: SetNull)
 
   @@index([idInsumo])
-  @@index([tipoMovimiento])
-  @@map("movimientos_kardex")
-}
-
-/// Tabla 8: Mermas de Insumos
-model MermaInsumo {
-  id            String    @id @default(uuid()) @db.Uuid
-  idInsumo      String    @map("id_insumo") @db.Uuid
-  idUsuario     String?   @map("id_usuario") @db.Uuid
-  cantidad      Decimal   @db.Decimal(12, 2)
-  motivo        String    @db.VarChar(255)
-  fecha         DateTime  @db.Date
-  observaciones String?   @db.Text
-  creadoEn      DateTime  @default(now()) @map("creado_en")
-
-  // Relaciones
-  insumo        Insumo    @relation(fields: [idInsumo], references: [id], onDelete: Restrict)
-  usuario       Usuario?  @relation(fields: [idUsuario], references: [id], onDelete: SetNull)
-
-  @@index([idInsumo])
-  @@map("mermas_insumo")
+  @@index([idUsuario])
+  @@index([idLabor])
+  @@map("movimientos_bodega")
 }
 
 // ==========================================
 // 5. MODELOS: MANO DE OBRA Y COSTOS
 // ==========================================
 
-/// Tabla 9: Trabajadores de Campo
+/// Entidad: TRABAJADOR (Tabla 10)
 model Trabajador {
-  id                  String    @id @default(uuid()) @db.Uuid
-  rutOIdentificacion  String    @unique @map("rut_o_identificacion") @db.VarChar(30)
-  nombre              String    @db.VarChar(100)
-  apellido            String    @db.VarChar(100)
-  cargo               String    @db.VarChar(100)
-  costoHora           Decimal   @map("costo_hora") @db.Decimal(12, 2)
-  activo              Boolean   @default(true)
-  creadoEn            DateTime  @default(now()) @map("creado_en")
-  actualizadoEn       DateTime  @updatedAt @map("actualizado_en")
+  idTrabajador      Int               @id @default(autoincrement()) @map("id_trabajador")
+  rut               String            @unique @db.VarChar(12)
+  nombres           String            @db.VarChar(60)
+  apellidos         String            @db.VarChar(60)
+  cargo             CargoTrabajador
+  modalidadPago     ModalidadPago     @map("modalidad_pago")
+  tarifaBase        Decimal           @map("tarifa_base") @db.Decimal(10, 2)
+  activo            Boolean           @default(true)
 
   // Relaciones
-  jornales            Jornal[]
+  asistenciasJornal AsistenciaJornal[]
 
   @@map("trabajadores")
 }
 
-/// Tabla 10: Jornales (Mano de obra aplicada por labor)
-model Jornal {
-  id              String      @id @default(uuid()) @db.Uuid
-  idTrabajador    String      @map("id_trabajador") @db.Uuid
-  idLaborCampo    String      @map("id_labor_campo") @db.Uuid
-  horasTrabajadas Decimal     @map("horas_trabajadas") @db.Decimal(12, 2)
-  costoPorHora    Decimal     @map("costo_por_hora") @db.Decimal(12, 2)
-  costoTotal      Decimal     @map("costo_total") @db.Decimal(12, 2)
-  fecha           DateTime    @db.Date
-  creadoEn        DateTime    @default(now()) @map("creado_en")
+/// Entidad: ASISTENCIA_JORNAL (Tabla 11)
+model AsistenciaJornal {
+  idAsistencia        Int            @id @default(autoincrement()) @map("id_asistencia")
+  idTrabajador        Int            @map("id_trabajador")
+  idCiclo             Int            @map("id_ciclo")
+  idLabor             Int?           @map("id_labor")
+  fechaJornada        DateTime       @map("fecha_jornada") @db.Date
+  horasTrabajadas     Decimal        @map("horas_trabajadas") @db.Decimal(4, 2)
+  valorHoraAplicado   Decimal        @map("valor_hora_aplicado") @db.Decimal(10, 2)
+  montoDevengado      Decimal        @map("monto_devengado") @db.Decimal(10, 2)
+  estadoPago          EstadoPago     @default(PENDIENTE) @map("estado_pago")
 
   // Relaciones
-  trabajador      Trabajador  @relation(fields: [idTrabajador], references: [id], onDelete: Restrict)
-  laborCampo      LaborCampo  @relation(fields: [idLaborCampo], references: [id], onDelete: Cascade)
+  trabajador          Trabajador     @relation(fields: [idTrabajador], references: [idTrabajador], onDelete: Restrict)
+  cicloCultivo        CicloCultivo   @relation(fields: [idCiclo], references: [idCiclo], onDelete: Cascade)
+  laborAgricola       LaborAgricola? @relation(fields: [idLabor], references: [idLabor], onDelete: SetNull)
 
   @@index([idTrabajador])
-  @@index([idLaborCampo])
-  @@map("jornales")
+  @@index([idCiclo])
+  @@map("asistencias_jornal")
 }
 
-/// Tabla 11: Costos Indirectos de Fabricación y Operación
+/// Entidad: COSTO_INDIRECTO (Tabla 12 - Prorrateo de Luz, Agua, Mantención)
 model CostoIndirecto {
-  id              String        @id @default(uuid()) @db.Uuid
-  idCicloCultivo  String        @map("id_ciclo_cultivo") @db.Uuid
-  concepto        String        @db.VarChar(150)
-  monto           Decimal       @db.Decimal(12, 2)
-  fecha           DateTime      @db.Date
-  periodo         String?       @db.VarChar(50)
-  observaciones   String?       @db.Text
-  creadoEn        DateTime      @default(now()) @map("creado_en")
+  idCostoIndirecto      Int           @id @default(autoincrement()) @map("id_costo_indirecto")
+  idCiclo               Int           @map("id_ciclo")
+  tipoGasto             String        @map("tipo_gasto") @db.VarChar(50)
+  comprobanteFactura    String?       @map("comprobante_factura") @db.VarChar(50)
+  fechaImputacion       DateTime      @map("fecha_imputacion") @db.Date
+  montoTotalProrrateado Decimal       @map("monto_total_prorrateado") @db.Decimal(12, 2)
+  criterioDistribucion  String        @map("criterio_distribucion") @db.VarChar(100)
+  glosaDetalle          String?       @map("glosa_detalle") @db.Text
 
   // Relaciones
-  cicloCultivo    CicloCultivo  @relation(fields: [idCicloCultivo], references: [id], onDelete: Cascade)
+  cicloCultivo          CicloCultivo  @relation(fields: [idCiclo], references: [idCiclo], onDelete: Cascade)
 
-  @@index([idCicloCultivo])
+  @@index([idCiclo])
   @@map("costos_indirectos")
 }
 
 // ==========================================
-// 6. MODELOS: MOTOR DE COSTEO DOMINIO ($/KG)
+// 6. MODELOS: COSECHAS, VENTAS Y CLIENTES
 // ==========================================
 
-/// Tabla 12: Liquidación de Costo del Ciclo (Cálculo $/Kg)
-model LiquidacionCostoCiclo {
-  id                      String        @id @default(uuid()) @db.Uuid
-  idCicloCultivo          String        @map("id_ciclo_cultivo") @db.Uuid
-  costoTotalInsumos       Decimal       @map("costo_total_insumos") @db.Decimal(12, 2)
-  costoTotalManoObra      Decimal       @map("costo_total_mano_obra") @db.Decimal(12, 2)
-  costoTotalIndirectos    Decimal       @map("costo_total_indirectos") @db.Decimal(12, 2)
-  costoTotalGeneral       Decimal       @map("costo_total_general") @db.Decimal(12, 2)
-  kilosProducidos         Decimal       @map("kilos_producidos") @db.Decimal(12, 2)
-  costoUnitarioPorKilo    Decimal       @map("costo_unitario_por_kilo") @db.Decimal(12, 2)
-  fechaCalculo            DateTime      @default(now()) @map("fecha_calculo")
-  desgloseCostos          Json          @map("desglose_costos") @db.JsonB
-  creadoEn                DateTime      @default(now()) @map("creado_en")
+/// Entidad: COSECHA (Tabla 13)
+model Cosecha {
+  idCosecha             Int           @id @default(autoincrement()) @map("id_cosecha")
+  idCiclo               Int           @map("id_ciclo")
+  idUsuarioPesaje       Int           @map("id_usuario_pesaje")
+  fechaCosecha          DateTime      @map("fecha_cosecha") @db.Date
+  kilosNetos            Decimal       @map("kilos_netos") @db.Decimal(10, 2)
+  calidadGrado          CalidadGrado  @default(PRIMERA) @map("calidad_grado")
+  kilosDisponiblesVenta Decimal       @map("kilos_disponibles_venta") @db.Decimal(10, 2)
 
   // Relaciones
-  cicloCultivo            CicloCultivo  @relation(fields: [idCicloCultivo], references: [id], onDelete: Cascade)
+  cicloCultivo          CicloCultivo  @relation(fields: [idCiclo], references: [idCiclo], onDelete: Restrict)
+  usuarioPesaje         Usuario       @relation(fields: [idUsuarioPesaje], references: [idUsuario], onDelete: Restrict)
+  ventasDirectas        Venta[]
+  detallesVenta         DetalleVenta[]
 
-  @@index([idCicloCultivo])
-  @@map("liquidaciones_costo_ciclo")
+  @@index([idCiclo])
+  @@map("cosechas")
 }
 
-// ==========================================
-// 7. MODELOS: VENTAS, CLIENTES Y MÁRGENES
-// ==========================================
-
-/// Tabla 13: Clientes Compradores
+/// Entidad: CLIENTE (Tabla 14)
 model Cliente {
-  id              String       @id @default(uuid()) @db.Uuid
-  razonSocial     String       @map("razon_social") @db.VarChar(150)
-  rutONit         String       @unique @map("rut_o_nit") @db.VarChar(30)
-  direccion       String?      @db.VarChar(255)
-  telefono        String?      @db.VarChar(30)
-  email           String?      @db.VarChar(100)
-  activo          Boolean      @default(true)
-  creadoEn        DateTime     @default(now()) @map("creado_en")
-  actualizadoEn   DateTime     @updatedAt @map("actualizado_en")
+  idCliente       Int       @id @default(autoincrement()) @map("id_cliente")
+  rutCliente      String    @unique @map("rut_cliente") @db.VarChar(12)
+  razonSocial     String    @map("razon_social") @db.VarChar(120)
+  contactoNombre  String?   @map("contacto_nombre") @db.VarChar(80)
+  telefono        String?   @db.VarChar(20)
+  email           String?   @db.VarChar(100)
+  direccion       String?   @db.VarChar(150)
 
   // Relaciones
-  notasVenta      NotaVenta[]
+  ventas          Venta[]
 
   @@map("clientes")
 }
 
-/// Tabla 14: Notas de Venta y Márgenes Comerciales
-model NotaVenta {
-  id                String          @id @default(uuid()) @db.Uuid
-  idCliente         String          @map("id_cliente") @db.Uuid
-  idCicloCultivo    String          @map("id_ciclo_cultivo") @db.Uuid
-  numeroComprobante String          @unique @map("numero_comprobante") @db.VarChar(50)
-  fecha             DateTime        @db.Date
-  totalKilos        Decimal         @map("total_kilos") @db.Decimal(12, 2)
-  precioPorKilo     Decimal         @map("precio_por_kilo") @db.Decimal(12, 2)
-  subtotal          Decimal         @db.Decimal(12, 2)
-  impuesto          Decimal         @default(0) @db.Decimal(12, 2)
-  total             Decimal         @db.Decimal(12, 2)
-  costoEstimadoKg   Decimal         @map("costo_estimado_kg") @db.Decimal(12, 2)
-  margenBruto       Decimal         @map("margen_bruto") @db.Decimal(12, 2)
-  estado            EstadoNotaVenta @default(EMITIDA)
-  creadoEn          DateTime        @default(now()) @map("creado_en")
-  actualizadoEn     DateTime        @updatedAt @map("actualizado_en")
+/// Entidad: VENTA (Tabla 15 - Cabecera de Nota de Venta)
+model Venta {
+  idVenta               Int             @id @default(autoincrement()) @map("id_venta")
+  idCliente             Int             @map("id_cliente")
+  idCosecha             Int?            @map("id_cosecha")
+  idUsuarioVendedor     Int             @map("id_usuario_vendedor")
+  numeroNotaVenta       String          @unique @map("numero_nota_venta") @db.VarChar(30)
+  fechaVenta            DateTime        @map("fecha_venta") @db.Date
+  kilosVendidos         Decimal         @map("kilos_vendidos") @db.Decimal(10, 2)
+  precioUnitarioVenta   Decimal         @map("precio_unitario_venta") @db.Decimal(10, 2)
+  montoTotalIngreso     Decimal         @map("monto_total_ingreso") @db.Decimal(12, 2)
+  costoUnitarioCicloRef Decimal         @map("costo_unitario_ciclo_ref") @db.Decimal(12, 2)
+  margenBrutoOperativo  Decimal         @map("margen_bruto_operativo") @db.Decimal(12, 2)
+  estadoDespacho        EstadoDespacho  @default(PENDIENTE) @map("estado_despacho")
 
   // Relaciones
-  cliente           Cliente         @relation(fields: [idCliente], references: [id], onDelete: Restrict)
-  cicloCultivo      CicloCultivo    @relation(fields: [idCicloCultivo], references: [id], onDelete: Restrict)
+  cliente               Cliente         @relation(fields: [idCliente], references: [idCliente], onDelete: Restrict)
+  cosecha               Cosecha?        @relation(fields: [idCosecha], references: [idCosecha], onDelete: SetNull)
+  usuarioVendedor       Usuario         @relation(fields: [idUsuarioVendedor], references: [idUsuario], onDelete: Restrict)
+  detallesVenta         DetalleVenta[]
 
   @@index([idCliente])
-  @@index([idCicloCultivo])
-  @@map("notas_venta")
+  @@index([idCosecha])
+  @@map("ventas")
+}
+
+/// Entidad: DETALLE_VENTA (Tabla 18)
+model DetalleVenta {
+  idDetalle           Int       @id @default(autoincrement()) @map("id_detalle")
+  idVenta             Int       @map("id_venta")
+  idCosecha           Int       @map("id_cosecha")
+  kilosVendidos       Decimal   @map("kilos_vendidos") @db.Decimal(10, 2)
+  precioUnitarioVenta Decimal   @map("precio_unitario_venta") @db.Decimal(10, 2)
+  costoUnitarioRef    Decimal   @map("costo_unitario_ref") @db.Decimal(12, 2)
+  esCostoProvisorio   Boolean   @default(true) @map("es_costo_provisorio")
+  margenBruto         Decimal   @map("margen_bruto") @db.Decimal(12, 2)
+
+  // Relaciones
+  venta               Venta     @relation(fields: [idVenta], references: [idVenta], onDelete: Cascade)
+  cosecha             Cosecha   @relation(fields: [idCosecha], references: [idCosecha], onDelete: Restrict)
+
+  @@index([idVenta])
+  @@index([idCosecha])
+  @@map("detalles_venta")
 }
 
 // ==========================================
-// 8. MODELO: HISTÓRICO Y CACHÉ CLIMÁTICO
+// 7. MODELOS: METEOROLOGÍA, ALERTAS Y PROYECCIONES
 // ==========================================
 
-/// Tabla 15: Caché de Histórico de Clima (Open-Meteo REST API)
+/// Entidad: HISTORICO_CLIMA (Tabla 16 - Caché Open-Meteo)
 model HistoricoClima {
-  id                    String    @id @default(uuid()) @db.Uuid
-  latitud               Decimal   @db.Decimal(12, 6)
-  longitud              Decimal   @db.Decimal(12, 6)
-  fecha                 DateTime  @db.Date
-  temperaturaPromedio   Decimal   @map("temperatura_promedio") @db.Decimal(12, 2)
-  temperaturaMaxima     Decimal   @map("temperatura_maxima") @db.Decimal(12, 2)
-  temperaturaMinima     Decimal   @map("temperatura_minima") @db.Decimal(12, 2)
-  humedadRelativa       Decimal   @map("humedad_relativa") @db.Decimal(12, 2)
-  precipitacionMm       Decimal   @map("precipitacion_mm") @db.Decimal(12, 2)
-  velocidadVientoKmH    Decimal   @map("velocidad_viento_kmh") @db.Decimal(12, 2)
-  datosHorarios         Json?     @map("datos_horarios") @db.JsonB
-  alertasClimaticas     Json?     @map("alertas_climaticas") @db.JsonB
-  creadoEn              DateTime  @default(now()) @map("creado_en")
+  idRegistroClima             Int       @id @default(autoincrement()) @map("id_registro_clima")
+  fechaPronostico             DateTime  @unique @map("fecha_pronostico") @db.Date
+  tempMinimaC                 Decimal   @map("temp_minima_c") @db.Decimal(4, 2)
+  tempMaximaC                 Decimal   @map("temp_maxima_c") @db.Decimal(4, 2)
+  probabilidadPrecipitacionPct Decimal   @map("probabilidad_precipitacion_pct") @db.Decimal(5, 2)
+  riesgoHelada                Boolean   @default(false) @map("riesgo_helada")
+  datosMeteorologicosJsonb     Json      @map("datos_meteorologicos_jsonb") @db.JsonB
+  fechaSincronizacion         DateTime  @default(now()) @map("fecha_sincronizacion")
 
-  @@unique([latitud, longitud, fecha])
-  @@index([fecha])
+  // Relaciones
+  alertas                     Alerta[]
+
+  @@index([fechaPronostico])
   @@map("historico_clima")
+}
+
+/// Entidad: ALERTA (Tabla 19 - Preventivas de Quiebre de Stock o Heladas)
+model Alerta {
+  idAlerta        Int             @id @default(autoincrement()) @map("id_alerta")
+  tipoAlerta      TipoAlerta      @map("tipo_alerta")
+  idInsumo        Int?            @map("id_insumo")
+  idRegistroClima Int?            @map("id_registro_clima")
+  mensaje         String          @db.VarChar(200)
+  fechaEmision    DateTime        @default(now()) @map("fecha_emision")
+  estado          EstadoAlerta    @default(ABIERTA)
+
+  // Relaciones
+  insumo          Insumo?         @relation(fields: [idInsumo], references: [idInsumo], onDelete: Cascade)
+  historicoClima  HistoricoClima? @relation(fields: [idRegistroClima], references: [idRegistroClima], onDelete: Cascade)
+
+  @@index([idInsumo])
+  @@index([idRegistroClima])
+  @@map("alertas")
+}
+
+/// Entidad: PROYECCION_CICLO (Tabla 20 - Inferencia y Machine Learning)
+model ProyeccionCiclo {
+  idProyeccion           Int                  @id @default(autoincrement()) @map("id_proyeccion")
+  idCiclo                Int                  @map("id_ciclo")
+  fechaCalculo           DateTime             @default(now()) @map("fecha_calculo")
+  rendimientoKgEstimado  Decimal              @map("rendimiento_kg_estimado") @db.Decimal(10, 2)
+  costoCierreEstimado    Decimal              @map("costo_cierre_estimado") @db.Decimal(12, 2)
+  nivelRiesgoClimatico   NivelRiesgoClimatico @map("nivel_riesgo_climatico")
+  versionModelo          String               @map("version_modelo") @db.VarChar(20)
+
+  // Relaciones
+  cicloCultivo           CicloCultivo         @relation(fields: [idCiclo], references: [idCiclo], onDelete: Cascade)
+
+  @@index([idCiclo])
+  @@map("proyecciones_ciclo")
 }
