@@ -1,0 +1,209 @@
+import { Component, inject, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ErpDataService } from '../../core/services/erp-data.service';
+import { AuthService } from '../../core/services/auth.service';
+
+@Component({
+  selector: 'app-pesaje-cosecha',
+  standalone: true,
+  imports: [CommonModule, ReactiveFormsModule],
+  template: `
+    <div class="space-y-6 max-w-4xl mx-auto">
+      <!-- Encabezado -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-2xl">🧺</span>
+            <h2 class="text-xl font-bold text-slate-800">Pesaje de Cosecha al Pie de Nave (HU03)</h2>
+          </div>
+          <p class="text-xs sm:text-sm text-slate-500 mt-1">
+            Registro inmediato de Kilos Netos cosechados y clasificación por grado de calidad.
+          </p>
+        </div>
+        <div class="text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-xl font-semibold">
+          Total Cosechado: <strong>{{ totalKgTemporada | number }} Kg</strong>
+        </div>
+      </div>
+
+      <!-- Alerta de Éxito -->
+      <div *ngIf="mensajeExito()" class="p-4 bg-emerald-50 border border-emerald-300 text-emerald-800 text-sm rounded-xl flex items-center justify-between">
+        <span class="font-bold">✓ {{ mensajeExito() }}</span>
+        <button (click)="mensajeExito.set(null)" class="text-emerald-700 font-bold">✕</button>
+      </div>
+
+      <!-- Formulario de Pesaje -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs">
+        <form [formGroup]="cosechaForm" (ngSubmit)="onSubmitCosecha()" class="space-y-5">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <!-- Ciclo Activo -->
+            <div>
+              <label class="block text-xs font-bold text-slate-800 uppercase tracking-wide mb-1.5">
+                Ciclo de Cultivo Origen *
+              </label>
+              <select
+                formControlName="id_ciclo"
+                class="w-full p-3 text-sm rounded-xl border-2 border-slate-300 bg-white font-medium focus:border-emerald-600 focus:outline-none touch-target">
+                <option value="" disabled>Seleccione el ciclo...</option>
+                <option *ngFor="let c of erpService.ciclosActivos()" [value]="c.id_ciclo">
+                  Ciclo #{{ c.id_ciclo }}: {{ c.variedad }} &bull; Nave #{{ c.id_nave }}
+                </option>
+              </select>
+            </div>
+
+            <!-- Fecha -->
+            <div>
+              <label class="block text-xs font-bold text-slate-800 uppercase tracking-wide mb-1.5">
+                Fecha del Pesaje *
+              </label>
+              <input
+                type="date"
+                formControlName="fecha_cosecha"
+                class="w-full p-3 text-sm rounded-xl border-2 border-slate-300 font-medium focus:border-emerald-600 focus:outline-none touch-target"
+              />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <!-- Kilos Netos -->
+            <div>
+              <label class="block text-xs font-bold text-slate-800 uppercase tracking-wide mb-1.5">
+                Kilos Netos Cosechados (Báscula) *
+              </label>
+              <div class="relative">
+                <input
+                  type="number"
+                  step="1"
+                  min="1"
+                  formControlName="kilos_netos"
+                  placeholder="ej. 2500"
+                  class="w-full p-3 text-base font-mono font-bold rounded-xl border-2 border-slate-300 focus:border-emerald-600 focus:outline-none touch-target"
+                />
+                <span class="absolute right-3.5 top-3.5 text-xs font-bold text-slate-400">KG</span>
+              </div>
+              <span class="text-[11px] text-slate-500 mt-1 block">Fórmula: actualiza acumulado del ciclo e incide en $/Kg.</span>
+            </div>
+
+            <!-- Grado de Calidad -->
+            <div>
+              <label class="block text-xs font-bold text-slate-800 uppercase tracking-wide mb-1.5">
+                Clasificación de Calidad *
+              </label>
+              <div class="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  *ngFor="let cal of calidades"
+                  (click)="cosechaForm.patchValue({ calidad_grado: cal })"
+                  [class]="cosechaForm.get('calidad_grado')?.value === cal ? getBotonCalidadActivo(cal) : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200'"
+                  class="p-3 text-xs font-bold rounded-xl border text-center transition-all touch-target">
+                  {{ cal }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Botón de Envío -->
+          <button
+            type="submit"
+            [disabled]="cosechaForm.invalid"
+            class="w-full p-4 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 text-white font-bold text-base rounded-2xl shadow-md transition-all touch-target flex items-center justify-center gap-2">
+            <span>⚖️</span>
+            <span>Registrar Pesaje de Cosecha</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Tabla de Lotes Cosechados -->
+      <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+        <div class="p-4 bg-slate-50 border-b border-slate-200 font-bold text-xs uppercase text-slate-600">
+          Lotes Cosechados Recientes
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs sm:text-sm">
+            <thead>
+              <tr class="bg-slate-100 border-b border-slate-200 text-slate-600 font-semibold text-xs uppercase">
+                <th class="p-3">ID Lote</th>
+                <th class="p-3">Ciclo de Origen</th>
+                <th class="p-3">Fecha</th>
+                <th class="p-3">Kilos Netos</th>
+                <th class="p-3">Calidad</th>
+                <th class="p-3">Kilos Disp. Venta</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr *ngFor="let c of erpService.cosechas()" class="hover:bg-slate-50">
+                <td class="p-3 font-mono font-bold text-slate-800">#COS-{{ c.id_cosecha }}</td>
+                <td class="p-3 text-slate-700 font-medium">Ciclo #{{ c.id_ciclo }}</td>
+                <td class="p-3 text-slate-600">{{ c.fecha_cosecha }}</td>
+                <td class="p-3 font-bold text-slate-900">{{ c.kilos_netos | number }} Kg</td>
+                <td class="p-3">
+                  <span [class]="getBadgeCalidad(c.calidad_grado)" class="px-2 py-0.5 rounded-full text-xs font-bold border">
+                    {{ c.calidad_grado }}
+                  </span>
+                </td>
+                <td class="p-3 font-mono font-bold text-emerald-700">
+                  {{ c.kilos_disponibles_venta | number }} Kg
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `
+})
+export class PesajeCosechaComponent {
+  readonly erpService = inject(ErpDataService);
+  readonly authService = inject(AuthService);
+  private readonly fb = inject(FormBuilder);
+
+  readonly mensajeExito = signal<string | null>(null);
+  readonly calidades = ['PRIMERA', 'SEGUNDA', 'DESCARTE'];
+
+  readonly cosechaForm: FormGroup = this.fb.group({
+    id_ciclo: ['', [Validators.required]],
+    fecha_cosecha: [new Date().toISOString().split('T')[0], [Validators.required]],
+    kilos_netos: [1500, [Validators.required, Validators.min(1)]],
+    calidad_grado: ['PRIMERA', [Validators.required]]
+  });
+
+  get totalKgTemporada(): number {
+    return this.erpService.cosechas().reduce((acc, c) => acc + c.kilos_netos, 0);
+  }
+
+  getBotonCalidadActivo(cal: string): string {
+    switch (cal) {
+      case 'PRIMERA': return 'bg-emerald-700 text-white border-emerald-800 font-bold';
+      case 'SEGUNDA': return 'bg-amber-600 text-white border-amber-700 font-bold';
+      case 'DESCARTE': return 'bg-rose-700 text-white border-rose-800 font-bold';
+      default: return 'bg-slate-800 text-white';
+    }
+  }
+
+  getBadgeCalidad(cal: string): string {
+    switch (cal) {
+      case 'PRIMERA': return 'bg-emerald-50 text-emerald-800 border-emerald-200';
+      case 'SEGUNDA': return 'bg-amber-50 text-amber-800 border-amber-200';
+      case 'DESCARTE': return 'bg-rose-50 text-rose-800 border-rose-200';
+      default: return 'bg-slate-100 text-slate-700 border-slate-200';
+    }
+  }
+
+  onSubmitCosecha(): void {
+    if (this.cosechaForm.invalid) return;
+
+    const val = this.cosechaForm.value;
+    const currentUser = this.authService.currentUser();
+
+    this.erpService.registrarCosecha({
+      id_ciclo: Number(val.id_ciclo),
+      fecha_cosecha: val.fecha_cosecha,
+      kilos_netos: Number(val.kilos_netos),
+      calidad_grado: val.calidad_grado,
+      id_usuario_pesaje: currentUser?.id_usuario || 2
+    });
+
+    this.mensajeExito.set(`Pesaje de ${val.kilos_netos} Kg registrado exitosamente.`);
+    this.cosechaForm.patchValue({ kilos_netos: null });
+  }
+}

@@ -1,159 +1,136 @@
-<div class="login-page">
-  <div class="login-container">
-    <!-- Header de la tarjeta -->
-    <div class="brand-header">
-      <div class="logo-badge">
-        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2a10 10 0 0 1 10 10c0 5.25-3.75 9-10 9a10 10 0 0 1-10-10C2 5.75 5.75 2 12 2Z"></path>
-          <path d="M12 6v6l4 2"></path>
-          <path d="M7 16c2-1 4-1 6 0"></path>
-          <path d="M9 12c1.5-.5 3-.5 4.5 0"></path>
-        </svg>
+<div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-950 p-4 sm:p-6">
+  <div class="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-100">
+    <!-- Brand Header -->
+    <div class="text-center mb-6">
+      <div class="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-emerald-600 to-green-500 rounded-2xl text-white shadow-lg shadow-emerald-600/30 mb-3 text-2xl font-black">
+        🌾
       </div>
-      <h1 class="brand-title">PredIA</h1>
-      <p class="brand-subtitle">Plataforma de Inteligencia y Gestión Agrícola</p>
+      <h1 class="text-2xl font-black text-slate-900 tracking-tight flex items-center justify-center gap-1.5">
+        <span>PredIA</span>
+        <span class="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-mono font-bold">ERP</span>
+      </h1>
+      <p class="text-xs text-slate-500 font-medium mt-1">
+        Sistema de Gestión Agrícola Predictiva &bull; Santa Laura Ltda.
+      </p>
     </div>
 
     <!-- Selector de Backend API -->
-    <div class="api-selector-box">
-      <div class="api-selector-header">
-        <span class="api-label">Servidor Backend:</span>
-        <span class="status-indicator online"></span>
+    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 mb-5">
+      <div class="flex items-center justify-between text-[11px] font-bold text-slate-500 mb-2">
+        <span>SERVIDOR API:</span>
+        <span class="flex items-center gap-1 text-emerald-600 font-semibold">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+          <span>Online</span>
+        </span>
       </div>
-      <div class="api-buttons">
+      <div class="grid grid-cols-2 gap-2">
         <button
           type="button"
-          class="api-chip"
-          [class.active]="authService.baseUrl() === urlRender"
           (click)="cambiarEntornoApi(urlRender)"
-          title="Backend en la nube (Render)">
-          ☁️ Producción (Render)
+          [class]="authService.baseUrl() === urlRender ? 'bg-emerald-700 text-white font-bold shadow-xs' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'"
+          class="py-1.5 px-2 text-xs rounded-xl transition-all">
+          ☁️ Render (Nube)
         </button>
         <button
           type="button"
-          class="api-chip"
-          [class.active]="authService.baseUrl() === urlLocal"
           (click)="cambiarEntornoApi(urlLocal)"
-          title="Backend local (localhost:3000)">
+          [class]="authService.baseUrl() === urlLocal ? 'bg-emerald-700 text-white font-bold shadow-xs' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'"
+          class="py-1.5 px-2 text-xs rounded-xl transition-all">
           💻 Local (3000)
         </button>
       </div>
-      <div class="api-url-preview">
-        <code>{{ authService.baseUrl() }}</code>
+    </div>
+
+    <!-- Alerta de Error -->
+    <div *ngIf="mensajeError()" class="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-rose-800 text-xs mb-5 flex items-start gap-2.5">
+      <span class="text-base">⚠️</span>
+      <div class="flex-1">
+        <span *ngIf="!esArray(mensajeError())">{{ mensajeError() }}</span>
+        <ul *ngIf="esArray(mensajeError())" class="list-disc pl-4 space-y-1">
+          <li *ngFor="let msg of obtenerListaErrores(mensajeError())">{{ msg }}</li>
+        </ul>
       </div>
     </div>
 
-    <!-- Alerta de Errores -->
-    @if (mensajeError()) {
-      <div class="alert alert-danger" role="alert">
-        <div class="alert-icon">⚠️</div>
-        <div class="alert-content">
-          @if (esArray(mensajeError())) {
-            <ul class="error-list">
-              @for (msg of obtenerListaErrores(mensajeError()); track $index) {
-                <li>{{ msg }}</li>
-              }
-            </ul>
-          } @else {
-            <p>{{ mensajeError() }}</p>
-          }
-        </div>
-      </div>
-    }
-
-    <!-- Formulario de Autenticación -->
-    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form" novalidate>
-      <!-- Campo Email -->
-      <div class="form-group">
-        <label for="email" class="form-label">Correo Electrónico</label>
-        <div class="input-wrapper" [class.has-error]="emailInvalido">
-          <span class="input-icon">✉️</span>
+    <!-- Formulario de Inicio de Sesión -->
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="space-y-4">
+      <div>
+        <label for="email" class="block text-xs font-bold text-slate-800 uppercase tracking-wide mb-1">
+          Correo Electrónico
+        </label>
+        <div class="relative">
+          <span class="absolute left-3.5 top-3.5 text-slate-400">✉️</span>
           <input
             id="email"
             type="email"
             formControlName="email"
-            class="form-input"
-            placeholder="ejemplo@predia.cl"
-            autocomplete="email"
+            class="w-full pl-10 pr-3.5 py-3 text-sm rounded-xl border-2 border-slate-200 focus:border-emerald-600 focus:outline-none transition-colors"
+            placeholder="usuario&#64;predia.cl"
           />
         </div>
-        @if (emailInvalido) {
-          <div class="validation-message">
-            @if (loginForm.get('email')?.hasError('required')) {
-              <span>El correo es obligatorio.</span>
-            } @else if (loginForm.get('email')?.hasError('email')) {
-              <span>Ingresa un correo electrónico con formato válido.</span>
-            }
-          </div>
-        }
+        <div *ngIf="emailInvalido" class="text-rose-600 text-xs mt-1 font-medium">
+          Ingresa un correo electrónico con formato válido.
+        </div>
       </div>
 
-      <!-- Campo Contraseña -->
-      <div class="form-group">
-        <label for="password" class="form-label">Contraseña</label>
-        <div class="input-wrapper" [class.has-error]="passwordInvalido">
-          <span class="input-icon">🔒</span>
+      <div>
+        <label for="password" class="block text-xs font-bold text-slate-800 uppercase tracking-wide mb-1">
+          Contraseña
+        </label>
+        <div class="relative">
+          <span class="absolute left-3.5 top-3.5 text-slate-400">🔒</span>
           <input
             id="password"
             [type]="mostrarPassword() ? 'text' : 'password'"
             formControlName="password"
-            class="form-input"
+            class="w-full pl-10 pr-10 py-3 text-sm rounded-xl border-2 border-slate-200 focus:border-emerald-600 focus:outline-none transition-colors font-mono"
             placeholder="••••••••"
-            autocomplete="current-password"
           />
           <button
             type="button"
-            class="btn-toggle-password"
             (click)="alternarMostrarPassword()"
-            title="Mostrar/Ocultar contraseña"
-            tabindex="-1">
+            class="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 text-sm">
             {{ mostrarPassword() ? '🙈' : '👁️' }}
           </button>
         </div>
-        @if (passwordInvalido) {
-          <div class="validation-message">
-            @if (loginForm.get('password')?.hasError('required')) {
-              <span>La contraseña es obligatoria.</span>
-            } @else if (loginForm.get('password')?.hasError('minlength')) {
-              <span>La contraseña debe contener al menos 6 caracteres.</span>
-            }
-          </div>
-        }
+        <div *ngIf="passwordInvalido" class="text-rose-600 text-xs mt-1 font-medium">
+          La contraseña debe tener mínimo 6 caracteres.
+        </div>
       </div>
 
-      <!-- Botón de Inicio de Sesión -->
       <button
         type="submit"
-        class="btn-submit"
-        [disabled]="cargando()">
-        @if (cargando()) {
-          <span class="spinner"></span>
-          <span>Autenticando...</span>
-        } @else {
-          <span>Ingresar a la Plataforma</span>
-        }
+        [disabled]="cargando()"
+        class="w-full py-3.5 px-4 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-bold text-sm rounded-xl shadow-md transition-all touch-target flex items-center justify-center gap-2">
+        <span *ngIf="cargando()" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+        <span>{{ cargando() ? 'Autenticando...' : 'Iniciar Sesión con Backend' }}</span>
       </button>
-
-      <!-- Botón de Carga Rápida de Credenciales de Prueba -->
-      <div class="demo-credentials-box">
-        <div class="demo-header">
-          <span class="demo-tag">Acceso Rápido de Prueba</span>
-          <button
-            type="button"
-            class="btn-demo"
-            (click)="cargarCredencialesDemo()">
-            ⚡ Usar credenciales demo
-          </button>
-        </div>
-        <div class="demo-details">
-          <code>admin&#64;predia.cl</code> &bull; <code>Rol: ADMINISTRADOR</code>
-        </div>
-      </div>
     </form>
 
+    <!-- SECCIÓN DEMO RBAC: ACCESO RÁPIDO PARA EVALUACIÓN INACAP -->
+    <div class="mt-6 pt-5 border-t border-slate-100">
+      <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2 text-center">
+        ⚡ Acceso Rápido por Rol (Evaluación INACAP)
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          *ngFor="let item of rolesDemo"
+          (click)="ingresarConRolDemo(item.rol)"
+          [class]="item.color"
+          class="p-2.5 rounded-xl border text-left transition-all touch-target flex items-start gap-2 bg-slate-50/50">
+          <span class="text-lg leading-tight">{{ item.icono }}</span>
+          <div>
+            <div class="text-xs font-bold leading-tight">{{ item.label }}</div>
+            <div class="text-[10px] text-slate-500 truncate mt-0.5">{{ item.desc }}</div>
+          </div>
+        </button>
+      </div>
+    </div>
+
     <!-- Footer -->
-    <div class="login-footer">
-      <p>&copy; 2026 PredIA &bull; Monolito Modular con NestJS & Angular</p>
+    <div class="text-center mt-6 text-[11px] text-slate-400">
+      Proyecto de Integración &bull; INACAP 2026
     </div>
   </div>
 </div>

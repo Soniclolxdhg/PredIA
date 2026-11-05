@@ -3,13 +3,13 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { RolUsuario } from '../../../core/models/enum.types';
 
 @Component({
   selector: 'app-login',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
-  templateUrl: './login.component.html',
-  styleUrl: './login.component.css'
+  templateUrl: './login.component.html'
 })
 export class LoginComponent {
   private readonly fb = inject(FormBuilder);
@@ -18,8 +18,8 @@ export class LoginComponent {
   private readonly route = inject(ActivatedRoute);
 
   readonly loginForm: FormGroup = this.fb.group({
-    email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(6)]]
+    email: ['admin@predia.cl', [Validators.required, Validators.email]],
+    password: ['AdminPredIA2026!', [Validators.required, Validators.minLength(6)]]
   });
 
   readonly cargando = signal(false);
@@ -29,6 +29,13 @@ export class LoginComponent {
   // URLs disponibles para alternar
   readonly urlRender = 'https://predia-backend.onrender.com/api';
   readonly urlLocal = 'http://localhost:3000/api';
+
+  readonly rolesDemo: { rol: RolUsuario; icono: string; label: string; desc: string; color: string }[] = [
+    { rol: 'ADMINISTRADOR', icono: '👑', label: 'Administrador', desc: 'Acceso Total al Sistema', color: 'border-purple-300 hover:bg-purple-50 text-purple-900' },
+    { rol: 'AGRONOMO', icono: '🌱', label: 'Agrónomo', desc: 'Producción, Labores y Clima', color: 'border-emerald-300 hover:bg-emerald-50 text-emerald-900' },
+    { rol: 'BODEGUERO', icono: '📦', label: 'Bodeguero', desc: 'Insumos, Kardex y Mermas', color: 'border-amber-300 hover:bg-amber-50 text-amber-900' },
+    { rol: 'GERENTE', icono: '📊', label: 'Gerente General', desc: 'Dashboard $/Kg y Ventas', color: 'border-blue-300 hover:bg-blue-50 text-blue-900' }
+  ];
 
   esArray(val: unknown): boolean {
     return Array.isArray(val);
@@ -43,16 +50,12 @@ export class LoginComponent {
     this.mostrarPassword.update((v) => !v);
   }
 
-  cargarCredencialesDemo(): void {
-    this.loginForm.patchValue({
-      email: 'admin@predia.cl',
-      password: 'AdminPredIA2026!'
-    });
-    this.mensajeError.set(null);
-  }
-
   cambiarEntornoApi(url: string): void {
     this.authService.setBaseUrl(url);
+  }
+
+  ingresarConRolDemo(rol: RolUsuario): void {
+    this.authService.switchDemoRole(rol);
   }
 
   onSubmit(): void {
@@ -80,7 +83,7 @@ export class LoginComponent {
           this.mensajeError.set('Credenciales inválidas o cuenta desactivada.');
         } else if (err.status === 0) {
           this.mensajeError.set(
-            'No fue posible comunicarse con el backend. Verifica tu conexión de red o el servicio en Render.'
+            'No fue posible comunicarse con el backend en Render (posible suspensión por inactividad). Puedes usar los botones de acceso demo directo o verificar tu conexión.'
           );
         } else {
           this.mensajeError.set('Ocurrió un error inesperado al intentar autenticar.');

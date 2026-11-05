@@ -1,14 +1,8 @@
-export type RolUsuario = 'ADMINISTRADOR' | 'AGRONOMO' | 'BODEGUERO' | 'GERENTE';
+import { RolUsuario } from './enum.types';
+import { Usuario } from './erp.models';
 
-export interface UsuarioSesion {
-  idUsuario: number;
-  nombreCompleto: string;
-  email: string;
-  rut: string;
-  rol: RolUsuario;
-  activo?: boolean;
-  fechaCreacion?: string;
-}
+export * from './enum.types';
+export * from './erp.models';
 
 export interface LoginRequest {
   email: string;
@@ -17,7 +11,16 @@ export interface LoginRequest {
 
 export interface LoginResponse {
   accessToken: string;
-  usuario: UsuarioSesion;
+  usuario: {
+    idUsuario?: number;
+    id_usuario?: number;
+    nombreCompleto?: string;
+    nombre_completo?: string;
+    email: string;
+    rut: string;
+    rol: RolUsuario;
+    activo?: boolean;
+  };
 }
 
 export interface ErrorApi {
@@ -25,4 +28,3 @@ export interface ErrorApi {
   message: string | string[];
   error?: string;
 }
-

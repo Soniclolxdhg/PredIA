@@ -1,163 +1,200 @@
-<div class="dashboard-page">
-  <!-- Barra de Navegación Superior -->
-  <header class="topbar">
-    <div class="topbar-brand">
-      <div class="brand-icon">🌱</div>
-      <div class="brand-info">
-        <span class="brand-name">PredIA</span>
-        <span class="brand-tag">Gestión Agrícola</span>
+<div class="space-y-6">
+  <!-- Encabezado de Bienvenida y Estado del Sistema -->
+  <div class="bg-gradient-to-r from-emerald-800 via-emerald-700 to-green-900 text-white p-6 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div>
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-bold uppercase tracking-wider text-emerald-300 bg-white/10 px-2 py-0.5 rounded">
+          Santa Laura Ltda. &bull; Temporada 2026
+        </span>
+      </div>
+      <h2 class="text-2xl font-black tracking-tight mt-1">
+        Dashboard Ejecutivo & Inteligencia Agrícola
+      </h2>
+      <p class="text-xs sm:text-sm text-emerald-100 mt-1">
+        Sesión: <strong>{{ authService.currentUser()?.nombre_completo }}</strong> &bull; Rol: <strong>{{ authService.userRole() }}</strong>
+      </p>
+    </div>
+
+    <!-- Indicador de Alerta Rápida -->
+    <div class="flex flex-wrap gap-2.5 self-start md:self-auto">
+      <div
+        *ngIf="weatherService.alertaHeladaActiva()"
+        class="bg-rose-500 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 animate-pulse shadow-sm">
+        <span>❄️</span>
+        <span>ALERTA HELADA &lt;2°C</span>
+      </div>
+
+      <div
+        *ngIf="erpService.insumosCriticos().length > 0"
+        class="bg-amber-400 text-slate-950 px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm">
+        <span>⚠️</span>
+        <span>{{ erpService.insumosCriticos().length }} Insumos Críticos</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ALERTA PREVENTIVA DE HELADA (HU12) -->
+  <div
+    *ngIf="weatherService.alertaHeladaActiva()"
+    class="bg-rose-600 text-white p-4 sm:p-5 rounded-2xl shadow-md flex items-center justify-between gap-3">
+    <div class="flex items-center gap-3">
+      <span class="text-3xl">❄️</span>
+      <div>
+        <span class="text-xs font-bold uppercase tracking-wider text-rose-200">Alerta Preventiva de Helada (HU12)</span>
+        <div class="text-sm sm:text-base font-black">Pronóstico detecta temperatura mínima menor a 2°C</div>
+        <div class="text-xs text-rose-100">Se recomienda cerrar cortinas térmicas y activar calefactores en naves.</div>
+      </div>
+    </div>
+    <a
+      routerLink="/clima"
+      class="px-3.5 py-2 bg-white text-rose-700 hover:bg-rose-50 text-xs font-bold rounded-xl transition-colors whitespace-nowrap">
+      Ver Agroclima &rarr;
+    </a>
+  </div>
+
+  <!-- 4 KPI CARDS GERENCIALES -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <!-- 1. Costo Promedio $/Kg -->
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:shadow-md transition-shadow">
+      <div class="flex items-center justify-between text-xs font-bold text-slate-500 mb-1">
+        <span>COSTO UNITARIO $/KG</span>
+        <span class="text-emerald-700 font-mono text-sm">💲</span>
+      </div>
+      <div class="text-2xl font-black font-mono text-slate-900">
+        \${{ erpService.kpisFinancieros().costoPromedioKg }}
+      </div>
+      <div class="text-xs text-emerald-700 font-semibold mt-1 flex items-center gap-1">
+        <span>✓</span>
+        <span>Meta de costeo: &lt; \${{ 500 }}/Kg</span>
       </div>
     </div>
 
-    <!-- Perfil del Usuario Activo -->
-    <div class="topbar-user">
-      <div class="user-meta">
-        <span class="user-name">{{ authService.currentUser()?.nombreCompleto }}</span>
-        <span class="user-email">{{ authService.currentUser()?.email }}</span>
+    <!-- 2. Producción Total Cosechada -->
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:shadow-md transition-shadow">
+      <div class="flex items-center justify-between text-xs font-bold text-slate-500 mb-1">
+        <span>PRODUCCIÓN TOTAL (KG)</span>
+        <span class="text-blue-700 font-mono text-sm">🧺</span>
       </div>
-      <span class="role-badge" [attr.data-role]="authService.currentUser()?.rol">
-        {{ authService.currentUser()?.rol }}
-      </span>
-      <button type="button" class="btn-logout" (click)="logout()" title="Cerrar Sesión">
-        <span>🚪</span>
-        <span class="logout-text">Salir</span>
+      <div class="text-2xl font-black font-mono text-slate-900">
+        {{ erpService.kpisFinancieros().totalKgCosechados | number }} <span class="text-xs font-normal text-slate-500">Kg</span>
+      </div>
+      <div class="text-xs text-slate-500 mt-1">
+        Acumulado en {{ erpService.ciclos().length }} ciclos de cultivo
+      </div>
+    </div>
+
+    <!-- 3. Ventas Totales ($) -->
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:shadow-md transition-shadow">
+      <div class="flex items-center justify-between text-xs font-bold text-slate-500 mb-1">
+        <span>VENTAS TOTALES ($)</span>
+        <span class="text-purple-700 font-mono text-sm">📈</span>
+      </div>
+      <div class="text-2xl font-black font-mono text-slate-900">
+        \${{ erpService.kpisFinancieros().totalVentasMonto | number }}
+      </div>
+      <div class="text-xs text-purple-700 font-semibold mt-1">
+        {{ erpService.ventas().length }} notas de venta facturadas
+      </div>
+    </div>
+
+    <!-- 4. Margen Bruto Promedio -->
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:shadow-md transition-shadow">
+      <div class="flex items-center justify-between text-xs font-bold text-slate-500 mb-1">
+        <span>MARGEN OPERATIVO BRUTO</span>
+        <span class="text-emerald-700 font-mono text-sm">📊</span>
+      </div>
+      <div class="text-2xl font-black font-mono text-emerald-700">
+        {{ erpService.kpisFinancieros().margenPorcentaje }}%
+      </div>
+      <div class="text-xs text-slate-500 mt-1">
+        Margen bruto: +\${{ erpService.kpisFinancieros().margenBrutoTotal | number }}
+      </div>
+    </div>
+  </div>
+
+  <!-- GRÁFICOS CHART.JS -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Gráfico de Barras: Costos vs Ingresos -->
+    <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-xs">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="font-bold text-slate-800 text-sm sm:text-base">Comparativo: Costos vs. Ingresos por Ciclo</h3>
+          <p class="text-xs text-slate-500">Monto acumulado por ciclo de cultivo ($ CLP)</p>
+        </div>
+        <span class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded font-mono font-bold">Chart.js</span>
+      </div>
+      <div class="relative h-64 sm:h-72 w-full">
+        <canvas #barChartCanvas></canvas>
+      </div>
+    </div>
+
+    <!-- Gráfico de Líneas: Rendimiento de Kilos por Nave -->
+    <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-xs">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="font-bold text-slate-800 text-sm sm:text-base">Evolución de Rendimiento Cosechado por Nave</h3>
+          <p class="text-xs text-slate-500">Volumen en Kilos Netos generados en la temporada</p>
+        </div>
+        <span class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded font-mono font-bold">Chart.js</span>
+      </div>
+      <div class="relative h-64 sm:h-72 w-full">
+        <canvas #lineChartCanvas></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- WIDGET AGROCLIMÁTICO (HU11, HU12) -->
+  <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-xs">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-100">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="text-xl">⛅</span>
+          <h3 class="font-bold text-slate-800 text-sm sm:text-base">Widget Agroclimático Predictivo (7 Días)</h3>
+        </div>
+        <p class="text-xs text-slate-500">Conectado a Open-Meteo REST API &bull; Detección automática de heladas</p>
+      </div>
+      <a
+        routerLink="/clima"
+        class="text-xs font-bold text-emerald-700 hover:text-emerald-900 self-start sm:self-auto">
+        Ver Estación Completa &rarr;
+      </a>
+    </div>
+
+    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
+      <div
+        *ngFor="let dia of weatherService.pronostico7Dias()"
+        [class]="dia.riesgo_helada ? 'bg-rose-50 border-rose-300' : 'bg-slate-50 border-slate-200'"
+        class="p-3 rounded-xl border text-center flex flex-col justify-between">
+        <div class="text-[11px] font-bold text-slate-500 uppercase">{{ formatearDia(dia.fecha_pronostico) }}</div>
+        <div class="text-xl my-1">{{ dia.riesgo_helada ? '❄️' : '⛅' }}</div>
+        <div class="text-xs font-mono font-bold" [class.text-rose-600]="dia.temp_minima_c < 2">
+          {{ dia.temp_minima_c }}° / {{ dia.temp_maxima_c }}°
+        </div>
+        <div class="text-[10px] text-slate-400 mt-0.5">Lluvia: {{ dia.probabilidad_precipitacion_pct }}%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROBADOR DEL TOKEN JWT (BACKEND RENDER / LOCAL) -->
+  <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+    <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center gap-2">
+        <span class="text-lg">🔐</span>
+        <h4 class="text-sm font-bold text-slate-800">Verificador de Token JWT con Backend Real</h4>
+      </div>
+      <button
+        type="button"
+        (click)="testToken()"
+        class="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800">
+        🔄 Probar GET /auth/perfil
       </button>
     </div>
-  </header>
+    <p class="text-xs text-slate-500 mb-3">
+      Servidor activo: <code>{{ authService.baseUrl() }}</code> &bull; Envía cabecera <code>Authorization: Bearer &lt;token&gt;</code>.
+    </p>
 
-  <!-- Contenido Principal -->
-  <main class="dashboard-content">
-    <!-- Banner de Bienvenida -->
-    <section class="welcome-card">
-      <div class="welcome-text">
-        <h2>Bienvenido, {{ authService.currentUser()?.nombreCompleto }} 👋</h2>
-        <p>
-          Sesión iniciada correctamente. El sistema está operando contra el servidor:
-          <strong><code>{{ authService.baseUrl() }}</code></strong>
-        </p>
-      </div>
-      <div class="user-quick-stats">
-        <div class="stat-item">
-          <span class="stat-label">ID Usuario</span>
-          <span class="stat-value">#{{ authService.currentUser()?.idUsuario }}</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-label">RUT</span>
-          <span class="stat-value">{{ authService.currentUser()?.rut }}</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-label">Rol Asignado</span>
-          <span class="stat-value">{{ authService.currentUser()?.rol }}</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- Sección Interactiva: Verificador del Endpoint Protegido /auth/perfil -->
-    <section class="token-tester-card">
-      <div class="card-header">
-        <div class="header-title">
-          <span class="badge-endpoint">GET</span>
-          <h3>Prueba de Ruta Protegida: <code>/auth/perfil</code></h3>
-        </div>
-        <div class="header-actions">
-          <button
-            type="button"
-            class="btn-action btn-copy"
-            (click)="copiarToken()">
-            {{ tokenCopiado() ? '✓ Token Copiado!' : '📋 Copiar Token JWT' }}
-          </button>
-          <button
-            type="button"
-            class="btn-action btn-refresh"
-            [disabled]="perfilCargando()"
-            (click)="probarEndpointPerfil()">
-            @if (perfilCargando()) {
-              <span class="inline-spinner"></span>
-              <span>Consultando...</span>
-            } @else {
-              <span>🔄 Re-ejecutar Petición</span>
-            }
-          </button>
-        </div>
-      </div>
-
-      <div class="tester-body">
-        <div class="request-info">
-          <div class="info-row">
-            <span class="info-label">URL del Endpoint:</span>
-            <code>{{ authService.baseUrl() }}/auth/perfil</code>
-          </div>
-          <div class="info-row">
-            <span class="info-label">Header Enviado:</span>
-            <code class="token-header">Authorization: Bearer {{ authService.getToken() | slice:0:35 }}...</code>
-          </div>
-        </div>
-
-        @if (perfilError()) {
-          <div class="alert alert-danger">
-            <strong>Error:</strong> {{ perfilError() }}
-          </div>
-        }
-
-        @if (perfilData()) {
-          <div class="response-container">
-            <div class="response-header">
-              <span class="status-code status-200">200 OK</span>
-              <span class="response-label">Respuesta del Backend (JSON):</span>
-            </div>
-            <pre class="json-viewer"><code>{{ getObjetoJson(perfilData()) }}</code></pre>
-          </div>
-        }
-      </div>
-    </section>
-
-    <!-- Módulos de PredIA en Construcción -->
-    <section class="modules-overview">
-      <h3 class="section-title">Módulos del Monolito Modular PredIA</h3>
-      <div class="modules-grid">
-        <div class="module-card">
-          <div class="module-icon">🏡</div>
-          <h4>Producción & Naves</h4>
-          <p>Gestión de invernaderos, ciclos de cultivo activo y programación de labores de campo.</p>
-          <span class="module-status active">Módulo Backend Listo</span>
-        </div>
-
-        <div class="module-card">
-          <div class="module-icon">📦</div>
-          <h4>Inventario & Kardex</h4>
-          <p>Control de insumos (fertilizantes, semillas), movimientos de almacén y registro de mermas.</p>
-          <span class="module-status active">Módulo Backend Listo</span>
-        </div>
-
-        <div class="module-card">
-          <div class="module-icon">👷</div>
-          <h4>Jornales & Mano de Obra</h4>
-          <p>Personal de campo, tarifas hora trabajada, asignación a labores y costos indirectos.</p>
-          <span class="module-status active">Módulo Backend Listo</span>
-        </div>
-
-        <div class="module-card">
-          <div class="module-icon">⚖️</div>
-          <h4>Motor de Costeo</h4>
-          <p>Cálculo analítico del costo unitario real en $/Kg por nave y ciclo productivo.</p>
-          <span class="module-status active">Módulo Backend Listo</span>
-        </div>
-
-        <div class="module-card">
-          <div class="module-icon">📈</div>
-          <h4>Ventas & Clientes</h4>
-          <p>Directorio de compradores, emisión de notas de venta, volumen en Kg y margen bruto.</p>
-          <span class="module-status active">Módulo Backend Listo</span>
-        </div>
-
-        <div class="module-card">
-          <div class="module-icon">⛅</div>
-          <h4>Clima & Open-Meteo</h4>
-          <p>Integración en tiempo real con Open-Meteo REST API para historial térmico y alertas de heladas.</p>
-          <span class="module-status active">Módulo Backend Listo</span>
-        </div>
-      </div>
-    </section>
-  </main>
+    <div *ngIf="perfilRespuesta()" class="p-3 bg-slate-950 text-emerald-400 rounded-xl text-xs font-mono overflow-x-auto">
+      <pre>{{ perfilRespuesta() }}</pre>
+    </div>
+  </div>
 </div>
-
