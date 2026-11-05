@@ -1,0 +1,163 @@
+<div class="dashboard-page">
+  <!-- Barra de Navegación Superior -->
+  <header class="topbar">
+    <div class="topbar-brand">
+      <div class="brand-icon">🌱</div>
+      <div class="brand-info">
+        <span class="brand-name">PredIA</span>
+        <span class="brand-tag">Gestión Agrícola</span>
+      </div>
+    </div>
+
+    <!-- Perfil del Usuario Activo -->
+    <div class="topbar-user">
+      <div class="user-meta">
+        <span class="user-name">{{ authService.currentUser()?.nombreCompleto }}</span>
+        <span class="user-email">{{ authService.currentUser()?.email }}</span>
+      </div>
+      <span class="role-badge" [attr.data-role]="authService.currentUser()?.rol">
+        {{ authService.currentUser()?.rol }}
+      </span>
+      <button type="button" class="btn-logout" (click)="logout()" title="Cerrar Sesión">
+        <span>🚪</span>
+        <span class="logout-text">Salir</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Contenido Principal -->
+  <main class="dashboard-content">
+    <!-- Banner de Bienvenida -->
+    <section class="welcome-card">
+      <div class="welcome-text">
+        <h2>Bienvenido, {{ authService.currentUser()?.nombreCompleto }} 👋</h2>
+        <p>
+          Sesión iniciada correctamente. El sistema está operando contra el servidor:
+          <strong><code>{{ authService.baseUrl() }}</code></strong>
+        </p>
+      </div>
+      <div class="user-quick-stats">
+        <div class="stat-item">
+          <span class="stat-label">ID Usuario</span>
+          <span class="stat-value">#{{ authService.currentUser()?.idUsuario }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">RUT</span>
+          <span class="stat-value">{{ authService.currentUser()?.rut }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Rol Asignado</span>
+          <span class="stat-value">{{ authService.currentUser()?.rol }}</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sección Interactiva: Verificador del Endpoint Protegido /auth/perfil -->
+    <section class="token-tester-card">
+      <div class="card-header">
+        <div class="header-title">
+          <span class="badge-endpoint">GET</span>
+          <h3>Prueba de Ruta Protegida: <code>/auth/perfil</code></h3>
+        </div>
+        <div class="header-actions">
+          <button
+            type="button"
+            class="btn-action btn-copy"
+            (click)="copiarToken()">
+            {{ tokenCopiado() ? '✓ Token Copiado!' : '📋 Copiar Token JWT' }}
+          </button>
+          <button
+            type="button"
+            class="btn-action btn-refresh"
+            [disabled]="perfilCargando()"
+            (click)="probarEndpointPerfil()">
+            @if (perfilCargando()) {
+              <span class="inline-spinner"></span>
+              <span>Consultando...</span>
+            } @else {
+              <span>🔄 Re-ejecutar Petición</span>
+            }
+          </button>
+        </div>
+      </div>
+
+      <div class="tester-body">
+        <div class="request-info">
+          <div class="info-row">
+            <span class="info-label">URL del Endpoint:</span>
+            <code>{{ authService.baseUrl() }}/auth/perfil</code>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Header Enviado:</span>
+            <code class="token-header">Authorization: Bearer {{ authService.getToken() | slice:0:35 }}...</code>
+          </div>
+        </div>
+
+        @if (perfilError()) {
+          <div class="alert alert-danger">
+            <strong>Error:</strong> {{ perfilError() }}
+          </div>
+        }
+
+        @if (perfilData()) {
+          <div class="response-container">
+            <div class="response-header">
+              <span class="status-code status-200">200 OK</span>
+              <span class="response-label">Respuesta del Backend (JSON):</span>
+            </div>
+            <pre class="json-viewer"><code>{{ getObjetoJson(perfilData()) }}</code></pre>
+          </div>
+        }
+      </div>
+    </section>
+
+    <!-- Módulos de PredIA en Construcción -->
+    <section class="modules-overview">
+      <h3 class="section-title">Módulos del Monolito Modular PredIA</h3>
+      <div class="modules-grid">
+        <div class="module-card">
+          <div class="module-icon">🏡</div>
+          <h4>Producción & Naves</h4>
+          <p>Gestión de invernaderos, ciclos de cultivo activo y programación de labores de campo.</p>
+          <span class="module-status active">Módulo Backend Listo</span>
+        </div>
+
+        <div class="module-card">
+          <div class="module-icon">📦</div>
+          <h4>Inventario & Kardex</h4>
+          <p>Control de insumos (fertilizantes, semillas), movimientos de almacén y registro de mermas.</p>
+          <span class="module-status active">Módulo Backend Listo</span>
+        </div>
+
+        <div class="module-card">
+          <div class="module-icon">👷</div>
+          <h4>Jornales & Mano de Obra</h4>
+          <p>Personal de campo, tarifas hora trabajada, asignación a labores y costos indirectos.</p>
+          <span class="module-status active">Módulo Backend Listo</span>
+        </div>
+
+        <div class="module-card">
+          <div class="module-icon">⚖️</div>
+          <h4>Motor de Costeo</h4>
+          <p>Cálculo analítico del costo unitario real en $/Kg por nave y ciclo productivo.</p>
+          <span class="module-status active">Módulo Backend Listo</span>
+        </div>
+
+        <div class="module-card">
+          <div class="module-icon">📈</div>
+          <h4>Ventas & Clientes</h4>
+          <p>Directorio de compradores, emisión de notas de venta, volumen en Kg y margen bruto.</p>
+          <span class="module-status active">Módulo Backend Listo</span>
+        </div>
+
+        <div class="module-card">
+          <div class="module-icon">⛅</div>
+          <h4>Clima & Open-Meteo</h4>
+          <p>Integración en tiempo real con Open-Meteo REST API para historial térmico y alertas de heladas.</p>
+          <span class="module-status active">Módulo Backend Listo</span>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
