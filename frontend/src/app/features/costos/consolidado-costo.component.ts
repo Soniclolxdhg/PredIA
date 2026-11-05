@@ -162,3 +162,4 @@ export class ConsolidadoCostoComponent {
     return Math.round(m * 10) / 10;
   }
 }
+

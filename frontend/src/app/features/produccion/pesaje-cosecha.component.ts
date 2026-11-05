@@ -207,3 +207,4 @@ export class PesajeCosechaComponent {
     this.cosechaForm.patchValue({ kilos_netos: null });
   }
 }
+

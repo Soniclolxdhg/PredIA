@@ -4,3 +4,4 @@ export type TipoLabor = 'SIEMBRA' | 'RIEGO' | 'FERTILIZACION' | 'FITOSANITARIO' 
 export type CategoriaInsumo = 'SEMILLA' | 'ALMACIGO' | 'FERTILIZANTE' | 'DESINFECTANTE';
 export type TipoMovimiento = 'ENTRADA_COMPRA' | 'SALIDA_LABOR' | 'AJUSTE_MERMA';
 export type ModalidadPago = 'DIARIA' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL';
+

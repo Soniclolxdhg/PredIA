@@ -52,3 +52,4 @@ export class ShellComponent {
     this.sidebarAbierta.set(false);
   }
 }
+

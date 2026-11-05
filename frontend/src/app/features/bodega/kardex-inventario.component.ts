@@ -321,3 +321,4 @@ export class KardexInventarioComponent {
     this.cerrarModal();
   }
 }
+

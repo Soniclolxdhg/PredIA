@@ -110,3 +110,4 @@ export class AlertasStockComponent {
     return Math.min(Math.max(pct, 5), 100);
   }
 }
+

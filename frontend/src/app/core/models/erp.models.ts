@@ -149,3 +149,4 @@ export interface HistoricoClima {
   riesgo_helada: boolean; // Alerta si temp_minima_c < 2°C
   datos_meteorologicos_jsonb?: any;
 }
+

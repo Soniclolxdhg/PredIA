@@ -243,3 +243,4 @@ export class AsistenciaJornalesComponent {
     this.cerrarModal();
   }
 }
+

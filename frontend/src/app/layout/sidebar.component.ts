@@ -219,3 +219,4 @@ export class SidebarComponent {
   readonly weatherService = inject(WeatherService);
   @Output() closeSidebar = new EventEmitter<void>();
 }
+
