@@ -20,6 +20,12 @@ jobs:
       run:
         working-directory: backend
 
+    env:
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/predia_db?schema=public"
+      DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/predia_db?schema=public"
+      JWT_SECRET: "ci-secret-key-predia"
+      JWT_EXPIRATION: "24h"
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

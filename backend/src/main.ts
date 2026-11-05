@@ -12,6 +12,8 @@ async function iniciarServidor() {
     credentials: true,
   });
 
+  aplicacion.setGlobalPrefix('api');
+
   aplicacion.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

@@ -5,16 +5,16 @@ on:
     branches: [ main, feature/frontend ]
     paths:
       - 'frontend/**'
-      - '.github/workflows/frontend-ci.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'frontend/**'
-      - '.github/workflows/frontend-ci.yml'
 
 jobs:
   build-and-lint:
     runs-on: ubuntu-latest
+    # Solo se ejecuta cuando el proyecto frontend ya exista con su package-lock.json
+    if: hashFiles('frontend/package-lock.json') != ''
 
     defaults:
       run:
