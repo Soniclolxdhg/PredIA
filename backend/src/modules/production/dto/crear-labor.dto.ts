@@ -24,3 +24,4 @@ export class CrearLaborDto {
   @IsString({ message: 'Las observaciones técnicas deben ser texto.' })
   observacionesTecnicas?: string;
 }
+

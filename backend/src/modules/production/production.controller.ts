@@ -116,3 +116,4 @@ export class ProductionController {
     return this.productionService.obtenerStockCosechasDisponibles();
   }
 }
+

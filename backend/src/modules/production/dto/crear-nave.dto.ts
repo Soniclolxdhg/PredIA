@@ -25,3 +25,4 @@ export class CrearNaveDto {
   @IsEnum(EstadoNave, { message: 'El estado de la nave debe ser DISPONIBLE, EN_CULTIVO o MANTENCION.' })
   estado?: EstadoNave;
 }
+

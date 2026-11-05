@@ -24,3 +24,4 @@ export class CrearCosechaDto {
   @IsNumber({}, { message: 'Los kilos disponibles para venta deben ser un valor numérico.' })
   kilosDisponiblesVenta?: number;
 }
+

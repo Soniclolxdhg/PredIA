@@ -23,3 +23,4 @@ export class CrearCicloDto {
   @IsDateString({}, { message: 'La fecha estimada de término debe tener formato de fecha válido (AAAA-MM-DD).' })
   fechaTerminoEstimada?: string;
 }
+

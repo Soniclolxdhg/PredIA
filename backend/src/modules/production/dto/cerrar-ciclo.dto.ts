@@ -5,3 +5,4 @@ export class CerrarCicloDto {
   @IsDateString({}, { message: 'La fecha de cierre real debe tener formato AAAA-MM-DD.' })
   fechaCierreReal?: string;
 }
+
