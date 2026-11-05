@@ -135,7 +135,7 @@ import { AuthService } from '../../core/services/auth.service';
           <div class="flex items-center justify-between">
             <h3 class="text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
               <span>📅</span>
-              <span>Cronograma de Despliegue Progresivo del ERP</span>
+              <span>Cronograma de Despliegue Progresivo del Sistema</span>
             </h3>
             <span class="text-xs text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
               Paso 1 de 6 Desplegado

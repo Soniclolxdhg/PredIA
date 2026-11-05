@@ -20,7 +20,7 @@ import { WeatherService } from '../core/services/weather.service';
           <div>
             <div class="text-base font-extrabold tracking-tight text-white flex items-center gap-1.5">
               <span>PredIA</span>
-              <span class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono">ERP</span>
+              <span class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono">Sistema</span>
             </div>
             <div class="text-[10px] text-slate-400 font-medium">Santa Laura Ltda.</div>
           </div>
