@@ -2,8 +2,6 @@ import { Component, EventEmitter, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
-import { ErpDataService } from '../core/services/erp-data.service';
-import { WeatherService } from '../core/services/weather.service';
 
 @Component({
   selector: 'app-sidebar',
@@ -22,7 +20,7 @@ import { WeatherService } from '../core/services/weather.service';
               <span>PredIA</span>
               <span class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono">Sistema</span>
             </div>
-            <div class="text-[10px] text-slate-400 font-medium">Santa Laura Ltda.</div>
+            <div class="text-[10px] text-slate-400 font-medium">Santa Laura Ltda. &bull; Fase 2</div>
           </div>
         </div>
 
@@ -36,29 +34,33 @@ import { WeatherService } from '../core/services/weather.service';
       </div>
 
       <!-- Menú Dinámico con Control de Acceso RBAC -->
-      <nav class="flex-1 overflow-y-auto p-3 space-y-6">
-        <!-- SECCIÓN: ANÁLISIS DIRECTIVO -->
-        <div *ngIf="authService.canAccessExecutive()">
-          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-3 mb-1.5">
-            Gerencia & Analytics
+      <nav class="flex-1 overflow-y-auto p-3 space-y-5">
+        <!-- SECCIÓN: ADMINISTRACIÓN EXCLUSIVA -->
+        <div *ngIf="authService.isAdmin()">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-purple-400 px-3 mb-1.5 flex items-center justify-between">
+            <span>Administración</span>
+            <span class="text-[9px] bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded font-mono">Solo Admin</span>
           </div>
           <a
-            routerLink="/dashboard"
-            routerLinkActive="bg-emerald-600 text-white shadow-sm"
+            routerLink="/admin/usuarios"
+            routerLinkActive="bg-purple-700 text-white shadow-sm"
             (click)="closeSidebar.emit()"
             class="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
             <span class="flex items-center gap-2.5">
-              <span class="text-base">📊</span>
-              <span>Dashboard Ejecutivo</span>
+              <span class="text-base">👥</span>
+              <span>Usuarios & Claves</span>
             </span>
-            <span class="text-[10px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded font-mono">KPIs</span>
+            <span class="text-[10px] bg-purple-900/60 text-purple-200 px-1.5 py-0.5 rounded font-mono font-bold">
+              {{ authService.usuarios().length }}
+            </span>
           </a>
         </div>
 
-        <!-- SECCIÓN: CAMPO & PRODUCCIÓN -->
+        <!-- SECCIÓN: CAMPO & PRODUCCIÓN (FASE 2 ACTIVA) -->
         <div *ngIf="authService.canAccessProduction()">
-          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-3 mb-1.5">
-            Producción & Cultivo
+          <div class="text-[11px] font-bold uppercase tracking-wider text-emerald-400 px-3 mb-1.5 flex items-center justify-between">
+            <span>Producción & Terreno</span>
+            <span class="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-mono">Fase 2 Activa</span>
           </div>
           <div class="space-y-1">
             <a
@@ -68,6 +70,17 @@ import { WeatherService } from '../core/services/weather.service';
               class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
               <span class="text-base">🏡</span>
               <span>Ciclos & Naves (HU01)</span>
+            </a>
+            <a
+              routerLink="/produccion/simulador"
+              routerLinkActive="bg-emerald-600 text-white shadow-sm"
+              (click)="closeSidebar.emit()"
+              class="flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
+              <span class="flex items-center gap-2.5">
+                <span class="text-base">📱</span>
+                <span>Simulador Naves (Tablet)</span>
+              </span>
+              <span class="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-mono font-bold">En Vivo</span>
             </a>
             <a
               routerLink="/produccion/labores"
@@ -82,132 +95,57 @@ import { WeatherService } from '../core/services/weather.service';
               routerLinkActive="bg-emerald-600 text-white shadow-sm"
               (click)="closeSidebar.emit()"
               class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
-              <span class="text-base">⚖️</span>
+              <span class="text-base">🧺</span>
               <span>Pesaje de Cosecha (HU03)</span>
             </a>
           </div>
         </div>
 
-        <!-- SECCIÓN: BODEGA & KARDEX -->
-        <div *ngIf="authService.canAccessWarehouse()">
-          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-3 mb-1.5 flex items-center justify-between">
-            <span>Bodega & Insumos</span>
-            <span
-              *ngIf="erpService.insumosCriticos().length > 0"
-              class="text-[10px] bg-amber-500 text-slate-950 px-1.5 rounded-full font-bold animate-pulse">
-              {{ erpService.insumosCriticos().length }} alerta
-            </span>
+        <!-- PRÓXIMAS FASES PROGRAMADAS -->
+        <div class="pt-2 border-t border-slate-800/80">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-3 mb-2 flex items-center justify-between">
+            <span>Módulos en Cronograma</span>
+            <span class="text-[9px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-mono">Plan</span>
           </div>
-          <div class="space-y-1">
-            <a
-              routerLink="/bodega/kardex"
-              routerLinkActive="bg-emerald-600 text-white shadow-sm"
-              (click)="closeSidebar.emit()"
-              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
-              <span class="text-base">📋</span>
-              <span>Kardex & Mermas (HU04)</span>
-            </a>
-            <a
-              routerLink="/bodega/alertas"
-              routerLinkActive="bg-emerald-600 text-white shadow-sm"
-              (click)="closeSidebar.emit()"
-              class="flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
-              <span class="flex items-center gap-2.5">
-                <span class="text-base">⚠️</span>
-                <span>Stock Crítico (HU05)</span>
-              </span>
-              <span
-                *ngIf="erpService.insumosCriticos().length > 0"
-                class="text-[10px] bg-rose-500/30 text-rose-300 px-1.5 py-0.5 rounded font-mono font-bold">
-                {{ erpService.insumosCriticos().length }}
-              </span>
-            </a>
-          </div>
-        </div>
 
-        <!-- SECCIÓN: COSTOS & MANO DE OBRA -->
-        <div *ngIf="authService.canAccessCosting()">
-          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-3 mb-1.5">
-            Costos & Finanzas
-          </div>
-          <div class="space-y-1">
-            <a
-              routerLink="/costos/jornales"
-              routerLinkActive="bg-emerald-600 text-white shadow-sm"
-              (click)="closeSidebar.emit()"
-              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
-              <span class="text-base">👷</span>
-              <span>Jornales & Asistencia (HU06)</span>
-            </a>
-            <a
-              routerLink="/costos/indirectos"
-              routerLinkActive="bg-emerald-600 text-white shadow-sm"
-              (click)="closeSidebar.emit()"
-              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
-              <span class="text-base">💡</span>
-              <span>Costos Indirectos (HU07)</span>
-            </a>
-            <a
-              routerLink="/costos/consolidado"
-              routerLinkActive="bg-emerald-600 text-white shadow-sm"
-              (click)="closeSidebar.emit()"
-              class="flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
-              <span class="flex items-center gap-2.5">
-                <span class="text-base">💲</span>
-                <span>Consolidado $/Kg (HU09)</span>
+          <div class="space-y-1 text-xs">
+            <div class="flex items-center justify-between px-3 py-2 text-slate-400 rounded-xl bg-slate-800/40">
+              <span class="flex items-center gap-2">
+                <span>📦</span>
+                <span>Bodega & Kardex</span>
               </span>
-              <span class="text-[10px] text-emerald-400 font-bold font-mono">
-                \${{ erpService.kpisFinancieros().costoPromedioKg }}
+              <span class="text-[9px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded font-mono">Fase 3</span>
+            </div>
+
+            <div class="flex items-center justify-between px-3 py-2 text-slate-400 rounded-xl bg-slate-800/40">
+              <span class="flex items-center gap-2">
+                <span>👷</span>
+                <span>Costos & Jornales</span>
               </span>
-            </a>
-          </div>
-        </div>
+              <span class="text-[9px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded font-mono">Fase 4</span>
+            </div>
 
-        <!-- SECCIÓN: COMERCIAL & VENTAS -->
-        <div *ngIf="authService.canAccessSales()">
-          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-3 mb-1.5">
-            Comercial
-          </div>
-          <a
-            routerLink="/ventas"
-            routerLinkActive="bg-emerald-600 text-white shadow-sm"
-            (click)="closeSidebar.emit()"
-            class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
-            <span class="text-base">🛒</span>
-            <span>Clientes & Ventas (HU08/10)</span>
-          </a>
-        </div>
+            <div class="flex items-center justify-between px-3 py-2 text-slate-400 rounded-xl bg-slate-800/40">
+              <span class="flex items-center gap-2">
+                <span>🛒</span>
+                <span>Clientes & Ventas</span>
+              </span>
+              <span class="text-[9px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded font-mono">Fase 5</span>
+            </div>
 
-        <!-- SECCIÓN: AGROCLIMA -->
-        <div *ngIf="authService.canAccessWeather()">
-          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-3 mb-1.5 flex items-center justify-between">
-            <span>Agroclima</span>
-            <span
-              *ngIf="weatherService.alertaHeladaActiva()"
-              class="text-[10px] bg-rose-600 text-white px-1.5 py-0.5 rounded font-bold animate-pulse">
-              HELADA &lt;2°C
-            </span>
+            <div class="flex items-center justify-between px-3 py-2 text-slate-400 rounded-xl bg-slate-800/40">
+              <span class="flex items-center gap-2">
+                <span>📊</span>
+                <span>Dashboard & Clima</span>
+              </span>
+              <span class="text-[9px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded font-mono">Fase 6</span>
+            </div>
           </div>
-          <a
-            routerLink="/clima"
-            routerLinkActive="bg-emerald-600 text-white shadow-sm"
-            (click)="closeSidebar.emit()"
-            class="flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
-            <span class="flex items-center gap-2.5">
-              <span class="text-base">⛅</span>
-              <span>Pronóstico & Heladas (HU11)</span>
-            </span>
-            <span
-              *ngIf="weatherService.alertaHeladaActiva()"
-              class="text-xs">
-              ❄️
-            </span>
-          </a>
         </div>
       </nav>
 
       <!-- Pie del Sidebar con Versión e Institución -->
-      <div class="p-3 bg-slate-950 border-t border-slate-800 text-[11px] text-slate-500 text-center">
+      <div class="p-3 bg-slate-950 border-t border-slate-800 text-[11px] text-slate-400 text-center">
         <span>Proyecto de Integración &bull; INACAP 2026</span>
       </div>
     </aside>
@@ -215,8 +153,5 @@ import { WeatherService } from '../core/services/weather.service';
 })
 export class SidebarComponent {
   readonly authService = inject(AuthService);
-  readonly erpService = inject(ErpDataService);
-  readonly weatherService = inject(WeatherService);
   @Output() closeSidebar = new EventEmitter<void>();
 }
-

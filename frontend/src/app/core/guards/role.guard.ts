@@ -23,15 +23,6 @@ export const roleGuard: CanActivateFn = (route) => {
     return true;
   }
 
-  // Si no tiene permiso, lo redirigimos a su vista principal correspondiente
-  if (userRole === 'BODEGUERO') {
-    return router.createUrlTree(['/bodega/kardex']);
-  } else if (userRole === 'AGRONOMO') {
-    return router.createUrlTree(['/produccion/ciclos']);
-  } else if (userRole === 'GERENTE') {
-    return router.createUrlTree(['/dashboard']);
-  }
-
-  return router.createUrlTree(['/login']);
+  // Si no tiene permiso para la ruta actual (ej: no-admin entrando a /admin/usuarios):
+  return router.createUrlTree(['/produccion/ciclos']);
 };
-

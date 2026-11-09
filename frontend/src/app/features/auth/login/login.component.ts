@@ -72,7 +72,8 @@ export class LoginComponent {
     this.authService.login({ email: email.trim(), password }).subscribe({
       next: () => {
         this.cargando.set(false);
-        const returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/dashboard';
+        const defaultUrl = this.authService.isAdmin() ? '/admin/usuarios' : '/produccion/ciclos';
+        const returnUrl = this.route.snapshot.queryParams['returnUrl'] || defaultUrl;
         this.router.navigateByUrl(returnUrl);
       },
       error: (err) => {
