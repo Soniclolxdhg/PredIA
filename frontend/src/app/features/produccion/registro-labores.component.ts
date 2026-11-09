@@ -5,37 +5,42 @@ import { ErpDataService } from '../../core/services/erp-data.service';
 import { AuthService } from '../../core/services/auth.service';
 import { TipoLabor } from '../../core/models/enum.types';
 
+/**
+ * Componente para el Registro de Labores Agrícolas en Terreno (HU02).
+ * Permite registrar faenas en los invernaderos (riego, fertilización, fitosanitarios, siembra y cosecha),
+ * asociar el responsable, imputar costos por horas dedicadas y descontar insumos de bodega de forma automática.
+ */
 @Component({
   selector: 'app-registro-labores',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   template: `
     <div class="space-y-6 max-w-4xl mx-auto">
-      <!-- Encabezado con Enfoque Terreno / Tablet -->
+      <!-- Encabezado del registro de labores -->
       <div class="bg-gradient-to-r from-emerald-800 to-green-900 text-white p-5 rounded-2xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <span class="text-xs font-bold uppercase tracking-wider text-emerald-300">Uso en Terreno (Invernadero)</span>
+          <span class="text-xs font-bold uppercase tracking-wider text-emerald-300">Operaciones en Invernadero</span>
           <h2 class="text-xl font-bold flex items-center gap-2">
             <span>🚜</span>
             <span>Registro de Labores Agrícolas (HU02)</span>
           </h2>
-          <p class="text-xs text-emerald-100 mt-0.5">Captura rápida táctil con imputación a ciclo y descuento opcional de bodega.</p>
+          <p class="text-xs text-emerald-100 mt-0.5">Captura de faenas agronómicas con imputación a ciclo y descuento opcional de bodega.</p>
         </div>
         <div class="bg-white/10 px-3 py-1.5 rounded-xl text-xs backdrop-blur-xs self-start sm:self-auto">
           Responsable: <strong>{{ authService.currentUser()?.nombre_completo }}</strong>
         </div>
       </div>
 
-      <!-- Alerta de Éxito -->
+      <!-- Alerta de confirmación de registro exitoso -->
       <div *ngIf="mensajeExito()" class="p-4 bg-emerald-50 border border-emerald-300 text-emerald-800 text-sm rounded-xl flex items-center justify-between">
         <span class="font-bold">✓ {{ mensajeExito() }}</span>
         <button (click)="mensajeExito.set(null)" class="text-emerald-700 font-bold">✕</button>
       </div>
 
-      <!-- Formulario Mobile-First Táctil -->
+      <!-- Formulario para ingreso de la labor -->
       <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs">
         <form [formGroup]="laborForm" (ngSubmit)="onSubmitLabor()" class="space-y-5">
-          <!-- Selección de Ciclo Activo -->
+          <!-- Selección del ciclo de cultivo receptor -->
           <div>
             <label class="block text-xs font-bold text-slate-800 uppercase tracking-wide mb-1.5">
               Ciclo de Cultivo Activo Receptor *
@@ -50,7 +55,7 @@ import { TipoLabor } from '../../core/models/enum.types';
             </select>
           </div>
 
-          <!-- Tipo de Labor (Botones Táctiles Grandes) -->
+          <!-- Tipo de labor agronómica -->
           <div>
             <label class="block text-xs font-bold text-slate-800 uppercase tracking-wide mb-1.5">
               Tipo de Labor Agrícola *
@@ -68,7 +73,7 @@ import { TipoLabor } from '../../core/models/enum.types';
             </div>
           </div>
 
-          <!-- Fecha y Horas Dedicadas -->
+          <!-- Fecha de ejecución y duración de la faena -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-xs font-bold text-slate-800 uppercase tracking-wide mb-1.5">
@@ -97,7 +102,7 @@ import { TipoLabor } from '../../core/models/enum.types';
             </div>
           </div>
 
-          <!-- Consumo Opcional de Insumos desde Bodega -->
+          <!-- Descuento de materiales e insumos de bodega -->
           <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
             <div class="flex items-center justify-between">
               <span class="text-xs font-bold uppercase tracking-wide text-slate-700 flex items-center gap-1.5">
@@ -134,7 +139,7 @@ import { TipoLabor } from '../../core/models/enum.types';
             </div>
           </div>
 
-          <!-- Observaciones Técnicas -->
+          <!-- Campo para notas y dosificación técnica -->
           <div>
             <label class="block text-xs font-bold text-slate-800 uppercase tracking-wide mb-1.5">
               Observaciones Técnicas / Dosificación
@@ -146,7 +151,7 @@ import { TipoLabor } from '../../core/models/enum.types';
               class="w-full p-3 text-sm rounded-xl border-2 border-slate-300 focus:border-emerald-600 focus:outline-none"></textarea>
           </div>
 
-          <!-- Botón de Envío Táctil -->
+          <!-- Acción para guardar la labor -->
           <button
             type="submit"
             [disabled]="laborForm.invalid"
@@ -157,7 +162,7 @@ import { TipoLabor } from '../../core/models/enum.types';
         </form>
       </div>
 
-      <!-- Historial de Labores Recientes -->
+      <!-- Historial cronológico de labores efectuadas -->
       <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
         <div class="p-4 bg-slate-50 border-b border-slate-200 font-bold text-xs uppercase text-slate-600">
           Últimas Labores Registradas
@@ -190,12 +195,15 @@ import { TipoLabor } from '../../core/models/enum.types';
   `
 })
 export class RegistroLaboresComponent {
+  // Servicios de datos y sesión
   readonly erpService = inject(ErpDataService);
   readonly authService = inject(AuthService);
   private readonly fb = inject(FormBuilder);
 
+  // Mensaje de éxito tras registrar la faena
   readonly mensajeExito = signal<string | null>(null);
 
+  // Listado de tipos de labores agronómicas contempladas en el sistema
   readonly tiposLabor: TipoLabor[] = [
     'SIEMBRA',
     'RIEGO',
@@ -204,6 +212,7 @@ export class RegistroLaboresComponent {
     'COSECHA'
   ];
 
+  // Formulario reactivo para la captura de faenas
   readonly laborForm: FormGroup = this.fb.group({
     id_ciclo: ['', [Validators.required]],
     tipo_labor: ['RIEGO', [Validators.required]],
@@ -214,10 +223,16 @@ export class RegistroLaboresComponent {
     observaciones_tecnicas: ['']
   });
 
+  /**
+   * Actualiza el tipo de labor en el formulario al hacer clic sobre el botón correspondiente
+   */
   seleccionarTipoLabor(tipo: TipoLabor): void {
     this.laborForm.patchValue({ tipo_labor: tipo });
   }
 
+  /**
+   * Retorna el emoji representativo para cada tipo de labor agronómica
+   */
   getIconoLabor(tipo: TipoLabor): string {
     switch (tipo) {
       case 'SIEMBRA': return '🌱';
@@ -228,6 +243,9 @@ export class RegistroLaboresComponent {
     }
   }
 
+  /**
+   * Procesa el formulario, registra la labor en ErpDataService e imputa costos y consumos
+   */
   onSubmitLabor(): void {
     if (this.laborForm.invalid) return;
 
@@ -254,4 +272,3 @@ export class RegistroLaboresComponent {
     });
   }
 }
-

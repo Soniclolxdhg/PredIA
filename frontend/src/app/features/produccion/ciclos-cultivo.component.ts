@@ -4,13 +4,18 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { ErpDataService } from '../../core/services/erp-data.service';
 import { Nave } from '../../core/models/erp.models';
 
+/**
+ * Componente para la gestión de Ciclos de Cultivo e Invernaderos (HU01).
+ * Controla la ocupación de las naves y la apertura de nuevos ciclos agrícolas,
+ * aplicando la regla de negocio que prohíbe ciclos simultáneos en una misma nave.
+ */
 @Component({
   selector: 'app-ciclos-cultivo',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   template: `
     <div class="space-y-6">
-      <!-- Encabezado con Botón de Apertura -->
+      <!-- Encabezado con título del módulo y acción para abrir nuevo ciclo -->
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
         <div>
           <div class="flex items-center gap-2">
@@ -31,7 +36,7 @@ import { Nave } from '../../core/models/erp.models';
         </button>
       </div>
 
-      <!-- Alertas de Negocio -->
+      <!-- Alertas de estado y validaciones de negocio -->
       <div *ngIf="mensajeError()" class="p-4 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl flex items-center justify-between">
         <span class="font-medium">⚠️ {{ mensajeError() }}</span>
         <button (click)="mensajeError.set(null)" class="text-rose-500 font-bold hover:text-rose-800">✕</button>
@@ -42,7 +47,7 @@ import { Nave } from '../../core/models/erp.models';
         <button (click)="mensajeExito.set(null)" class="text-emerald-600 font-bold hover:text-emerald-900">✕</button>
       </div>
 
-      <!-- Resumen de Naves e Invernaderos (Tarjetas) -->
+      <!-- Tarjetas de estado físico de cada invernadero -->
       <div>
         <h3 class="text-sm font-bold uppercase tracking-wider text-slate-500 mb-3">
           Estado de Naves e Invernaderos (Superficie Total: {{ totalSuperficie }} m²)
@@ -68,7 +73,7 @@ import { Nave } from '../../core/models/erp.models';
         </div>
       </div>
 
-      <!-- Tabla de Ciclos de Cultivo -->
+      <!-- Listado histórico y ciclos actualmente activos -->
       <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div class="p-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
           <h3 class="font-bold text-slate-800 text-sm">Historial y Ciclos Activos de la Temporada</h3>
@@ -125,7 +130,7 @@ import { Nave } from '../../core/models/erp.models';
         </div>
       </div>
 
-      <!-- Modal Apertura de Ciclo con Regla de Negocio -->
+      <!-- Ventana modal con validación de nave ocupada -->
       <div
         *ngIf="modalVisible()"
         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
@@ -139,7 +144,7 @@ import { Nave } from '../../core/models/erp.models';
           </div>
 
           <form [formGroup]="cicloForm" (ngSubmit)="onSubmitCiclo()" class="space-y-4">
-            <!-- Nave Asignada con indicador de disponibilidad -->
+            <!-- Selección de invernadero destino -->
             <div>
               <label class="block text-xs font-bold text-slate-700 mb-1">Invernadero / Nave Destino *</label>
               <select formControlName="id_nave" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none">
@@ -149,11 +154,11 @@ import { Nave } from '../../core/models/erp.models';
                 </option>
               </select>
               <p class="text-[11px] text-slate-500 mt-1">
-                * Regla: No se permite aperturar si la nave ya tiene un ciclo ACTIVO.
+                * Regla de negocio: No se permite aperturar si la nave ya tiene un ciclo ACTIVO.
               </p>
             </div>
 
-            <!-- Temporada y Variedad -->
+            <!-- Temporada y variedad vegetal -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label class="block text-xs font-bold text-slate-700 mb-1">Temporada *</label>
@@ -175,7 +180,7 @@ import { Nave } from '../../core/models/erp.models';
               </div>
             </div>
 
-            <!-- Fechas -->
+            <!-- Fechas de inicio y estimación de cierre -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label class="block text-xs font-bold text-slate-700 mb-1">Fecha de Inicio *</label>
@@ -196,7 +201,7 @@ import { Nave } from '../../core/models/erp.models';
               </div>
             </div>
 
-            <!-- Botones de Acción -->
+            <!-- Acciones del formulario -->
             <div class="pt-3 flex gap-3 justify-end border-t border-slate-100">
               <button
                 type="button"
@@ -218,13 +223,16 @@ import { Nave } from '../../core/models/erp.models';
   `
 })
 export class CiclosCultivoComponent {
+  // Inyección de servicios centrales
   readonly erpService = inject(ErpDataService);
   private readonly fb = inject(FormBuilder);
 
+  // Señales reactivas para la interfaz
   readonly modalVisible = signal(false);
   readonly mensajeError = signal<string | null>(null);
   readonly mensajeExito = signal<string | null>(null);
 
+  // Formulario reactivo para la apertura del ciclo productivo
   readonly cicloForm: FormGroup = this.fb.group({
     id_nave: ['', [Validators.required]],
     temporada: ['PRIMAVERA_2026', [Validators.required]],
@@ -233,15 +241,24 @@ export class CiclosCultivoComponent {
     fecha_termino_estimada: ['', [Validators.required]]
   });
 
+  /**
+   * Calcula la superficie total acumulada sumando los metros cuadrados de todas las naves
+   */
   get totalSuperficie(): number {
     return this.erpService.naves().reduce((acc, n) => acc + n.superficie_m2, 0);
   }
 
+  /**
+   * Busca y retorna el nombre y código de la nave a partir de su ID
+   */
   getNaveNombre(idNave: number): string {
     const nave = this.erpService.naves().find((n) => n.id_nave === idNave);
     return nave ? `${nave.nombre} (${nave.codigo_nave})` : `Nave #${idNave}`;
   }
 
+  /**
+   * Retorna las clases visuales de Tailwind según el estado de la nave
+   */
   getClaseEstadoNave(estado: string): string {
     switch (estado) {
       case 'EN_CULTIVO': return 'bg-emerald-100 text-emerald-800 border-emerald-300';
@@ -251,6 +268,9 @@ export class CiclosCultivoComponent {
     }
   }
 
+  /**
+   * Abre la ventana modal y restablece los valores del formulario al día actual
+   */
   abrirModal(): void {
     this.cicloForm.reset({
       id_nave: '',
@@ -263,10 +283,16 @@ export class CiclosCultivoComponent {
     this.modalVisible.set(true);
   }
 
+  /**
+   * Cierra la ventana modal de apertura de ciclo
+   */
   cerrarModal(): void {
     this.modalVisible.set(false);
   }
 
+  /**
+   * Procesa la solicitud de apertura verificando la regla de negocio en el servicio
+   */
   onSubmitCiclo(): void {
     if (this.cicloForm.invalid) return;
 
@@ -279,4 +305,3 @@ export class CiclosCultivoComponent {
     }
   }
 }
-

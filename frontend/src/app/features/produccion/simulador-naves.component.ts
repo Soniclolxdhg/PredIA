@@ -1,6 +1,9 @@
 import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
+/**
+ * Estructura de datos para modelar cada invernadero (nave) y su instrumental
+ */
 export interface NaveSimulada {
   id: number;
   codigo: string;
@@ -8,32 +11,37 @@ export interface NaveSimulada {
   cultivo: string;
   superficie: number;
   estado: 'EN_CULTIVO' | 'DISPONIBLE' | 'MANTENCION';
-  // Telemetría
+  // Variables de medición de sensores ambientales
   temperatura: number;
   humedad: number;
   radiacion: number;
   co2?: number;
   ec?: number;
-  // Actuadores
+  // Estado de los equipos mecánicos y solenoides
   riegoActivo: boolean;
   cortinasAbiertas: boolean;
   ventilacionActiva: boolean;
   nebulizacionActiva: boolean;
 }
 
+/**
+ * Componente del Simulador de Invernaderos y Telemetría.
+ * Permite supervisar los parámetros microclimáticos de las naves en tiempo real
+ * y accionar de forma remota los sistemas de riego, ventilación y cortinas.
+ */
 @Component({
   selector: 'app-simulador-naves',
   standalone: true,
   imports: [CommonModule],
   template: `
     <div class="space-y-6 max-w-7xl mx-auto pb-12">
-      <!-- Encabezado Tablet-Optimized -->
+      <!-- Panel de control de invernaderos y microclima -->
       <div class="bg-gradient-to-r from-emerald-900 via-emerald-800 to-green-950 text-white p-5 sm:p-6 rounded-2xl shadow-sm border border-emerald-700/40">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold tracking-wide uppercase mb-2 border border-emerald-400/30">
               <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-              Modo Tablet &bull; Telemetría en Invernadero
+              Supervisión de Microclima &bull; Santa Laura Ltda.
             </div>
             <h1 class="text-xl sm:text-2xl font-black tracking-tight flex items-center gap-2.5">
               <span>📱</span>
@@ -44,7 +52,7 @@ export interface NaveSimulada {
             </p>
           </div>
 
-          <!-- Botones de Acción Táctiles Grandes -->
+          <!-- Acciones rápidas: actualización de sensores y riego general -->
           <div class="flex flex-wrap items-center gap-2.5">
             <button
               type="button"
@@ -64,17 +72,17 @@ export interface NaveSimulada {
           </div>
         </div>
 
-        <!-- Banner de Conectividad LoRaWAN / 4G -->
+        <!-- Estado de conexión de los nodos de comunicación -->
         <div class="mt-4 pt-3 border-t border-emerald-800/80 flex flex-wrap items-center justify-between text-xs text-emerald-200/90 gap-2 font-mono">
           <div class="flex items-center gap-2">
             <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
-            <span>Gateway LoRaWAN Finca Santa Laura: <strong>EN LÍNEA (915 MHz)</strong></span>
+            <span>Gateway Finca Santa Laura: <strong>EN LÍNEA (915 MHz)</strong></span>
           </div>
           <div>Última actualización: <strong>{{ ultimaActualizacion() | date:'HH:mm:ss' }}</strong></div>
         </div>
       </div>
 
-      <!-- Selector de Vista de Naves (Pestañas Táctiles de 48px) -->
+      <!-- Filtro por nave individual o vista consolidada -->
       <div class="flex gap-2 overflow-x-auto pb-1 sm:pb-0">
         <button
           type="button"
@@ -98,13 +106,13 @@ export interface NaveSimulada {
         </button>
       </div>
 
-      <!-- Cuadrícula de Naves Táctiles (Mobile & Tablet First) -->
+      <!-- Tarjetas de supervisión por cada invernadero -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div
           *ngFor="let nave of navesFiltradas()"
           class="bg-white rounded-2xl border-2 border-slate-200 hover:border-emerald-400 p-5 sm:p-6 shadow-xs transition-all flex flex-col justify-between">
           <div>
-            <!-- Cabecera de la Nave -->
+            <!-- Información general y variedad plantada -->
             <div class="flex items-start justify-between pb-3 border-b border-slate-100 mb-4">
               <div>
                 <div class="flex items-center gap-2">
@@ -123,9 +131,9 @@ export interface NaveSimulada {
               </span>
             </div>
 
-            <!-- Panel de Sensores (Telemetría de Alto Contraste) -->
+            <!-- Lecturas de temperatura, humedad y radiación -->
             <div class="grid grid-cols-3 gap-2.5 mb-5">
-              <!-- Temperatura -->
+              <!-- Temperatura interior -->
               <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-center">
                 <div class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Temperatura</div>
                 <div class="text-xl sm:text-2xl font-black mt-0.5" [class]="nave.temperatura > 26 ? 'text-rose-600' : (nave.temperatura < 15 ? 'text-blue-600' : 'text-emerald-700')">
@@ -134,7 +142,7 @@ export interface NaveSimulada {
                 <div class="text-[10px] text-slate-400">Óptimo: 18-25°C</div>
               </div>
 
-              <!-- Humedad -->
+              <!-- Humedad relativa -->
               <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-center">
                 <div class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Humedad Rel.</div>
                 <div class="text-xl sm:text-2xl font-black text-slate-800 mt-0.5">
@@ -143,7 +151,7 @@ export interface NaveSimulada {
                 <div class="text-[10px] text-slate-400">HR Invernadero</div>
               </div>
 
-              <!-- Radiación Solar / EC -->
+              <!-- Radiación solar / Conductividad eléctrica -->
               <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-center">
                 <div class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
                   {{ nave.ec ? 'Conduct. EC' : 'Radiación' }}
@@ -155,7 +163,7 @@ export interface NaveSimulada {
               </div>
             </div>
 
-            <!-- Panel de Actuadores (Controles Táctiles >48px para Dedos) -->
+            <!-- Controles manuales de actuadores -->
             <div class="space-y-2.5">
               <div class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
                 <span>Controles de Actuadores en Terreno</span>
@@ -163,7 +171,7 @@ export interface NaveSimulada {
               </div>
 
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <!-- Válvula de Riego -->
+                <!-- Electroválvula de riego -->
                 <button
                   type="button"
                   (click)="alternarRiego(nave)"
@@ -181,7 +189,7 @@ export interface NaveSimulada {
                   </span>
                 </button>
 
-                <!-- Cortinas Cenitales -->
+                <!-- Cortinas térmicas cenitales -->
                 <button
                   type="button"
                   (click)="alternarCortinas(nave)"
@@ -199,7 +207,7 @@ export interface NaveSimulada {
                   </span>
                 </button>
 
-                <!-- Ventilación Forzada -->
+                <!-- Ventilación forzada con extractores -->
                 <button
                   type="button"
                   (click)="alternarVentilacion(nave)"
@@ -217,7 +225,7 @@ export interface NaveSimulada {
                   </span>
                 </button>
 
-                <!-- Nebulización Térmica Antiheladas -->
+                <!-- Nebulización para control de heladas -->
                 <button
                   type="button"
                   (click)="alternarNebulizacion(nave)"
@@ -238,7 +246,7 @@ export interface NaveSimulada {
             </div>
           </div>
 
-          <!-- Pie de Tarjeta -->
+          <!-- Pie informativo del nodo de telemetría -->
           <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400 font-mono">
             <span>Nodo Sensor: ESP32-NV{{ nave.id }}</span>
             <span class="text-emerald-700 font-bold">Batería Solar: 98% 🔋</span>
@@ -249,9 +257,13 @@ export interface NaveSimulada {
   `
 })
 export class SimuladorNavesComponent {
+  // Nave seleccionada para el filtro (0 = ver todas)
   readonly naveSeleccionadaId = signal<number>(0);
+
+  // Registro de la última fecha y hora de recepción de telemetría
   readonly ultimaActualizacion = signal<Date>(new Date());
 
+  // Estado reactivo que contiene la información y parámetros de las 4 naves de Santa Laura Ltda.
   readonly naves = signal<NaveSimulada[]>([
     {
       id: 1,
@@ -318,16 +330,25 @@ export class SimuladorNavesComponent {
     }
   ]);
 
+  /**
+   * Retorna la lista de naves aplicando el filtro activo (todas o una específica)
+   */
   navesFiltradas(): NaveSimulada[] {
     const idSel = this.naveSeleccionadaId();
     if (idSel === 0) return this.naves();
     return this.naves().filter((n) => n.id === idSel);
   }
 
+  /**
+   * Determina si el sistema de riego por goteo se encuentra activo en la totalidad de las naves
+   */
   todoRiegoActivo(): boolean {
     return this.naves().every((n) => n.riegoActivo);
   }
 
+  /**
+   * Enciende o apaga las electroválvulas de riego en todas las naves simultáneamente
+   */
   conmutarRiegoGlobal(): void {
     const nuevoEstado = !this.todoRiegoActivo();
     this.naves.update((lista) =>
@@ -335,32 +356,51 @@ export class SimuladorNavesComponent {
     );
   }
 
+  /**
+   * Alterna el estado de la electroválvula de riego por goteo en la nave seleccionada
+   */
   alternarRiego(nave: NaveSimulada): void {
     this.actualizarNave(nave.id, { riegoActivo: !nave.riegoActivo });
   }
 
+  /**
+   * Abre o cierra las cortinas cenitales automáticas para ventilación pasiva y control térmico
+   */
   alternarCortinas(nave: NaveSimulada): void {
     this.actualizarNave(nave.id, { cortinasAbiertas: !nave.cortinasAbiertas });
   }
 
+  /**
+   * Enciende o detiene la ventilación mecánica forzada para extraer excesos de calor y humedad
+   */
   alternarVentilacion(nave: NaveSimulada): void {
     this.actualizarNave(nave.id, { ventilacionActiva: !nave.ventilacionActiva });
   }
 
+  /**
+   * Activa o desactiva la micro-nebulización para humectación y prevención de daños por heladas
+   */
   alternarNebulizacion(nave: NaveSimulada): void {
     this.actualizarNave(nave.id, { nebulizacionActiva: !nave.nebulizacionActiva });
   }
 
+  /**
+   * Aplica cambios parciales a una nave específica dentro de la señal reactiva
+   */
   private actualizarNave(id: number, cambios: Partial<NaveSimulada>): void {
     this.naves.update((lista) =>
       lista.map((n) => (n.id === id ? { ...n, ...cambios } : n))
     );
   }
 
+  /**
+   * Simula fluctuaciones naturales de microclima (+/- 0.8°C y +/- 3% humedad)
+   * para evidenciar en tiempo real el comportamiento dinámico de los sensores
+   */
   simularLecturaSensores(): void {
     this.naves.update((lista) =>
       lista.map((n) => {
-        // Variación aleatoria realista
+        // Cálculo de variación delta dentro de rangos agronómicos lógicos
         const deltaTemp = (Math.random() * 1.6 - 0.8);
         const deltaHum = Math.round(Math.random() * 6 - 3);
         const deltaRad = Math.round(Math.random() * 40 - 20);
@@ -380,6 +420,9 @@ export class SimuladorNavesComponent {
     this.ultimaActualizacion.set(new Date());
   }
 
+  /**
+   * Asigna estilos y colores a la insignia de estado según el ciclo de la nave
+   */
   getClaseEstadoNave(estado: string): string {
     switch (estado) {
       case 'EN_CULTIVO':

@@ -21,7 +21,7 @@ import { WeatherService } from '../../core/services/weather.service';
           </p>
         </div>
 
-        <!-- Botón para la Evaluación Docente (Simulador de Helada) -->
+        <!-- Control de simulación de contingencia climática -->
         <div class="flex items-center gap-2 bg-white/10 p-1.5 rounded-xl backdrop-blur-xs self-start md:self-auto border border-white/20">
           <span class="text-xs font-bold text-sky-200 pl-2">SIMULADOR HU12:</span>
           <button

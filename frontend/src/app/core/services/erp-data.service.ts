@@ -54,21 +54,17 @@ export class ErpDataService {
   // 10. Notas de Venta (HU10)
   readonly ventas = signal<Venta[]>(this.cargarInitial('ventas', this.getVentasDefault));
 
-  // ========================================================
-  // SEÑALES COMPUTADAS Y KPIS (HU05, HU09, HU11)
-  // ========================================================
-
-  // HU05: Alerta de Insumos con Stock Crítico
+  // Señales reactivas computadas para KPIs agronómicos y financieros
   readonly insumosCriticos = computed(() =>
     this.insumos().filter((i) => i.stock_actual <= i.stock_minimo_alerta)
   );
 
-  // Ciclos Activos
+  // Lista de ciclos que se encuentran actualmente en estado ACTIVO
   readonly ciclosActivos = computed(() =>
     this.ciclos().filter((c) => c.estado === 'ACTIVO')
   );
 
-  // HU09: Consolidado de Costos Global y Unitario $/Kg
+  // Consolidado de costos globales y costo unitario $/Kg
   readonly kpisFinancieros = computed(() => {
     const totalKg = this.ciclos().reduce((acc, c) => acc + c.total_kg_cosechados, 0);
     const totalCostos = this.ciclos().reduce((acc, c) => acc + c.costo_total_acumulado, 0);
@@ -88,9 +84,7 @@ export class ErpDataService {
     };
   });
 
-  // ========================================================
-  // ACCIONES Y REGLAS DE NEGOCIO
-  // ========================================================
+  // Métodos de negocio y operaciones sobre los datos agrícolas
 
   /**
    * HU01: Apertura de nuevo ciclo.
@@ -371,9 +365,7 @@ export class ErpDataService {
     this.persistir('ciclos', this.ciclos());
   }
 
-  // ========================================================
-  // PERSISTENCIA Y SEMILLAS INICIALES
-  // ========================================================
+  // Persistencia en almacenamiento local y registros iniciales
 
   private cargarInitial<T>(key: string, factory: () => T): T {
     const item = localStorage.getItem(STORAGE_PREFIX + key);
@@ -393,7 +385,7 @@ export class ErpDataService {
     localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(val));
   }
 
-  // Semillas por defecto para demostración fluida
+  // Datos base para inicialización del sistema en ausencia de conexión remota
   private getNavesDefault(): Nave[] {
     return [
       { id_nave: 1, codigo_nave: 'NAV-01', nombre: 'Nave Central Tomates', superficie_m2: 2500, tipo_estructura: 'Multitúnel Metal', estado: 'EN_CULTIVO' },

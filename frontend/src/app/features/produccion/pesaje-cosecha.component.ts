@@ -4,13 +4,19 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { ErpDataService } from '../../core/services/erp-data.service';
 import { AuthService } from '../../core/services/auth.service';
 
+/**
+ * Componente para el Pesaje de Cosecha al Pie de Nave (HU03).
+ * Captura los kilos netos pesados en báscula al momento de cosechar en el invernadero,
+ * clasifica la producción según estándar comercial (Primera, Segunda, Descarte)
+ * y actualiza el costo unitario por kilo recalculando el acumulado del ciclo.
+ */
 @Component({
   selector: 'app-pesaje-cosecha',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   template: `
     <div class="space-y-6 max-w-4xl mx-auto">
-      <!-- Encabezado -->
+      <!-- Encabezado con métrica acumulada de la temporada -->
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div class="flex items-center gap-2">
@@ -26,17 +32,17 @@ import { AuthService } from '../../core/services/auth.service';
         </div>
       </div>
 
-      <!-- Alerta de Éxito -->
+      <!-- Alerta de confirmación de pesaje exitoso -->
       <div *ngIf="mensajeExito()" class="p-4 bg-emerald-50 border border-emerald-300 text-emerald-800 text-sm rounded-xl flex items-center justify-between">
         <span class="font-bold">✓ {{ mensajeExito() }}</span>
         <button (click)="mensajeExito.set(null)" class="text-emerald-700 font-bold">✕</button>
       </div>
 
-      <!-- Formulario de Pesaje -->
+      <!-- Formulario para captura del pesaje -->
       <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs">
         <form [formGroup]="cosechaForm" (ngSubmit)="onSubmitCosecha()" class="space-y-5">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <!-- Ciclo Activo -->
+            <!-- Selección del ciclo de origen -->
             <div>
               <label class="block text-xs font-bold text-slate-800 uppercase tracking-wide mb-1.5">
                 Ciclo de Cultivo Origen *
@@ -51,7 +57,7 @@ import { AuthService } from '../../core/services/auth.service';
               </select>
             </div>
 
-            <!-- Fecha -->
+            <!-- Fecha de recolección -->
             <div>
               <label class="block text-xs font-bold text-slate-800 uppercase tracking-wide mb-1.5">
                 Fecha del Pesaje *
@@ -65,7 +71,7 @@ import { AuthService } from '../../core/services/auth.service';
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <!-- Kilos Netos -->
+            <!-- Kilos netos registrados en báscula -->
             <div>
               <label class="block text-xs font-bold text-slate-800 uppercase tracking-wide mb-1.5">
                 Kilos Netos Cosechados (Báscula) *
@@ -84,7 +90,7 @@ import { AuthService } from '../../core/services/auth.service';
               <span class="text-[11px] text-slate-500 mt-1 block">Fórmula: actualiza acumulado del ciclo e incide en $/Kg.</span>
             </div>
 
-            <!-- Grado de Calidad -->
+            <!-- Grado comercial de calidad -->
             <div>
               <label class="block text-xs font-bold text-slate-800 uppercase tracking-wide mb-1.5">
                 Clasificación de Calidad *
@@ -102,7 +108,7 @@ import { AuthService } from '../../core/services/auth.service';
             </div>
           </div>
 
-          <!-- Botón de Envío -->
+          <!-- Acción para registrar el lote -->
           <button
             type="submit"
             [disabled]="cosechaForm.invalid"
@@ -113,7 +119,7 @@ import { AuthService } from '../../core/services/auth.service';
         </form>
       </div>
 
-      <!-- Tabla de Lotes Cosechados -->
+      <!-- Tabla histórica de lotes cosechados -->
       <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
         <div class="p-4 bg-slate-50 border-b border-slate-200 font-bold text-xs uppercase text-slate-600">
           Lotes Cosechados Recientes
@@ -153,13 +159,18 @@ import { AuthService } from '../../core/services/auth.service';
   `
 })
 export class PesajeCosechaComponent {
+  // Servicios de datos y sesión
   readonly erpService = inject(ErpDataService);
   readonly authService = inject(AuthService);
   private readonly fb = inject(FormBuilder);
 
+  // Mensaje de éxito tras registrar el pesaje
   readonly mensajeExito = signal<string | null>(null);
+
+  // Categorías comerciales de clasificación de cosecha
   readonly calidades = ['PRIMERA', 'SEGUNDA', 'DESCARTE'];
 
+  // Formulario reactivo para la captura del pesaje
   readonly cosechaForm: FormGroup = this.fb.group({
     id_ciclo: ['', [Validators.required]],
     fecha_cosecha: [new Date().toISOString().split('T')[0], [Validators.required]],
@@ -167,10 +178,16 @@ export class PesajeCosechaComponent {
     calidad_grado: ['PRIMERA', [Validators.required]]
   });
 
+  /**
+   * Suma la totalidad de kilos cosechados en la temporada actual
+   */
   get totalKgTemporada(): number {
     return this.erpService.cosechas().reduce((acc, c) => acc + c.kilos_netos, 0);
   }
 
+  /**
+   * Retorna las clases de Tailwind para el botón de calidad cuando está seleccionado
+   */
   getBotonCalidadActivo(cal: string): string {
     switch (cal) {
       case 'PRIMERA': return 'bg-emerald-700 text-white border-emerald-800 font-bold';
@@ -180,6 +197,9 @@ export class PesajeCosechaComponent {
     }
   }
 
+  /**
+   * Retorna el estilo de la insignia de calidad para la tabla de historial
+   */
   getBadgeCalidad(cal: string): string {
     switch (cal) {
       case 'PRIMERA': return 'bg-emerald-50 text-emerald-800 border-emerald-200';
@@ -189,6 +209,9 @@ export class PesajeCosechaComponent {
     }
   }
 
+  /**
+   * Registra el lote de cosecha en el servicio, actualiza el acumulado y resetea el control de kilos
+   */
   onSubmitCosecha(): void {
     if (this.cosechaForm.invalid) return;
 
@@ -207,4 +230,3 @@ export class PesajeCosechaComponent {
     this.cosechaForm.patchValue({ kilos_netos: null });
   }
 }
-

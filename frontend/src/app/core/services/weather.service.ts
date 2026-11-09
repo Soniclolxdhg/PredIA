@@ -59,8 +59,8 @@ export class WeatherService {
   }
 
   /**
-   * Permite activar/desactivar intencionalmente una simulación de helada (<2°C)
-   * para la demostración académica y evaluación de la HU11/HU12.
+   * Permite activar o desactivar una condición simulada de helada (<2°C)
+   * para comprobar la activación de alertas y protocolos de prevención agronómica.
    */
   simularHelada(forzar: boolean): void {
     const listaActual = [...this.pronostico7Dias()];

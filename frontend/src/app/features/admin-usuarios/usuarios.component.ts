@@ -4,13 +4,18 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { AuthService } from '../../core/services/auth.service';
 import { RolUsuario, Usuario } from '../../core/models/auth.models';
 
+/**
+ * Componente del Mantenedor de Usuarios del Sistema.
+ * Permite al Administrador gestionar las cuentas de usuario, asignar roles RBAC,
+ * actualizar o restablecer contraseñas y habilitar o inhabilitar accesos.
+ */
 @Component({
   selector: 'app-admin-usuarios',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   template: `
     <div class="space-y-6 max-w-7xl mx-auto">
-      <!-- Encabezado del Módulo -->
+      <!-- Barra superior con título y acción principal -->
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div class="flex items-center gap-2">
@@ -18,7 +23,7 @@ import { RolUsuario, Usuario } from '../../core/models/auth.models';
             <h1 class="text-xl font-bold text-slate-800">Gestión de Usuarios & Control de Accesos</h1>
           </div>
           <p class="text-xs sm:text-sm text-slate-500 mt-1">
-            Mantenedor exclusivo para Administradores: creación de cuentas, asignación de roles RBAC y reseteo de claves.
+            Administración de cuentas, asignación de perfiles de acceso y seguridad del sistema.
           </p>
         </div>
 
@@ -31,7 +36,7 @@ import { RolUsuario, Usuario } from '../../core/models/auth.models';
         </button>
       </div>
 
-      <!-- Alertas de Notificación -->
+      <!-- Alertas de estado para operaciones exitosas o con error -->
       <div *ngIf="mensajeExito()" class="p-4 bg-emerald-50 border border-emerald-300 text-emerald-800 text-sm rounded-xl flex items-center justify-between">
         <span class="font-medium">✓ {{ mensajeExito() }}</span>
         <button (click)="mensajeExito.set(null)" class="text-emerald-700 font-bold hover:text-emerald-950">✕</button>
@@ -42,7 +47,7 @@ import { RolUsuario, Usuario } from '../../core/models/auth.models';
         <button (click)="mensajeError.set(null)" class="text-rose-700 font-bold hover:text-rose-950">✕</button>
       </div>
 
-      <!-- Métricas Rápidas de Cuentas -->
+      <!-- Tarjetas de resumen con métricas de usuarios registrados -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
           <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Usuarios</div>
@@ -62,7 +67,7 @@ import { RolUsuario, Usuario } from '../../core/models/auth.models';
         </div>
       </div>
 
-      <!-- Tabla de Usuarios -->
+      <!-- Tabla principal con listado de colaboradores -->
       <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
         <div class="p-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/60">
           <div class="font-bold text-sm text-slate-800">
@@ -115,7 +120,7 @@ import { RolUsuario, Usuario } from '../../core/models/auth.models';
                 </td>
                 <td class="p-3 sm:p-4 text-center">
                   <div class="flex items-center justify-center gap-1.5">
-                    <!-- Botón Restablecer Clave -->
+                    <!-- Botón para abrir modal de reseteo de clave -->
                     <button
                       type="button"
                       (click)="abrirModalPassword(u)"
@@ -124,7 +129,7 @@ import { RolUsuario, Usuario } from '../../core/models/auth.models';
                       🔑 Clave
                     </button>
 
-                    <!-- Switch Activar / Desactivar -->
+                    <!-- Botón para alternar cuenta entre activa o desactivada -->
                     <button
                       type="button"
                       (click)="alternarEstado(u)"
@@ -141,7 +146,7 @@ import { RolUsuario, Usuario } from '../../core/models/auth.models';
         </div>
       </div>
 
-      <!-- MODAL: CREAR USUARIO -->
+      <!-- Ventana modal para registro de nuevo usuario -->
       <div
         *ngIf="modalCrearAbierto()"
         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
@@ -209,7 +214,7 @@ import { RolUsuario, Usuario } from '../../core/models/auth.models';
                 placeholder="usuario&#64;predia.cl"
                 class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:border-emerald-600 focus:outline-none" />
               <div *ngIf="crearUsuarioForm.get('email')?.touched && crearUsuarioForm.get('email')?.invalid" class="text-[11px] text-rose-600 mt-1">
-                Ingrese un email válido.
+                Ingrese un correo corporativo válido.
               </div>
             </div>
 
@@ -245,7 +250,7 @@ import { RolUsuario, Usuario } from '../../core/models/auth.models';
         </div>
       </div>
 
-      <!-- MODAL: CAMBIAR / RESETEAR CONTRASEÑA -->
+      <!-- Ventana modal para cambiar o restablecer contraseña -->
       <div
         *ngIf="modalPasswordAbierto() && usuarioSeleccionado()"
         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
@@ -313,16 +318,20 @@ import { RolUsuario, Usuario } from '../../core/models/auth.models';
   `
 })
 export class UsuariosComponent {
+  // Inyección de servicios centrales
   readonly authService = inject(AuthService);
   private readonly fb = inject(FormBuilder);
 
+  // Señales reactivas para mensajes de retroalimentación al usuario
   readonly mensajeExito = signal<string | null>(null);
   readonly mensajeError = signal<string | null>(null);
 
+  // Señales para el control de apertura y cierre de ventanas modales
   readonly modalCrearAbierto = signal(false);
   readonly modalPasswordAbierto = signal(false);
   readonly usuarioSeleccionado = signal<Usuario | null>(null);
 
+  // Formulario reactivo para la creación de un nuevo usuario
   readonly crearUsuarioForm: FormGroup = this.fb.group({
     nombre_completo: ['', [Validators.required, Validators.minLength(3)]],
     rut: ['', [Validators.required]],
@@ -331,19 +340,29 @@ export class UsuariosComponent {
     rol: ['AGRONOMO' as RolUsuario, [Validators.required]]
   });
 
+  // Formulario reactivo para la actualización y confirmación de contraseña
   readonly passwordForm: FormGroup = this.fb.group({
     nuevaPassword: ['', [Validators.required, Validators.minLength(6)]],
     confirmarPassword: ['', [Validators.required]]
   });
 
+  /**
+   * Cuenta la cantidad de usuarios que tienen el flag 'activo' en verdadero
+   */
   totalActivos(): number {
     return this.authService.usuarios().filter((u) => u.activo).length;
   }
 
+  /**
+   * Retorna el número de usuarios asociados a un rol específico
+   */
   totalPorRol(rol: RolUsuario): number {
     return this.authService.usuarios().filter((u) => u.rol === rol).length;
   }
 
+  /**
+   * Genera el monograma de dos iniciales (ej: 'RV') para el avatar visual del colaborador
+   */
   getIniciales(nombre: string): string {
     if (!nombre) return 'U';
     const partes = nombre.trim().split(' ');
@@ -351,6 +370,9 @@ export class UsuariosComponent {
     return (partes[0][0] + partes[1][0]).toUpperCase();
   }
 
+  /**
+   * Devuelve las clases CSS de Tailwind correspondientes a la insignia visual de cada rol
+   */
   getClaseBadgeRol(rol: RolUsuario): string {
     switch (rol) {
       case 'ADMINISTRADOR':
@@ -366,6 +388,9 @@ export class UsuariosComponent {
     }
   }
 
+  /**
+   * Abre la ventana modal para crear un nuevo usuario y resetea los campos a sus valores iniciales
+   */
   abrirModalCrear(): void {
     this.crearUsuarioForm.reset({
       nombre_completo: '',
@@ -377,10 +402,16 @@ export class UsuariosComponent {
     this.modalCrearAbierto.set(true);
   }
 
+  /**
+   * Cierra la ventana modal de creación de usuario
+   */
   cerrarModalCrear(): void {
     this.modalCrearAbierto.set(false);
   }
 
+  /**
+   * Valida y procesa el envío del formulario para dar de alta al nuevo usuario
+   */
   onSubmitCrearUsuario(): void {
     if (this.crearUsuarioForm.invalid) return;
 
@@ -394,6 +425,9 @@ export class UsuariosComponent {
     }
   }
 
+  /**
+   * Abre la ventana modal para modificar la contraseña del usuario recibido por parámetro
+   */
   abrirModalPassword(usuario: Usuario): void {
     this.usuarioSeleccionado.set(usuario);
     this.passwordForm.reset({
@@ -403,17 +437,26 @@ export class UsuariosComponent {
     this.modalPasswordAbierto.set(true);
   }
 
+  /**
+   * Cierra la ventana modal de cambio de contraseña
+   */
   cerrarModalPassword(): void {
     this.usuarioSeleccionado.set(null);
     this.modalPasswordAbierto.set(false);
   }
 
+  /**
+   * Verifica si la nueva contraseña y su campo de confirmación son diferentes
+   */
   passwordMismatch(): boolean {
     const p1 = this.passwordForm.get('nuevaPassword')?.value;
     const p2 = this.passwordForm.get('confirmarPassword')?.value;
     return !!p1 && !!p2 && p1 !== p2;
   }
 
+  /**
+   * Procesa la actualización de la contraseña en el servicio AuthService
+   */
   onSubmitPassword(): void {
     const user = this.usuarioSeleccionado();
     if (!user || this.passwordForm.invalid || this.passwordMismatch()) return;
@@ -431,6 +474,9 @@ export class UsuariosComponent {
     }
   }
 
+  /**
+   * Alterna el estado activo/inactivo del usuario seleccionado
+   */
   alternarEstado(usuario: Usuario): void {
     this.authService.conmutarEstadoUsuario(usuario.id_usuario);
     const estadoTxt = !usuario.activo ? 'activada' : 'desactivada';

@@ -3,13 +3,18 @@ import { CommonModule } from '@angular/common';
 import { AuthService } from '../core/services/auth.service';
 import { RolUsuario } from '../core/models/enum.types';
 
+/**
+ * Componente del Encabezado Principal (Header).
+ * Muestra el título de la empresa, el selector rápido de rol de acceso,
+ * la información del usuario con sesión activa y la opción para cerrar sesión.
+ */
 @Component({
   selector: 'app-header',
   standalone: true,
   imports: [CommonModule],
   template: `
     <header class="bg-white border-b border-slate-200 px-4 py-2.5 flex items-center justify-between sticky top-0 z-30 shadow-sm">
-      <!-- Izquierda: Toggle Menú Móvil y Título -->
+      <!-- Botón para menú en móviles y título de la finca -->
       <div class="flex items-center gap-3">
         <button
           type="button"
@@ -26,11 +31,11 @@ import { RolUsuario } from '../core/models/enum.types';
         </div>
       </div>
 
-      <!-- Centro/Derecha: Selector Rápido de Roles (Evaluación INACAP) -->
+      <!-- Selector de rol activo y datos del usuario -->
       <div class="flex items-center gap-2 sm:gap-4">
-        <!-- Switch de Rol Demo -->
+        <!-- Selector rápido de rol para alternar perfiles -->
         <div class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
-          <span class="text-[11px] font-bold text-slate-500 px-2 hidden md:inline">ROL EVALUADOR:</span>
+          <span class="text-[11px] font-bold text-slate-500 px-2 hidden md:inline">ROL ACTIVO:</span>
           <button
             type="button"
             *ngFor="let rol of roles"
@@ -42,7 +47,7 @@ import { RolUsuario } from '../core/models/enum.types';
           </button>
         </div>
 
-        <!-- Usuario Activo & Logout -->
+        <!-- Usuario activo, rol y botón de logout -->
         <div class="flex items-center gap-3 border-l border-slate-200 pl-3">
           <div class="text-right hidden sm:block">
             <div class="text-xs font-bold text-slate-800">{{ authService.currentUser()?.nombre_completo }}</div>
@@ -73,8 +78,12 @@ export class HeaderComponent {
   readonly authService = inject(AuthService);
   @Output() toggleSidebar = new EventEmitter<void>();
 
+  // Lista de perfiles disponibles para alternar
   readonly roles: RolUsuario[] = ['ADMINISTRADOR', 'AGRONOMO', 'BODEGUERO', 'GERENTE'];
 
+  /**
+   * Retorna el emoji asociado a cada perfil de usuario
+   */
   getIconoRol(rol: RolUsuario): string {
     switch (rol) {
       case 'ADMINISTRADOR': return '👑';
@@ -84,6 +93,9 @@ export class HeaderComponent {
     }
   }
 
+  /**
+   * Retorna las clases de Tailwind cuando un botón de rol está seleccionado
+   */
   getBotonRolActivo(rol: RolUsuario): string {
     switch (rol) {
       case 'ADMINISTRADOR': return 'bg-purple-600 text-white shadow-xs font-bold';
@@ -93,14 +105,16 @@ export class HeaderComponent {
     }
   }
 
+  /**
+   * Retorna la combinación de clases de Tailwind para la insignia del rol del usuario
+   */
   getBadgeClase(rol: RolUsuario | null): string {
     switch (rol) {
       case 'ADMINISTRADOR': return 'bg-purple-50 text-purple-700 border-purple-200';
       case 'AGRONOMO': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
       case 'BODEGUERO': return 'bg-amber-50 text-amber-700 border-amber-200';
       case 'GERENTE': return 'bg-blue-50 text-blue-700 border-blue-200';
-      default: return 'bg-slate-100 text-slate-700 border-slate-200';
+      default: return 'bg-slate-50 text-slate-700 border-slate-200';
     }
   }
 }
-

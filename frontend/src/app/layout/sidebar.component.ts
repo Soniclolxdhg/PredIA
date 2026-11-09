@@ -3,13 +3,18 @@ import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
 
+/**
+ * Componente del Menú Lateral de Navegación (Sidebar).
+ * Presenta las opciones del sistema condicionadas por los permisos RBAC del usuario autenticado,
+ * incluyendo las secciones de Administración, Producción y el cronograma de fases.
+ */
 @Component({
   selector: 'app-sidebar',
   standalone: true,
   imports: [CommonModule, RouterLink, RouterLinkActive],
   template: `
     <aside class="w-64 bg-slate-900 text-slate-100 flex flex-col h-full border-r border-slate-800 select-none">
-      <!-- Marca y Logo -->
+      <!-- Logotipo y nombre de la empresa -->
       <div class="p-4 flex items-center justify-between border-b border-slate-800">
         <div class="flex items-center gap-2.5">
           <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-green-700 flex items-center justify-center text-white shadow-md font-bold text-lg">
@@ -33,9 +38,9 @@ import { AuthService } from '../core/services/auth.service';
         </button>
       </div>
 
-      <!-- Menú Dinámico con Control de Acceso RBAC -->
+      <!-- Menú dinámico según permisos de usuario -->
       <nav class="flex-1 overflow-y-auto p-3 space-y-5">
-        <!-- SECCIÓN: ADMINISTRACIÓN EXCLUSIVA -->
+        <!-- Opciones de administración (exclusivo para rol ADMINISTRADOR) -->
         <div *ngIf="authService.isAdmin()">
           <div class="text-[11px] font-bold uppercase tracking-wider text-purple-400 px-3 mb-1.5 flex items-center justify-between">
             <span>Administración</span>
@@ -56,7 +61,7 @@ import { AuthService } from '../core/services/auth.service';
           </a>
         </div>
 
-        <!-- SECCIÓN: CAMPO & PRODUCCIÓN (FASE 2 ACTIVA) -->
+        <!-- Módulo de Producción y Terreno (Fase 2 activa) -->
         <div *ngIf="authService.canAccessProduction()">
           <div class="text-[11px] font-bold uppercase tracking-wider text-emerald-400 px-3 mb-1.5 flex items-center justify-between">
             <span>Producción & Terreno</span>
@@ -101,7 +106,7 @@ import { AuthService } from '../core/services/auth.service';
           </div>
         </div>
 
-        <!-- PRÓXIMAS FASES PROGRAMADAS -->
+        <!-- Módulos planificados en el cronograma de entregas -->
         <div class="pt-2 border-t border-slate-800/80">
           <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-3 mb-2 flex items-center justify-between">
             <span>Módulos en Cronograma</span>
@@ -144,7 +149,7 @@ import { AuthService } from '../core/services/auth.service';
         </div>
       </nav>
 
-      <!-- Pie del Sidebar con Versión e Institución -->
+      <!-- Pie de página del menú con identificación institucional -->
       <div class="p-3 bg-slate-950 border-t border-slate-800 text-[11px] text-slate-400 text-center">
         <span>Proyecto de Integración &bull; INACAP 2026</span>
       </div>
