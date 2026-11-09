@@ -35,7 +35,7 @@ import { RolUsuario } from '../core/models/enum.types';
       <div class="flex items-center gap-2 sm:gap-4">
         <!-- Selector rápido de rol para alternar perfiles -->
         <div class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
-          <span class="text-[11px] font-bold text-slate-500 px-2 hidden md:inline">ROL ACTIVO:</span>
+          <span class="text-[11px] font-bold text-slate-500 px-2 hidden md:inline">ROL EVALUADOR:</span>
           <button
             type="button"
             *ngFor="let rol of roles"
