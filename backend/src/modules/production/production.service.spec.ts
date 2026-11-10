@@ -84,6 +84,50 @@ describe('ProductionService', () => {
     });
   });
 
+  describe('crearNave', () => {
+    it('debe crear una nueva nave si el código no está repetido', async () => {
+      prisma.nave.findUnique.mockResolvedValue(null);
+      prisma.nave.create.mockResolvedValue({
+        idNave: 5,
+        codigoNave: 'NAV-05',
+        nombre: 'Nave 5',
+        superficieM2: 2500,
+        tipoEstructura: 'Multitúnel Metal',
+        estado: EstadoNave.DISPONIBLE,
+      });
+
+      const res = await service.crearNave({
+        codigoNave: 'NAV-05',
+        nombre: 'Nave 5',
+        superficieM2: 2500,
+      });
+
+      expect(res.idNave).toBe(5);
+      expect(prisma.nave.create).toHaveBeenCalled();
+    });
+
+    it('debe soportar propiedades snake_case al crear nave', async () => {
+      prisma.nave.findUnique.mockResolvedValue(null);
+      prisma.nave.create.mockResolvedValue({
+        idNave: 6,
+        codigoNave: 'NAV-06',
+        nombre: 'Nave 6',
+        superficieM2: 1800,
+        tipoEstructura: 'Túnel Simple',
+        estado: EstadoNave.DISPONIBLE,
+      });
+
+      const res = await service.crearNave({
+        codigo_nave: 'NAV-06',
+        nombre: 'Nave 6',
+        superficie_m2: 1800,
+        tipo_estructura: 'Túnel Simple',
+      });
+
+      expect(res.codigoNave).toBe('NAV-06');
+    });
+  });
+
   describe('crearCiclo', () => {
     it('debe lanzar NotFoundException si la nave no existe', async () => {
       prisma.nave.findUnique.mockResolvedValue(null);
@@ -174,3 +218,4 @@ describe('ProductionService', () => {
     });
   });
 });
+

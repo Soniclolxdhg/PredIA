@@ -1,23 +1,30 @@
-import { IsString, IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 
 /**
- * DTO para la creación de una Nave o Invernadero.
+ * DTO para la creación de una Nave o Invernadero (HU01).
  * Corresponde a los campos de la tabla 'naves' en Supabase.
+ * Admite tanto camelCase como snake_case para máxima compatibilidad con el frontend.
  */
 export class CrearNaveDto {
-  @IsString({ message: 'El código de la nave es obligatorio.' })
-  @IsNotEmpty({ message: 'El código de la nave no puede estar vacío.' })
-  codigoNave: string;
+  @IsOptional()
+  codigoNave?: string;
+
+  @IsOptional()
+  codigo_nave?: string;
 
   @IsString({ message: 'El nombre de la nave es obligatorio.' })
   @IsNotEmpty({ message: 'El nombre de la nave no puede estar vacío.' })
   nombre: string;
 
-  @IsNumber({}, { message: 'La superficie en m² debe ser un número válido.' })
-  @IsNotEmpty({ message: 'La superficie en m² es obligatoria.' })
-  superficieM2: number;
+  @IsOptional()
+  superficieM2?: number;
 
-  @IsString({ message: 'El tipo de estructura debe ser una cadena de texto.' })
+  @IsOptional()
+  superficie_m2?: number;
+
   @IsOptional()
   tipoEstructura?: string;
+
+  @IsOptional()
+  tipo_estructura?: string;
 }

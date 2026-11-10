@@ -137,6 +137,40 @@ export class ErpDataService {
   }
 
   /**
+   * Registra una nueva Nave o Invernadero directamente en la base de datos de Supabase.
+   */
+  crearNave(dto: {
+    codigo_nave: string;
+    nombre: string;
+    superficie_m2: number;
+    tipo_estructura?: string;
+  }): Observable<{ exito: boolean; mensaje: string; nave?: Nave }> {
+    return this.http.post<any>(`${this.apiUrl}/produccion/naves`, {
+      codigoNave: dto.codigo_nave.trim().toUpperCase(),
+      nombre: dto.nombre.trim(),
+      superficieM2: Number(dto.superficie_m2),
+      tipoEstructura: dto.tipo_estructura || 'Multitúnel Metal'
+    }).pipe(
+      map((nuevaRaw) => {
+        const nueva = this.normalizarNave(nuevaRaw);
+        this.naves.update((lista) => [...lista, nueva]);
+        return {
+          exito: true,
+          mensaje: `Nave ${nueva.codigo_nave} (${nueva.nombre}) guardada exitosamente en Supabase.`,
+          nave: nueva
+        };
+      }),
+      catchError((err) => {
+        const msg = err.error?.message || 'Error al guardar la nave en Supabase.';
+        return of({
+          exito: false,
+          mensaje: Array.isArray(msg) ? msg.join(', ') : msg
+        });
+      })
+    );
+  }
+
+  /**
    * Carga la lista real de ciclos de cultivo desde la base de datos de Supabase
    */
   cargarCiclos(): Observable<CicloCultivo[]> {

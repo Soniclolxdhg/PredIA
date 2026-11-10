@@ -6,7 +6,7 @@ import { Nave } from '../../core/models/erp.models';
 
 /**
  * Componente para la gestión de Ciclos de Cultivo e Invernaderos (HU01).
- * Controla la ocupación de las naves y la apertura de nuevos ciclos agrícolas,
+ * Controla la creación de naves y la apertura de ciclos agrícolas,
  * conectado en tiempo real con PostgreSQL en Supabase a través del backend NestJS.
  */
 @Component({
@@ -27,11 +27,11 @@ import { Nave } from '../../core/models/erp.models';
             </span>
           </div>
           <p class="text-xs sm:text-sm text-slate-500 mt-1">
-            Control de ocupación de invernaderos y aperturas de ciclo productivo en base de datos real.
+            Gestión de infraestructura de naves y aperturas de ciclo productivo en base de datos real.
           </p>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
           <!-- Botón de Sincronización Manual con Supabase -->
           <button
             type="button"
@@ -43,13 +43,22 @@ import { Nave } from '../../core/models/erp.models';
             <span>Sincronizar</span>
           </button>
 
+          <!-- Botón para Crear Nueva Nave -->
+          <button
+            type="button"
+            (click)="abrirModalNave()"
+            class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-white hover:bg-slate-50 text-slate-800 font-semibold text-sm rounded-xl border border-slate-300 shadow-xs transition-colors touch-target">
+            <span>🏡</span>
+            <span>Nueva Nave</span>
+          </button>
+
           <!-- Botón de Apertura de Nuevo Ciclo -->
           <button
             type="button"
-            (click)="abrirModal()"
+            (click)="abrirModalCiclo()"
             class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm rounded-xl shadow-xs transition-colors touch-target">
-            <span>➕</span>
-            <span>Aperturar Nuevo Ciclo</span>
+            <span>🌱</span>
+            <span>Aperturar Ciclo</span>
           </button>
         </div>
       </div>
@@ -86,15 +95,26 @@ import { Nave } from '../../core/models/erp.models';
         <button (click)="mensajeExito.set(null)" class="text-emerald-600 font-bold hover:text-emerald-900">✕</button>
       </div>
 
-      <!-- Tarjetas de estado físico de cada invernadero -->
+      <!-- Sección: Estado de Naves e Invernaderos -->
       <div>
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-sm font-bold uppercase tracking-wider text-slate-500">
-            Estado de Naves e Invernaderos (Superficie Total: {{ totalSuperficie | number }} m²)
-          </h3>
-          <span class="text-xs font-medium text-slate-500">
-            {{ erpService.naves().length }} naves en Supabase
-          </span>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+          <div>
+            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-500">
+              Estado de Naves e Invernaderos (Superficie Total: {{ totalSuperficie | number }} m²)
+            </h3>
+            <span class="text-xs font-medium text-slate-500">
+              {{ erpService.naves().length }} naves registradas en Supabase
+            </span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              (click)="abrirModalNave()"
+              class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs rounded-xl shadow-xs transition-colors touch-target">
+              <span>➕</span>
+              <span>Registrar Nueva Nave</span>
+            </button>
+          </div>
         </div>
 
         <!-- Cargando naves -->
@@ -110,16 +130,25 @@ import { Nave } from '../../core/models/erp.models';
           <span class="text-3xl">🏡</span>
           <h4 class="font-bold text-amber-900 mt-2 text-base">La base de datos de Supabase no tiene naves inicializadas</h4>
           <p class="text-xs text-amber-700 max-w-lg mx-auto mt-1 mb-4">
-            Para aperturar ciclos de cultivo en Santa Laura Ltda., se requiere registrar las 4 naves base (NAV-01 a NAV-04) en la tabla <code class="font-mono bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-semibold">naves</code> de Supabase.
+            Para aperturar ciclos de cultivo en Santa Laura Ltda., se requiere registrar naves en la tabla <code class="font-mono bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-semibold">naves</code> de Supabase. Puedes sembrar las 4 naves base oficiales o registrar una nueva nave manualmente.
           </p>
-          <button
-            type="button"
-            (click)="sembrarNaves()"
-            [disabled]="sembrando() || erpService.cargandoNaves()"
-            class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition-colors touch-target">
-            <span [class.animate-spin]="sembrando()">🌱</span>
-            <span>{{ sembrando() ? 'Inicializando en Supabase...' : 'Inicializar Naves de Santa Laura Ltda. en Supabase' }}</span>
-          </button>
+          <div class="flex flex-wrap items-center justify-center gap-3">
+            <button
+              type="button"
+              (click)="sembrarNaves()"
+              [disabled]="sembrando() || erpService.cargandoNaves()"
+              class="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition-colors touch-target">
+              <span [class.animate-spin]="sembrando()">🌱</span>
+              <span>{{ sembrando() ? 'Inicializando en Supabase...' : 'Sembrar 4 Naves Base de Santa Laura Ltda.' }}</span>
+            </button>
+            <button
+              type="button"
+              (click)="abrirModalNave()"
+              class="inline-flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs rounded-xl border border-slate-300 shadow-xs transition-colors touch-target">
+              <span>➕</span>
+              <span>Crear Nave Manualmente</span>
+            </button>
+          </div>
         </div>
 
         <!-- Grilla de naves existentes en Supabase -->
@@ -146,7 +175,7 @@ import { Nave } from '../../core/models/erp.models';
         </div>
       </div>
 
-      <!-- Listado histórico y ciclos actualmente activos -->
+      <!-- Sección: Listado histórico y ciclos actualmente activos -->
       <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div class="p-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
           <h3 class="font-bold text-slate-800 text-sm">Historial y Ciclos Activos de la Temporada</h3>
@@ -168,11 +197,11 @@ import { Nave } from '../../core/models/erp.models';
           </div>
           <h4 class="font-bold text-slate-800 text-sm">No hay ciclos de cultivo registrados en la base de datos de Supabase</h4>
           <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-            Actualmente la tabla <code class="font-mono bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-semibold">ciclos_cultivo</code> no contiene registros. Haz clic en "Aperturar Nuevo Ciclo" para registrar un ciclo productivo en la base de datos real.
+            Actualmente la tabla <code class="font-mono bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-semibold">ciclos_cultivo</code> no contiene registros. Haz clic en "Aperturar Ciclo" para registrar el primer ciclo productivo en la base de datos real.
           </p>
           <button
             type="button"
-            (click)="abrirModal()"
+            (click)="abrirModalCiclo()"
             class="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs rounded-xl shadow-xs transition-colors">
             <span>➕</span>
             <span>Aperturar Nuevo Ciclo</span>
@@ -238,9 +267,102 @@ import { Nave } from '../../core/models/erp.models';
         </div>
       </div>
 
-      <!-- Ventana modal con validación de nave ocupada -->
+      <!-- MODAL 1: REGISTRAR NUEVA NAVE EN SUPABASE -->
       <div
-        *ngIf="modalVisible()"
+        *ngIf="modalNaveVisible()"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+            <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+              <span>🏡</span>
+              <span>Registrar Nueva Nave en Supabase</span>
+            </h3>
+            <button (click)="cerrarModalNave()" class="text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
+          </div>
+
+          <form [formGroup]="naveForm" (ngSubmit)="onSubmitNave()" class="space-y-4">
+            <!-- Código de Nave -->
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-xs font-bold text-slate-700">Código de Nave *</label>
+                <span class="text-[10px] text-slate-400 font-mono">Único en tabla naves</span>
+              </div>
+              <div class="flex flex-wrap gap-1.5 mb-1.5">
+                <button
+                  type="button"
+                  *ngFor="let cod of sugerenciasCodigo"
+                  (click)="sugerirCodigo(cod)"
+                  class="text-[10px] px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 font-mono font-bold text-slate-700 border border-slate-200 transition-colors">
+                  {{ cod }}
+                </button>
+              </div>
+              <input
+                type="text"
+                formControlName="codigo_nave"
+                placeholder="ej. NAV-01, NAV-05"
+                class="w-full p-2.5 text-sm uppercase font-mono rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+              />
+            </div>
+
+            <!-- Nombre Descriptivo -->
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Nombre Descriptivo *</label>
+              <input
+                type="text"
+                formControlName="nombre"
+                placeholder="ej. Nave 1 - Tomate Larga Vida"
+                class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+              />
+            </div>
+
+            <!-- Superficie en m² -->
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Superficie (m²) *</label>
+              <input
+                type="number"
+                formControlName="superficie_m2"
+                placeholder="ej. 2500"
+                min="10"
+                class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+              />
+            </div>
+
+            <!-- Tipo de Estructura -->
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Tipo de Estructura *</label>
+              <select formControlName="tipo_estructura" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none">
+                <option value="Multitúnel Metal">Multitúnel Metal</option>
+                <option value="Túnel Simple">Túnel Simple</option>
+                <option value="Invernadero Climatizado">Invernadero Climatizado</option>
+                <option value="Sombreadero Malla Raschel">Sombreadero Malla Raschel</option>
+                <option value="Capilla Tradicional">Capilla Tradicional</option>
+              </select>
+            </div>
+
+            <!-- Acciones -->
+            <div class="pt-3 flex gap-3 justify-end border-t border-slate-100">
+              <button
+                type="button"
+                (click)="cerrarModalNave()"
+                [disabled]="guardandoNave()"
+                class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl font-medium">
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                [disabled]="naveForm.invalid || guardandoNave()"
+                class="inline-flex items-center gap-2 px-5 py-2 text-sm bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-semibold rounded-xl shadow-xs transition-colors">
+                <span *ngIf="guardandoNave()" class="inline-block animate-spin">🔄</span>
+                <span>{{ guardandoNave() ? 'Guardando en Supabase...' : 'Guardar Nave en Supabase' }}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- MODAL 2: APERTURA DE NUEVO CICLO -->
+      <div
+        *ngIf="modalCicloVisible()"
         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
         <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
           <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
@@ -248,7 +370,7 @@ import { Nave } from '../../core/models/erp.models';
               <span>🌱</span>
               <span>Aperturar Nuevo Ciclo de Cultivo</span>
             </h3>
-            <button (click)="cerrarModal()" class="text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
+            <button (click)="cerrarModalCiclo()" class="text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
           </div>
 
           <form [formGroup]="cicloForm" (ngSubmit)="onSubmitCiclo()" class="space-y-4">
@@ -333,17 +455,17 @@ import { Nave } from '../../core/models/erp.models';
             <div class="pt-3 flex gap-3 justify-end border-t border-slate-100">
               <button
                 type="button"
-                (click)="cerrarModal()"
-                [disabled]="guardando()"
+                (click)="cerrarModalCiclo()"
+                [disabled]="guardandoCiclo()"
                 class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl font-medium">
                 Cancelar
               </button>
               <button
                 type="submit"
-                [disabled]="cicloForm.invalid || guardando()"
+                [disabled]="cicloForm.invalid || guardandoCiclo()"
                 class="inline-flex items-center gap-2 px-5 py-2 text-sm bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-semibold rounded-xl shadow-xs transition-colors">
-                <span *ngIf="guardando()" class="inline-block animate-spin">🔄</span>
-                <span>{{ guardando() ? 'Guardando en Supabase...' : 'Guardar y Aperturar' }}</span>
+                <span *ngIf="guardandoCiclo()" class="inline-block animate-spin">🔄</span>
+                <span>{{ guardandoCiclo() ? 'Guardando en Supabase...' : 'Guardar y Aperturar' }}</span>
               </button>
             </div>
           </form>
@@ -357,12 +479,25 @@ export class CiclosCultivoComponent implements OnInit {
   readonly erpService = inject(ErpDataService);
   private readonly fb = inject(FormBuilder);
 
-  // Señales reactivas para la interfaz
-  readonly modalVisible = signal(false);
-  readonly guardando = signal(false);
+  // Señales reactivas para ventanas modales y estado
+  readonly modalCicloVisible = signal(false);
+  readonly modalNaveVisible = signal(false);
+  readonly guardandoCiclo = signal(false);
+  readonly guardandoNave = signal(false);
   readonly sembrando = signal(false);
   readonly mensajeError = signal<string | null>(null);
   readonly mensajeExito = signal<string | null>(null);
+
+  // Sugerencias rápidas de códigos de naves
+  readonly sugerenciasCodigo = ['NAV-01', 'NAV-02', 'NAV-03', 'NAV-04', 'NAV-05'];
+
+  // Formulario reactivo para la creación de nueva Nave
+  readonly naveForm: FormGroup = this.fb.group({
+    codigo_nave: ['', [Validators.required, Validators.minLength(3)]],
+    nombre: ['', [Validators.required, Validators.minLength(3)]],
+    superficie_m2: [2500, [Validators.required, Validators.min(10)]],
+    tipo_estructura: ['Multitúnel Metal', [Validators.required]]
+  });
 
   // Formulario reactivo para la apertura del ciclo productivo
   readonly cicloForm: FormGroup = this.fb.group({
@@ -435,10 +570,61 @@ export class CiclosCultivoComponent implements OnInit {
     });
   }
 
-  /**
-   * Abre la ventana modal y restablece los valores del formulario al día actual
-   */
-  abrirModal(): void {
+  // ==========================================
+  // GESTIÓN MODAL: CREAR NAVE
+  // ==========================================
+
+  abrirModalNave(): void {
+    const totalActual = this.erpService.naves().length;
+    const proxNum = totalActual + 1;
+    const proxCod = `NAV-${proxNum < 10 ? '0' + proxNum : proxNum}`;
+
+    this.naveForm.reset({
+      codigo_nave: proxCod,
+      nombre: `Nave ${proxNum} - Invernadero`,
+      superficie_m2: 2500,
+      tipo_estructura: 'Multitúnel Metal'
+    });
+    this.mensajeError.set(null);
+    this.modalNaveVisible.set(true);
+  }
+
+  cerrarModalNave(): void {
+    this.modalNaveVisible.set(false);
+  }
+
+  sugerirCodigo(cod: string): void {
+    this.naveForm.patchValue({ codigo_nave: cod });
+  }
+
+  onSubmitNave(): void {
+    if (this.naveForm.invalid) return;
+
+    this.guardandoNave.set(true);
+    this.mensajeError.set(null);
+
+    this.erpService.crearNave(this.naveForm.value).subscribe({
+      next: (res) => {
+        this.guardandoNave.set(false);
+        if (!res.exito) {
+          this.mensajeError.set(res.mensaje);
+        } else {
+          this.mensajeExito.set(res.mensaje);
+          this.cerrarModalNave();
+        }
+      },
+      error: () => {
+        this.guardandoNave.set(false);
+        this.mensajeError.set('Error inesperado al conectar con Supabase para registrar la nave.');
+      }
+    });
+  }
+
+  // ==========================================
+  // GESTIÓN MODAL: APERTURAR CICLO
+  // ==========================================
+
+  abrirModalCiclo(): void {
     this.cicloForm.reset({
       id_nave: '',
       temporada: 'PRIMAVERA_2026',
@@ -447,44 +633,35 @@ export class CiclosCultivoComponent implements OnInit {
       fecha_termino_estimada: ''
     });
     this.mensajeError.set(null);
-    this.modalVisible.set(true);
+    this.modalCicloVisible.set(true);
   }
 
-  /**
-   * Cierra la ventana modal de apertura de ciclo
-   */
-  cerrarModal(): void {
-    this.modalVisible.set(false);
+  cerrarModalCiclo(): void {
+    this.modalCicloVisible.set(false);
   }
 
-  /**
-   * Asigna con un solo toque una de las variedades características de Santa Laura Ltda.
-   */
   seleccionarVariedadPredefinida(variedad: string): void {
     this.cicloForm.patchValue({ variedad });
   }
 
-  /**
-   * Procesa la solicitud de apertura enviándola a Supabase a través del backend REST
-   */
   onSubmitCiclo(): void {
     if (this.cicloForm.invalid) return;
 
-    this.guardando.set(true);
+    this.guardandoCiclo.set(true);
     this.mensajeError.set(null);
 
     this.erpService.crearCicloCultivo(this.cicloForm.value).subscribe({
       next: (res) => {
-        this.guardando.set(false);
+        this.guardandoCiclo.set(false);
         if (!res.exito) {
           this.mensajeError.set(res.mensaje);
         } else {
           this.mensajeExito.set(res.mensaje);
-          this.cerrarModal();
+          this.cerrarModalCiclo();
         }
       },
       error: () => {
-        this.guardando.set(false);
+        this.guardandoCiclo.set(false);
         this.mensajeError.set('Error inesperado de comunicación con la base de datos de Supabase.');
       }
     });

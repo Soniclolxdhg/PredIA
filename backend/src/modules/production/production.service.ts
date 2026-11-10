@@ -36,26 +36,41 @@ export class ProductionService {
   }
 
   /**
-   * Crea una nueva nave en la base de datos de Supabase
+   * Crea una nueva nave en la base de datos de Supabase (HU01).
    */
   async crearNave(dto: CrearNaveDto) {
+    const codigoNave = (dto.codigoNave ?? dto.codigo_nave)?.trim().toUpperCase();
+    if (!codigoNave) {
+      throw new BadRequestException('El código de la nave es obligatorio (ej. NAV-01).');
+    }
+
+    const superficieM2 = Number(dto.superficieM2 ?? dto.superficie_m2);
+    if (!superficieM2 || isNaN(superficieM2) || superficieM2 <= 0) {
+      throw new BadRequestException('La superficie en m² debe ser un número mayor a 0.');
+    }
+
+    const tipoEstructura = dto.tipoEstructura ?? dto.tipo_estructura ?? 'Multitúnel';
+
     const existe = await this.prisma.nave.findUnique({
-      where: { codigoNave: dto.codigoNave }
+      where: { codigoNave }
     });
 
     if (existe) {
-      throw new ConflictException(`Ya existe una nave registrada con el código ${dto.codigoNave}.`);
+      throw new ConflictException(`Ya existe una nave registrada con el código ${codigoNave}.`);
     }
 
-    return this.prisma.nave.create({
+    const nuevaNave = await this.prisma.nave.create({
       data: {
-        codigoNave: dto.codigoNave,
-        nombre: dto.nombre,
-        superficieM2: dto.superficieM2,
-        tipoEstructura: dto.tipoEstructura ?? 'Multitúnel',
+        codigoNave,
+        nombre: dto.nombre.trim(),
+        superficieM2,
+        tipoEstructura,
         estado: EstadoNave.DISPONIBLE
       }
     });
+
+    this.logger.log(`Nueva nave ${nuevaNave.codigoNave} (${nuevaNave.nombre}) creada exitosamente en Supabase.`);
+    return nuevaNave;
   }
 
   /**
