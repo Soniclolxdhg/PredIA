@@ -13,7 +13,7 @@ import {
   InspeccionNave
 } from '../models/erp.models';
 
-const STORAGE_PREFIX = 'predia_erp_';
+const STORAGE_PREFIX = 'predia_agri_v2_';
 
 @Injectable({
   providedIn: 'root'
@@ -386,6 +386,15 @@ export class ErpDataService {
   // Persistencia en almacenamiento local y registros iniciales
 
   private cargarInitial<T>(key: string, factory: () => T): T {
+    if (typeof localStorage === 'undefined') return factory();
+
+    // Limpieza de claves previas en el navegador del usuario para refrescar datos
+    try {
+      localStorage.removeItem('predia_erp_' + key);
+    } catch {
+      // Ignorar en entornos sin acceso a almacenamiento
+    }
+
     const item = localStorage.getItem(STORAGE_PREFIX + key);
     if (!item) {
       const data = factory();
@@ -400,16 +409,18 @@ export class ErpDataService {
   }
 
   private persistir<T>(key: string, val: T): void {
+    if (typeof localStorage === 'undefined') return;
     localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(val));
   }
 
   // Datos base para inicialización del sistema en ausencia de conexión remota
+  // Especialidad Santa Laura Ltda.: Tomate Larga Vida (SEM-TOM-01) y hortalizas protegidas (Pimiento)
   private getNavesDefault(): Nave[] {
     return [
-      { id_nave: 1, codigo_nave: 'NAV-01', nombre: 'Nave Central Tomates', superficie_m2: 2500, tipo_estructura: 'Multitúnel Metal', estado: 'EN_CULTIVO' },
-      { id_nave: 2, codigo_nave: 'NAV-02', nombre: 'Nave Pimientos Holandeses', superficie_m2: 2000, tipo_estructura: 'Túnel Simple', estado: 'EN_CULTIVO' },
-      { id_nave: 3, codigo_nave: 'NAV-03', nombre: 'Nave Almácigos y Propagación', superficie_m2: 1200, tipo_estructura: 'Invernadero Climatizado', estado: 'DISPONIBLE' },
-      { id_nave: 4, codigo_nave: 'NAV-04', nombre: 'Nave Hortalizas de Hoja', superficie_m2: 1800, tipo_estructura: 'Sombreadero Malla Raschel', estado: 'MANTENCION' },
+      { id_nave: 1, codigo_nave: 'NAV-01', nombre: 'Nave 1 - Tomate Larga Vida (Especialidad)', superficie_m2: 2500, tipo_estructura: 'Multitúnel Metal', estado: 'EN_CULTIVO' },
+      { id_nave: 2, codigo_nave: 'NAV-02', nombre: 'Nave 2 - Pimiento Morrón (Complementaria)', superficie_m2: 2000, tipo_estructura: 'Túnel Simple', estado: 'EN_CULTIVO' },
+      { id_nave: 3, codigo_nave: 'NAV-03', nombre: 'Nave 3 - Almácigos y Propagación', superficie_m2: 1200, tipo_estructura: 'Invernadero Climatizado', estado: 'DISPONIBLE' },
+      { id_nave: 4, codigo_nave: 'NAV-04', nombre: 'Nave 4 - Hortalizas Protegidas', superficie_m2: 1800, tipo_estructura: 'Sombreadero Malla Raschel', estado: 'DISPONIBLE' },
     ];
   }
 
@@ -444,10 +455,10 @@ export class ErpDataService {
 
   private getLaboresDefault(): LaborAgricola[] {
     return [
-      { id_labor: 1, id_ciclo: 1, id_usuario_responsable: 2, nombre_responsable: 'Macarena Soto', tipo_labor: 'SIEMBRA', fecha_ejecucion: '2026-08-15', horas_dedicadas: 16, observaciones_tecnicas: 'Siembra en sustrato inerte fibra de coco.' },
-      { id_labor: 2, id_ciclo: 1, id_usuario_responsable: 2, nombre_responsable: 'Macarena Soto', tipo_labor: 'RIEGO', fecha_ejecucion: '2026-09-02', horas_dedicadas: 8, observaciones_tecnicas: 'Riego por goteo con pulso matutino.' },
-      { id_labor: 3, id_ciclo: 1, id_usuario_responsable: 2, nombre_responsable: 'Macarena Soto', tipo_labor: 'FERTILIZACION', fecha_ejecucion: '2026-09-18', horas_dedicadas: 10, observaciones_tecnicas: 'Aplicación NPK soluble 18-18-18.' },
-      { id_labor: 4, id_ciclo: 2, id_usuario_responsable: 2, nombre_responsable: 'Macarena Soto', tipo_labor: 'FITOSANITARIO', fecha_ejecucion: '2026-10-05', horas_dedicadas: 6, observaciones_tecnicas: 'Prevención botritis con fungicida autorizado.' }
+      { id_labor: 1, id_ciclo: 1, id_usuario_responsable: 2, nombre_responsable: 'Macarena Soto', tipo_labor: 'SIEMBRA', fecha_ejecucion: '2026-08-15', horas_dedicadas: 16, observaciones_tecnicas: 'Siembra de Tomate Larga Vida (SEM-TOM-01) en sustrato inerte de fibra de coco.' },
+      { id_labor: 2, id_ciclo: 1, id_usuario_responsable: 2, nombre_responsable: 'Macarena Soto', tipo_labor: 'RIEGO', fecha_ejecucion: '2026-09-02', horas_dedicadas: 8, observaciones_tecnicas: 'Riego por goteo con pulso matutino en líneas de tomate.' },
+      { id_labor: 3, id_ciclo: 1, id_usuario_responsable: 2, nombre_responsable: 'Macarena Soto', tipo_labor: 'FERTILIZACION', fecha_ejecucion: '2026-09-18', horas_dedicadas: 10, observaciones_tecnicas: 'Aplicación NPK soluble 18-18-18 en fertirriego.' },
+      { id_labor: 4, id_ciclo: 2, id_usuario_responsable: 2, nombre_responsable: 'Macarena Soto', tipo_labor: 'FITOSANITARIO', fecha_ejecucion: '2026-10-05', horas_dedicadas: 6, observaciones_tecnicas: 'Prevención de botrytis en pimiento morrón con fungicida autorizado.' }
     ];
   }
 
@@ -461,19 +472,20 @@ export class ErpDataService {
 
   private getInsumosDefault(): Insumo[] {
     return [
-      { id_insumo: 1, codigo_insumo: 'SEM-001', nombre: 'Semilla Tomate Larga Vida Híbrido', categoria: 'SEMILLA', unidad_medida: 'UNIDADES', stock_actual: 450, stock_minimo_alerta: 1000, costo_unitario_promedio: 120, es_material_vegetal: true }, // Stock Crítico
-      { id_insumo: 2, codigo_insumo: 'ALM-002', nombre: 'Almácigos Pimiento Rojo 4 semanas', categoria: 'ALMACIGO', unidad_medida: 'BANDEJAS', stock_actual: 12, stock_minimo_alerta: 20, costo_unitario_promedio: 4500, es_material_vegetal: true }, // Stock Crítico
-      { id_insumo: 3, codigo_insumo: 'FER-101', nombre: 'Fertilizante NPK Soluble 18-18-18', categoria: 'FERTILIZANTE', unidad_medida: 'KILOS', stock_actual: 1250, stock_minimo_alerta: 300, costo_unitario_promedio: 1850, es_material_vegetal: false },
-      { id_insumo: 4, codigo_insumo: 'DES-201', nombre: 'Desinfectante Cobre Hidróxido 50%', categoria: 'DESINFECTANTE', unidad_medida: 'LITROS', stock_actual: 80, stock_minimo_alerta: 100, costo_unitario_promedio: 8900, es_material_vegetal: false }, // Stock Crítico
-      { id_insumo: 5, codigo_insumo: 'FER-102', nombre: 'Nitrato de Calcio Grado Invernadero', categoria: 'FERTILIZANTE', unidad_medida: 'KILOS', stock_actual: 900, stock_minimo_alerta: 250, costo_unitario_promedio: 1200, es_material_vegetal: false }
+      { id_insumo: 1, codigo_insumo: 'SEM-TOM-01', nombre: 'Semilla Tomate Larga Vida Híbrido', categoria: 'SEMILLA', unidad_medida: 'UNIDADES', stock_actual: 450, stock_minimo_alerta: 1000, costo_unitario_promedio: 120, es_material_vegetal: true }, // Stock Crítico - Especialidad Santa Laura Ltda.
+      { id_insumo: 2, codigo_insumo: 'SEM-PIM-01', nombre: 'Semilla Pimiento Cuadrado Rojo', categoria: 'SEMILLA', unidad_medida: 'UNIDADES', stock_actual: 320, stock_minimo_alerta: 500, costo_unitario_promedio: 150, es_material_vegetal: true },
+      { id_insumo: 3, codigo_insumo: 'ALM-PIM-02', nombre: 'Almácigos Pimiento Rojo 4 semanas', categoria: 'ALMACIGO', unidad_medida: 'BANDEJAS', stock_actual: 12, stock_minimo_alerta: 20, costo_unitario_promedio: 4500, es_material_vegetal: true }, // Stock Crítico
+      { id_insumo: 4, codigo_insumo: 'FER-101', nombre: 'Fertilizante NPK Soluble 18-18-18', categoria: 'FERTILIZANTE', unidad_medida: 'KILOS', stock_actual: 1250, stock_minimo_alerta: 300, costo_unitario_promedio: 1850, es_material_vegetal: false },
+      { id_insumo: 5, codigo_insumo: 'DES-201', nombre: 'Desinfectante Cobre Hidróxido 50%', categoria: 'DESINFECTANTE', unidad_medida: 'LITROS', stock_actual: 80, stock_minimo_alerta: 100, costo_unitario_promedio: 8900, es_material_vegetal: false }, // Stock Crítico
+      { id_insumo: 6, codigo_insumo: 'FER-102', nombre: 'Nitrato de Calcio Grado Invernadero', categoria: 'FERTILIZANTE', unidad_medida: 'KILOS', stock_actual: 900, stock_minimo_alerta: 250, costo_unitario_promedio: 1200, es_material_vegetal: false }
     ];
   }
 
   private getMovimientosDefault(): MovimientoBodega[] {
     return [
-      { id_movimiento: 1, id_insumo: 1, id_usuario: 3, tipo_movimiento: 'ENTRADA_COMPRA', fecha_movimiento: '2026-08-01', cantidad_nominal: 5000, porcentaje_merma: 5, cantidad_neta: 4750, costo_unitario_compra: 120, monto_total_movimiento: 570000, documento_referencia: 'FAC-1234' },
-      { id_movimiento: 2, id_insumo: 1, id_usuario: 3, id_labor: 1, tipo_movimiento: 'SALIDA_LABOR', fecha_movimiento: '2026-08-15', cantidad_nominal: 2500, porcentaje_merma: 0, cantidad_neta: 2500, costo_unitario_compra: 120, monto_total_movimiento: 300000, documento_referencia: 'Labor #1' },
-      { id_movimiento: 3, id_insumo: 2, id_usuario: 3, tipo_movimiento: 'AJUSTE_MERMA', fecha_movimiento: '2026-09-10', cantidad_nominal: 5, porcentaje_merma: 100, cantidad_neta: 0, costo_unitario_compra: 4500, monto_total_movimiento: 0, documento_referencia: 'Daño Térmico Invernadero' }
+      { id_movimiento: 1, id_insumo: 1, id_usuario: 3, tipo_movimiento: 'ENTRADA_COMPRA', fecha_movimiento: '2026-08-01', cantidad_nominal: 5000, porcentaje_merma: 5, cantidad_neta: 4750, costo_unitario_compra: 120, monto_total_movimiento: 570000, documento_referencia: 'FAC-1234 (SEM-TOM-01)' },
+      { id_movimiento: 2, id_insumo: 1, id_usuario: 3, id_labor: 1, tipo_movimiento: 'SALIDA_LABOR', fecha_movimiento: '2026-08-15', cantidad_nominal: 2500, porcentaje_merma: 0, cantidad_neta: 2500, costo_unitario_compra: 120, monto_total_movimiento: 300000, documento_referencia: 'Labor #1 Siembra Tomate Larga Vida' },
+      { id_movimiento: 3, id_insumo: 3, id_usuario: 3, tipo_movimiento: 'AJUSTE_MERMA', fecha_movimiento: '2026-09-10', cantidad_nominal: 5, porcentaje_merma: 100, cantidad_neta: 0, costo_unitario_compra: 4500, monto_total_movimiento: 0, documento_referencia: 'Daño Térmico Almácigo Pimiento' }
     ];
   }
 
@@ -515,13 +527,13 @@ export class ErpDataService {
         id_inspeccion: 1,
         id_nave: 1,
         codigo_nave: 'NAV-01',
-        nombre_nave: 'Nave Central Tomates',
-        variedad_cultivo: 'Tomate Larga Vida (Ciclo Activo #1)',
+        nombre_nave: 'Nave 1 - Tomate Larga Vida (Especialidad)',
+        variedad_cultivo: 'Tomate Larga Vida (SEM-TOM-01 - Especialidad)',
         fecha_inspeccion: '2026-11-08 09:30',
         inspector: 'Agr. Macarena Soto',
         porcentaje_cumplimiento: 100,
         estado_general: 'APROBADO',
-        observaciones: 'Líneas de goteo limpias, sin presencia de mosquita blanca ni botrytis. Follaje vigoroso y entutorado firme.',
+        observaciones: 'Líneas de goteo en Tomate Larga Vida limpias, sin presencia de mosquita blanca ni botrytis. Follaje vigoroso y entutorado firme a alambre guía.',
         total_conforme: 10,
         total_observado: 0,
         total_no_conforme: 0
@@ -530,13 +542,13 @@ export class ErpDataService {
         id_inspeccion: 2,
         id_nave: 2,
         codigo_nave: 'NAV-02',
-        nombre_nave: 'Nave Pimientos Holandeses',
-        variedad_cultivo: 'Pimiento Morrón Rojo (Ciclo Activo #2)',
+        nombre_nave: 'Nave 2 - Pimiento Morrón (Complementaria)',
+        variedad_cultivo: 'Pimiento Cuadrado Rojo (Hortaliza Complementaria)',
         fecha_inspeccion: '2026-11-08 11:15',
         inspector: 'Ing. Rodrigo Vega',
         porcentaje_cumplimiento: 80,
         estado_general: 'CON_OBSERVACIONES',
-        observaciones: 'Se detectó leve obturación en dos goteros del sector este. Se realizó purga inmediata de tubería secundaria.',
+        observaciones: 'Se detectó leve obturación en dos goteros del sector este en cultivo de pimiento. Se realizó purga inmediata de tubería secundaria.',
         total_conforme: 8,
         total_observado: 2,
         total_no_conforme: 0

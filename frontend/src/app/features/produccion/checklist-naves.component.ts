@@ -22,14 +22,14 @@ import { ItemChecklist, InspeccionNave, Nave } from '../../core/models/erp.model
           <div>
             <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold tracking-wide uppercase mb-2 border border-emerald-400/30">
               <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-              Supervisión de Invernaderos &bull; Santa Laura Ltda.
+              Supervisión de Invernaderos • Santa Laura Ltda.
             </div>
             <h1 class="text-xl sm:text-2xl font-black tracking-tight flex items-center gap-2.5">
               <span>📋</span>
-              <span>Checklist de Inspección de Naves</span>
+              <span>Checklist de Inspección de Naves (Tablet)</span>
             </h1>
             <p class="text-xs sm:text-sm text-emerald-100 mt-1">
-              Pauta de supervisión agronómica de terreno: sanidad vegetal, riego, estructura y labores culturales.
+              Supervisión física de terreno: cultivo principal de <strong>Tomate Larga Vida (SEM-TOM-01)</strong> y hortalizas protegidas (sanidad vegetal, líneas de riego, entutorado y bioseguridad).
             </p>
           </div>
 
@@ -81,16 +81,22 @@ import { ItemChecklist, InspeccionNave, Nave } from '../../core/models/erp.model
       <div *ngIf="naveSeleccionada() as nave" class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
           <div>
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2">
               <span class="text-xs font-mono font-black bg-slate-900 text-white px-2 py-0.5 rounded">
                 {{ nave.codigo_nave }}
               </span>
               <h2 class="text-lg font-black text-slate-800">{{ nave.nombre }}</h2>
+              <span *ngIf="nave.id_nave === 1" class="text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300 px-2 py-0.5 rounded-full">
+                🍅 Especialidad Santa Laura (SEM-TOM-01)
+              </span>
+              <span *ngIf="nave.id_nave === 2" class="text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded-full">
+                🫑 Hortaliza Complementaria
+              </span>
             </div>
-            <div class="text-xs text-slate-500 mt-1 flex flex-wrap gap-2">
-              <span>Superficie: <strong>{{ nave.superficie_m2 | number }} m²</strong></span> &bull;
-              <span>Estructura: <strong>{{ nave.tipo_estructura }}</strong></span> &bull;
-              <span>Cultivo Activo: <strong class="text-emerald-700">{{ getVariedadNave(nave.id_nave) }}</strong></span>
+            <div class="text-xs text-slate-500 mt-1.5 flex flex-wrap gap-2 items-center">
+              <span>Superficie: <strong>{{ nave.superficie_m2 | number }} m²</strong></span> •
+              <span>Estructura: <strong>{{ nave.tipo_estructura }}</strong></span> •
+              <span>Cultivo Activo: <strong class="text-emerald-700 font-bold">{{ getVariedadNave(nave.id_nave) }}</strong></span>
             </div>
           </div>
 
@@ -240,8 +246,8 @@ import { ItemChecklist, InspeccionNave, Nave } from '../../core/models/erp.model
                 </span>
               </div>
               <div class="text-xs text-slate-500 space-x-2">
-                <span>Fecha: <strong>{{ insp.fecha_inspeccion }}</strong></span> &bull;
-                <span>Inspector: <strong>{{ insp.inspector }}</strong></span> &bull;
+                <span>Fecha: <strong>{{ insp.fecha_inspeccion }}</strong></span> •
+                <span>Inspector: <strong>{{ insp.inspector }}</strong></span> •
                 <span>Conformidad: <strong class="text-emerald-700 font-bold">{{ insp.porcentaje_cumplimiento }}%</strong></span>
               </div>
               <div *ngIf="insp.observaciones" class="text-xs text-slate-600 italic mt-1 bg-slate-50 p-2 rounded-lg border border-slate-200/60">

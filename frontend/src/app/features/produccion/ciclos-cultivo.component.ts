@@ -36,6 +36,27 @@ import { Nave } from '../../core/models/erp.models';
         </button>
       </div>
 
+      <!-- Banner Informativo del Modelo Agronómico de Santa Laura Ltda. -->
+      <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs sm:text-sm text-emerald-950 shadow-xs">
+        <div class="flex items-start gap-3">
+          <span class="text-2xl">🍅</span>
+          <div>
+            <div class="font-bold flex items-center gap-2">
+              <span>Especialidad Agrícola Santa Laura Ltda.</span>
+              <span class="font-mono text-[10px] bg-emerald-700 text-white px-2 py-0.5 rounded-full font-bold">SEM-TOM-01</span>
+            </div>
+            <p class="text-xs text-emerald-800 mt-0.5">
+              Cultivo principal: <strong>Tomate Larga Vida</strong> (Naves protegidas con fertirriego). Hortalizas complementarias: <strong>Pimiento Morrón</strong> y hortalizas de hoja en ambiente protegido.
+            </p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 self-start sm:self-auto shrink-0">
+          <span class="text-xs font-semibold bg-white border border-emerald-300 text-emerald-900 px-3 py-1.5 rounded-xl shadow-2xs">
+            Nave 1: Tomate • Nave 2: Pimiento
+          </span>
+        </div>
+      </div>
+
       <!-- Alertas de estado y validaciones de negocio -->
       <div *ngIf="mensajeError()" class="p-4 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl flex items-center justify-between">
         <span class="font-medium">⚠️ {{ mensajeError() }}</span>
@@ -97,16 +118,22 @@ import { Nave } from '../../core/models/erp.models';
             <tbody class="divide-y divide-slate-100">
               <tr *ngFor="let ciclo of erpService.ciclos()" class="hover:bg-slate-50/80 transition-colors">
                 <td class="p-3 font-semibold text-slate-800">
-                  #{{ ciclo.id_ciclo }} &bull; <span class="text-xs text-slate-500">{{ ciclo.temporada }}</span>
+                  #{{ ciclo.id_ciclo }} • <span class="text-xs text-slate-500">{{ ciclo.temporada }}</span>
                 </td>
                 <td class="p-3">
                   <span class="font-medium text-slate-700">{{ getNaveNombre(ciclo.id_nave) }}</span>
                 </td>
-                <td class="p-3 font-bold text-emerald-800">
-                  {{ ciclo.variedad }}
+                <td class="p-3">
+                  <div class="font-bold text-emerald-900">{{ ciclo.variedad }}</div>
+                  <span *ngIf="ciclo.variedad.includes('Tomate')" class="inline-block text-[10px] font-mono bg-rose-50 text-rose-700 border border-rose-200 px-1.5 py-0.5 rounded font-bold mt-0.5">
+                    Especialidad • SEM-TOM-01
+                  </span>
+                  <span *ngIf="ciclo.variedad.includes('Pimiento')" class="inline-block text-[10px] font-mono bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded font-bold mt-0.5">
+                    Complementaria
+                  </span>
                 </td>
                 <td class="p-3 text-slate-600 text-xs">
-                  {{ ciclo.fecha_inicio }} &rarr; {{ ciclo.fecha_termino_estimada }}
+                  {{ ciclo.fecha_inicio }} → {{ ciclo.fecha_termino_estimada }}
                 </td>
                 <td class="p-3 font-semibold text-slate-800">
                   {{ ciclo.total_kg_cosechados | number }} Kg
@@ -171,6 +198,26 @@ import { Nave } from '../../core/models/erp.models';
 
               <div>
                 <label class="block text-xs font-bold text-slate-700 mb-1">Variedad Agrícola *</label>
+                <div class="flex flex-wrap gap-1 mb-1.5">
+                  <button
+                    type="button"
+                    (click)="seleccionarVariedadPredefinida('Tomate Larga Vida')"
+                    class="text-[10px] px-2 py-0.5 rounded bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold border border-emerald-300 transition-colors">
+                    🍅 Tomate (SEM-TOM-01)
+                  </button>
+                  <button
+                    type="button"
+                    (click)="seleccionarVariedadPredefinida('Pimiento Cuadrado Rojo')"
+                    class="text-[10px] px-2 py-0.5 rounded bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold border border-amber-300 transition-colors">
+                    🫑 Pimiento
+                  </button>
+                  <button
+                    type="button"
+                    (click)="seleccionarVariedadPredefinida('Hortalizas de Hoja Protegidas')"
+                    class="text-[10px] px-2 py-0.5 rounded bg-teal-100 hover:bg-teal-200 text-teal-800 font-bold border border-teal-300 transition-colors">
+                    🥬 Hortalizas
+                  </button>
+                </div>
                 <input
                   type="text"
                   formControlName="variedad"
@@ -288,6 +335,13 @@ export class CiclosCultivoComponent {
    */
   cerrarModal(): void {
     this.modalVisible.set(false);
+  }
+
+  /**
+   * Asigna con un solo toque una de las variedades características de Santa Laura Ltda.
+   */
+  seleccionarVariedadPredefinida(variedad: string): void {
+    this.cicloForm.patchValue({ variedad });
   }
 
   /**

@@ -52,7 +52,7 @@ import { AuthService } from '../../core/services/auth.service';
                 class="w-full p-3 text-sm rounded-xl border-2 border-slate-300 bg-white font-medium focus:border-emerald-600 focus:outline-none touch-target">
                 <option value="" disabled>Seleccione el ciclo...</option>
                 <option *ngFor="let c of erpService.ciclosActivos()" [value]="c.id_ciclo">
-                  Ciclo #{{ c.id_ciclo }}: {{ c.variedad }} &bull; Nave #{{ c.id_nave }}
+                  Ciclo #{{ c.id_ciclo }}: {{ c.variedad }} • Nave #{{ c.id_nave }}
                 </option>
               </select>
             </div>

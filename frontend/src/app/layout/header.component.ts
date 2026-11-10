@@ -26,7 +26,7 @@ import { RolUsuario } from '../core/models/enum.types';
           </svg>
         </button>
         <div class="hidden sm:flex flex-col">
-          <h1 class="text-sm font-semibold text-slate-800 leading-tight">Santa Laura Ltda. &bull; Invernaderos</h1>
+          <h1 class="text-sm font-semibold text-slate-800 leading-tight">Santa Laura Ltda. • Invernaderos</h1>
           <span class="text-xs text-slate-500">Gestión Agrícola Predictiva & Monolito Modular</span>
         </div>
       </div>

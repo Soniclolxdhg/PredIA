@@ -25,7 +25,7 @@ import { AuthService } from '../core/services/auth.service';
               <span>PredIA</span>
               <span class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono">Sistema</span>
             </div>
-            <div class="text-[10px] text-slate-400 font-medium">Santa Laura Ltda. &bull; Fase 2</div>
+            <div class="text-[10px] text-slate-400 font-medium">Santa Laura Ltda. • Fase 2</div>
           </div>
         </div>
 
@@ -151,7 +151,7 @@ import { AuthService } from '../core/services/auth.service';
 
       <!-- Pie de página del menú con identificación institucional -->
       <div class="p-3 bg-slate-950 border-t border-slate-800 text-[11px] text-slate-400 text-center">
-        <span>Proyecto de Integración &bull; INACAP 2026</span>
+        <span>Proyecto de Integración • INACAP 2026</span>
       </div>
     </aside>
   `

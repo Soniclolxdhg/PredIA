@@ -50,7 +50,7 @@ import { TipoLabor } from '../../core/models/enum.types';
               class="w-full p-3 text-sm rounded-xl border-2 border-slate-300 bg-white font-medium focus:border-emerald-600 focus:outline-none touch-target">
               <option value="" disabled>Seleccione el ciclo activo...</option>
               <option *ngFor="let c of erpService.ciclosActivos()" [value]="c.id_ciclo">
-                Ciclo #{{ c.id_ciclo }}: {{ c.variedad }} &bull; Nave #{{ c.id_nave }} ({{ c.temporada }})
+                Ciclo #{{ c.id_ciclo }}: {{ c.variedad }} • Nave #{{ c.id_nave }} ({{ c.temporada }})
               </option>
             </select>
           </div>
@@ -175,10 +175,10 @@ import { TipoLabor } from '../../core/models/enum.types';
               </span>
               <div>
                 <div class="font-bold text-slate-900 text-sm">
-                  {{ labor.tipo_labor }} &bull; Ciclo #{{ labor.id_ciclo }}
+                  {{ labor.tipo_labor }} • Ciclo #{{ labor.id_ciclo }}
                 </div>
                 <div class="text-xs text-slate-500 mt-0.5">
-                  Fecha: {{ labor.fecha_ejecucion }} &bull; Horas: <strong>{{ labor.horas_dedicadas }}h</strong> &bull; Responsable: {{ labor.nombre_responsable }}
+                  Fecha: {{ labor.fecha_ejecucion }} • Horas: <strong>{{ labor.horas_dedicadas }}h</strong> • Responsable: {{ labor.nombre_responsable }}
                 </div>
                 <div *ngIf="labor.observaciones_tecnicas" class="text-xs text-slate-600 italic mt-1">
                   "{{ labor.observaciones_tecnicas }}"
