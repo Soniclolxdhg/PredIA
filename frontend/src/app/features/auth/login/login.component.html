@@ -1,0 +1,119 @@
+<div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-950 p-4 sm:p-6">
+  <div class="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-100">
+    <!-- Brand Header -->
+    <div class="text-center mb-6">
+      <div class="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-emerald-600 to-green-500 rounded-2xl text-white shadow-lg shadow-emerald-600/30 mb-3 font-black">
+        <svg lucideSprout [size]="28" class="text-white"></svg>
+      </div>
+      <h1 class="text-2xl font-black text-slate-900 tracking-tight flex items-center justify-center gap-1.5">
+        <span>PredIA</span>
+        <span class="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-mono font-bold">Sistema</span>
+      </h1>
+      <p class="text-xs text-slate-500 font-medium mt-1">
+        Sistema de Gestión Agrícola
+      </p>
+    </div>
+
+    <!-- Selector de Backend API -->
+    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 mb-5">
+      <div class="text-[11px] font-bold text-slate-500 mb-2">
+        <span>SERVIDOR API:</span>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          (click)="cambiarEntornoApi(urlRender)"
+          [class]="authService.baseUrl() === urlRender ? 'bg-emerald-700 text-white font-bold shadow-xs' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'"
+          class="py-2 px-2 text-xs rounded-xl transition-all flex items-center justify-center gap-1.5">
+          <svg lucideCloud [size]="14"></svg>
+          <span>Render (Nube)</span>
+        </button>
+        <button
+          type="button"
+          (click)="cambiarEntornoApi(urlLocal)"
+          [class]="authService.baseUrl() === urlLocal ? 'bg-emerald-700 text-white font-bold shadow-xs' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'"
+          class="py-2 px-2 text-xs rounded-xl transition-all flex items-center justify-center gap-1.5">
+          <svg lucideLaptop [size]="14"></svg>
+          <span>Local (3000)</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Alerta de Error -->
+    <div *ngIf="mensajeError()" class="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-rose-800 text-xs mb-5 flex items-start gap-2.5">
+      <svg lucideAlertCircle [size]="18" class="text-rose-600 shrink-0 mt-0.5"></svg>
+      <div class="flex-1">
+        <span *ngIf="!esArray(mensajeError())">{{ mensajeError() }}</span>
+        <ul *ngIf="esArray(mensajeError())" class="list-disc pl-4 space-y-1">
+          <li *ngFor="let msg of obtenerListaErrores(mensajeError())">{{ msg }}</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Formulario de Inicio de Sesión -->
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="space-y-4">
+      <div>
+        <label for="email" class="block text-xs font-bold text-slate-800 uppercase tracking-wide mb-1">
+          Correo Electrónico
+        </label>
+        <div class="relative">
+          <span class="absolute left-3.5 top-3.5 text-slate-400 flex items-center pointer-events-none">
+            <svg lucideMail [size]="18"></svg>
+          </span>
+          <input
+            id="email"
+            type="email"
+            formControlName="email"
+            class="w-full pl-10 pr-3.5 py-3 text-sm rounded-xl border-2 border-slate-200 focus:border-emerald-600 focus:outline-none transition-colors"
+            placeholder="usuario&#64;predia.cl"
+          />
+        </div>
+        <div *ngIf="emailInvalido" class="text-rose-600 text-xs mt-1 font-medium">
+          Ingresa un correo electrónico con formato válido.
+        </div>
+      </div>
+
+      <div>
+        <label for="password" class="block text-xs font-bold text-slate-800 uppercase tracking-wide mb-1">
+          Contraseña
+        </label>
+        <div class="relative">
+          <span class="absolute left-3.5 top-3.5 text-slate-400 flex items-center pointer-events-none">
+            <svg lucideLock [size]="18"></svg>
+          </span>
+          <input
+            id="password"
+            [type]="mostrarPassword() ? 'text' : 'password'"
+            formControlName="password"
+            class="w-full pl-10 pr-10 py-3 text-sm rounded-xl border-2 border-slate-200 focus:border-emerald-600 focus:outline-none transition-colors font-mono"
+            placeholder="••••••••"
+          />
+          <button
+            type="button"
+            (click)="alternarMostrarPassword()"
+            class="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 transition-colors flex items-center justify-center"
+            [attr.aria-label]="mostrarPassword() ? 'Ocultar contraseña' : 'Ver contraseña'">
+            <svg *ngIf="mostrarPassword()" lucideEyeOff [size]="18"></svg>
+            <svg *ngIf="!mostrarPassword()" lucideEye [size]="18"></svg>
+          </button>
+        </div>
+        <div *ngIf="passwordInvalido" class="text-rose-600 text-xs mt-1 font-medium">
+          La contraseña debe tener mínimo 6 caracteres.
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        [disabled]="cargando()"
+        class="w-full py-3.5 px-4 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-bold text-sm rounded-xl shadow-md transition-all touch-target flex items-center justify-center gap-2">
+        <span *ngIf="cargando()" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+        <span>{{ cargando() ? 'Autenticando...' : 'Iniciar Sesión' }}</span>
+      </button>
+    </form>
+
+    <!-- Footer -->
+    <div class="text-center mt-6 text-[11px] text-slate-400">
+      Proyecto de Integración • INACAP 2026
+    </div>
+  </div>
+</div>
