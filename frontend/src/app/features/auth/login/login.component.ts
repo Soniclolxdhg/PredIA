@@ -2,18 +2,38 @@ import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import {
+  LucideMail,
+  LucideLock,
+  LucideEye,
+  LucideEyeOff,
+  LucideCloud,
+  LucideLaptop,
+  LucideSprout,
+  LucideAlertCircle
+} from '@lucide/angular';
 import { AuthService } from '../../../core/services/auth.service';
-import { RolUsuario } from '../../../core/models/enum.types';
 
 /**
  * Componente de Inicio de Sesión de PredIA.
- * Gestiona el formulario de credenciales (correo y contraseña),
- * la conexión con el servidor API (Render o Localhost) y el inicio de sesión rápido por roles.
+ * Gestiona el formulario de credenciales (correo y contraseña)
+ * y la conexión con el servidor API (Render o Localhost).
  */
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    LucideMail,
+    LucideLock,
+    LucideEye,
+    LucideEyeOff,
+    LucideCloud,
+    LucideLaptop,
+    LucideSprout,
+    LucideAlertCircle
+  ],
   templateUrl: './login.component.html'
 })
 export class LoginComponent {
@@ -36,14 +56,6 @@ export class LoginComponent {
   // Direcciones base configurables para el backend
   readonly urlRender = 'https://predia-backend.onrender.com/api';
   readonly urlLocal = 'http://localhost:3000/api';
-
-  // Lista de perfiles disponibles para pruebas directas en el sistema
-  readonly rolesDemo: { rol: RolUsuario; icono: string; label: string; desc: string; color: string }[] = [
-    { rol: 'ADMINISTRADOR', icono: '👑', label: 'Administrador', desc: 'Acceso Total al Sistema', color: 'border-purple-300 hover:bg-purple-50 text-purple-900' },
-    { rol: 'AGRONOMO', icono: '🌱', label: 'Agrónomo', desc: 'Producción, Labores y Clima', color: 'border-emerald-300 hover:bg-emerald-50 text-emerald-900' },
-    { rol: 'BODEGUERO', icono: '📦', label: 'Bodeguero', desc: 'Insumos, Kardex y Mermas', color: 'border-amber-300 hover:bg-amber-50 text-amber-900' },
-    { rol: 'GERENTE', icono: '📊', label: 'Gerente General', desc: 'Dashboard $/Kg y Ventas', color: 'border-blue-300 hover:bg-blue-50 text-blue-900' }
-  ];
 
   /**
    * Determina si el valor recibido corresponde a un arreglo
@@ -72,13 +84,6 @@ export class LoginComponent {
    */
   cambiarEntornoApi(url: string): void {
     this.authService.setBaseUrl(url);
-  }
-
-  /**
-   * Inicia sesión directa con el perfil seleccionado para pruebas del sistema
-   */
-  ingresarConRolDemo(rol: RolUsuario): void {
-    this.authService.switchDemoRole(rol);
   }
 
   /**
@@ -111,7 +116,7 @@ export class LoginComponent {
           this.mensajeError.set('Credenciales inválidas o cuenta desactivada.');
         } else if (err.status === 0) {
           this.mensajeError.set(
-            'No fue posible comunicarse con el backend en Render (posible suspensión por inactividad). Puedes usar los botones de acceso directo o verificar tu conexión.'
+            'No fue posible comunicarse con el backend en Render. Verifica tu conexión o utiliza el servidor local si está activo.'
           );
         } else {
           this.mensajeError.set('Ocurrió un error inesperado al intentar autenticar.');

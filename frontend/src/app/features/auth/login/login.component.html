@@ -2,48 +2,46 @@
   <div class="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-100">
     <!-- Brand Header -->
     <div class="text-center mb-6">
-      <div class="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-emerald-600 to-green-500 rounded-2xl text-white shadow-lg shadow-emerald-600/30 mb-3 text-2xl font-black">
-        🌾
+      <div class="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-emerald-600 to-green-500 rounded-2xl text-white shadow-lg shadow-emerald-600/30 mb-3 font-black">
+        <svg lucideSprout [size]="28" class="text-white"></svg>
       </div>
       <h1 class="text-2xl font-black text-slate-900 tracking-tight flex items-center justify-center gap-1.5">
         <span>PredIA</span>
         <span class="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-mono font-bold">Sistema</span>
       </h1>
       <p class="text-xs text-slate-500 font-medium mt-1">
-        Sistema de Gestión Agrícola Predictiva &bull; Santa Laura Ltda.
+        Sistema de Gestión Agrícola
       </p>
     </div>
 
     <!-- Selector de Backend API -->
     <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 mb-5">
-      <div class="flex items-center justify-between text-[11px] font-bold text-slate-500 mb-2">
+      <div class="text-[11px] font-bold text-slate-500 mb-2">
         <span>SERVIDOR API:</span>
-        <span class="flex items-center gap-1 text-emerald-600 font-semibold">
-          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-          <span>Online</span>
-        </span>
       </div>
       <div class="grid grid-cols-2 gap-2">
         <button
           type="button"
           (click)="cambiarEntornoApi(urlRender)"
           [class]="authService.baseUrl() === urlRender ? 'bg-emerald-700 text-white font-bold shadow-xs' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'"
-          class="py-1.5 px-2 text-xs rounded-xl transition-all">
-          ☁️ Render (Nube)
+          class="py-2 px-2 text-xs rounded-xl transition-all flex items-center justify-center gap-1.5">
+          <svg lucideCloud [size]="14"></svg>
+          <span>Render (Nube)</span>
         </button>
         <button
           type="button"
           (click)="cambiarEntornoApi(urlLocal)"
           [class]="authService.baseUrl() === urlLocal ? 'bg-emerald-700 text-white font-bold shadow-xs' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'"
-          class="py-1.5 px-2 text-xs rounded-xl transition-all">
-          💻 Local (3000)
+          class="py-2 px-2 text-xs rounded-xl transition-all flex items-center justify-center gap-1.5">
+          <svg lucideLaptop [size]="14"></svg>
+          <span>Local (3000)</span>
         </button>
       </div>
     </div>
 
     <!-- Alerta de Error -->
     <div *ngIf="mensajeError()" class="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-rose-800 text-xs mb-5 flex items-start gap-2.5">
-      <span class="text-base">⚠️</span>
+      <svg lucideAlertCircle [size]="18" class="text-rose-600 shrink-0 mt-0.5"></svg>
       <div class="flex-1">
         <span *ngIf="!esArray(mensajeError())">{{ mensajeError() }}</span>
         <ul *ngIf="esArray(mensajeError())" class="list-disc pl-4 space-y-1">
@@ -59,7 +57,9 @@
           Correo Electrónico
         </label>
         <div class="relative">
-          <span class="absolute left-3.5 top-3.5 text-slate-400">✉️</span>
+          <span class="absolute left-3.5 top-3.5 text-slate-400 flex items-center pointer-events-none">
+            <svg lucideMail [size]="18"></svg>
+          </span>
           <input
             id="email"
             type="email"
@@ -78,7 +78,9 @@
           Contraseña
         </label>
         <div class="relative">
-          <span class="absolute left-3.5 top-3.5 text-slate-400">🔒</span>
+          <span class="absolute left-3.5 top-3.5 text-slate-400 flex items-center pointer-events-none">
+            <svg lucideLock [size]="18"></svg>
+          </span>
           <input
             id="password"
             [type]="mostrarPassword() ? 'text' : 'password'"
@@ -89,8 +91,10 @@
           <button
             type="button"
             (click)="alternarMostrarPassword()"
-            class="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 text-sm">
-            {{ mostrarPassword() ? '🙈' : '👁️' }}
+            class="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 transition-colors flex items-center justify-center"
+            [attr.aria-label]="mostrarPassword() ? 'Ocultar contraseña' : 'Ver contraseña'">
+            <svg *ngIf="mostrarPassword()" lucideEyeOff [size]="18"></svg>
+            <svg *ngIf="!mostrarPassword()" lucideEye [size]="18"></svg>
           </button>
         </div>
         <div *ngIf="passwordInvalido" class="text-rose-600 text-xs mt-1 font-medium">
@@ -103,34 +107,13 @@
         [disabled]="cargando()"
         class="w-full py-3.5 px-4 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-bold text-sm rounded-xl shadow-md transition-all touch-target flex items-center justify-center gap-2">
         <span *ngIf="cargando()" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-        <span>{{ cargando() ? 'Autenticando...' : 'Iniciar Sesión con Backend' }}</span>
+        <span>{{ cargando() ? 'Autenticando...' : 'Iniciar Sesión' }}</span>
       </button>
     </form>
 
-    <!-- Acceso directo por perfil de usuario -->
-    <div class="mt-6 pt-5 border-t border-slate-100">
-      <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2 text-center">
-        ⚡ Acceso Rápido por Rol (Evaluación INACAP)
-      </div>
-      <div class="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          *ngFor="let item of rolesDemo"
-          (click)="ingresarConRolDemo(item.rol)"
-          [class]="item.color"
-          class="p-2.5 rounded-xl border text-left transition-all touch-target flex items-start gap-2 bg-slate-50/50">
-          <span class="text-lg leading-tight">{{ item.icono }}</span>
-          <div>
-            <div class="text-xs font-bold leading-tight">{{ item.label }}</div>
-            <div class="text-[10px] text-slate-500 truncate mt-0.5">{{ item.desc }}</div>
-          </div>
-        </button>
-      </div>
-    </div>
-
     <!-- Footer -->
     <div class="text-center mt-6 text-[11px] text-slate-400">
-      Proyecto de Integración &bull; INACAP 2026
+      Proyecto de Integración • INACAP 2026
     </div>
   </div>
 </div>
