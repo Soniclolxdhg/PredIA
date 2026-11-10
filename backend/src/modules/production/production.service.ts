@@ -1,241 +1,483 @@
 import {
   Injectable,
   NotFoundException,
-  BadRequestException,
   ConflictException,
-  Logger
+  BadRequestException,
+  Logger,
 } from '@nestjs/common';
-import { EstadoCiclo, EstadoNave, CategoriaInsumo } from '@prisma/client';
+import { EstadoCiclo, EstadoNave, CalidadGrado } from '@prisma/client';
 import { ServicioPrisma } from '../../common/prisma/prisma.service';
-import { CrearCicloDto } from './dto/crear-ciclo.dto';
 import { CrearNaveDto } from './dto/crear-nave.dto';
+import { ActualizarNaveDto } from './dto/actualizar-nave.dto';
+import { CrearCicloDto } from './dto/crear-ciclo.dto';
+import { CerrarCicloDto } from './dto/cerrar-ciclo.dto';
+import { CrearLaborDto } from './dto/crear-labor.dto';
+import { CrearCosechaDto } from './dto/crear-cosecha.dto';
 
-/**
- * Servicio de Negocio para el Módulo de Producción (HU01).
- * Gestiona la infraestructura de invernaderos (Naves) y los Ciclos de Cultivo en Supabase.
- */
 @Injectable()
 export class ProductionService {
-  private readonly logger = new Logger(ProductionService.name);
+  private readonly registrador = new Logger(ProductionService.name);
 
   constructor(private readonly prisma: ServicioPrisma) {}
 
-  /**
-   * Obtiene todas las naves registradas en la base de datos de Supabase
-   */
-  async obtenerNaves() {
+  // ==========================================
+  // 1. GESTIÓN DE NAVES / INVERNADEROS (HU01)
+  // ==========================================
+
+  async listarNaves() {
     return this.prisma.nave.findMany({
-      orderBy: { idNave: 'asc' },
+      orderBy: { codigoNave: 'asc' },
       include: {
         ciclosCultivo: {
           where: { estado: EstadoCiclo.ACTIVO },
-          take: 1
-        }
-      }
+          select: {
+            idCiclo: true,
+            temporada: true,
+            variedad: true,
+            fechaInicio: true,
+            totalKgCosechados: true,
+          },
+        },
+      },
     });
   }
 
-  /**
-   * Crea una nueva nave en la base de datos de Supabase (HU01).
-   */
-  async crearNave(dto: CrearNaveDto) {
-    const codigoNave = (dto.codigoNave ?? dto.codigo_nave)?.trim().toUpperCase();
-    if (!codigoNave) {
-      throw new BadRequestException('El código de la nave es obligatorio (ej. NAV-01).');
-    }
-
-    const superficieM2 = Number(dto.superficieM2 ?? dto.superficie_m2);
-    if (!superficieM2 || isNaN(superficieM2) || superficieM2 <= 0) {
-      throw new BadRequestException('La superficie en m² debe ser un número mayor a 0.');
-    }
-
-    const tipoEstructura = dto.tipoEstructura ?? dto.tipo_estructura ?? 'Multitúnel';
-
-    const existe = await this.prisma.nave.findUnique({
-      where: { codigoNave }
-    });
-
-    if (existe) {
-      throw new ConflictException(`Ya existe una nave registrada con el código ${codigoNave}.`);
-    }
-
-    const nuevaNave = await this.prisma.nave.create({
-      data: {
-        codigoNave,
-        nombre: dto.nombre.trim(),
-        superficieM2,
-        tipoEstructura,
-        estado: EstadoNave.DISPONIBLE
-      }
-    });
-
-    this.logger.log(`Nueva nave ${nuevaNave.codigoNave} (${nuevaNave.nombre}) creada exitosamente en Supabase.`);
-    return nuevaNave;
-  }
-
-  /**
-   * Obtiene todos los ciclos de cultivo registrados en la base de datos de Supabase
-   */
-  async obtenerCiclos() {
-    return this.prisma.cicloCultivo.findMany({
-      orderBy: { idCiclo: 'desc' },
-      include: {
-        nave: true
-      }
-    });
-  }
-
-  /**
-   * Apertura un nuevo ciclo productivo en Supabase (HU01).
-   * Aplica la regla de negocio que prohíbe múltiples ciclos activos en la misma nave.
-   */
-  async crearCiclo(dto: CrearCicloDto) {
-    const idNave = Number(dto.idNave ?? dto.id_nave);
-    if (!idNave || isNaN(idNave)) {
-      throw new BadRequestException('El ID de la nave es obligatorio.');
-    }
-
-    const fechaInicioStr = dto.fechaInicio ?? dto.fecha_inicio ?? new Date().toISOString().split('T')[0];
-    const fechaTerminoStr = dto.fechaTerminoEstimada ?? dto.fecha_termino_estimada;
-
+  async obtenerNavePorId(idNave: number) {
     const nave = await this.prisma.nave.findUnique({
-      where: { idNave }
+      where: { idNave },
+      include: {
+        ciclosCultivo: {
+          orderBy: { fechaInicio: 'desc' },
+        },
+      },
     });
 
     if (!nave) {
-      throw new NotFoundException(`La nave con ID #${idNave} no existe en la base de datos.`);
+      throw new NotFoundException(`La nave con ID ${idNave} no existe.`);
     }
 
-    // Regla de Negocio: No se permite ciclo simultáneo en la misma nave
-    const cicloActivoExistente = await this.prisma.cicloCultivo.findFirst({
-      where: {
-        idNave,
-        estado: EstadoCiclo.ACTIVO
-      }
+    return nave;
+  }
+
+  async crearNave(dto: CrearNaveDto) {
+    const naveExistente = await this.prisma.nave.findUnique({
+      where: { codigoNave: dto.codigoNave },
     });
 
-    if (cicloActivoExistente) {
-      throw new BadRequestException(
-        `La nave ${nave.codigoNave} (${nave.nombre}) ya cuenta con un ciclo ACTIVO (#${cicloActivoExistente.idCiclo}: ${cicloActivoExistente.variedad}). Debe finalizarlo antes de abrir uno nuevo.`
+    if (naveExistente) {
+      throw new ConflictException(`El código de nave '${dto.codigoNave}' ya se encuentra registrado.`);
+    }
+
+    return this.prisma.nave.create({
+      data: {
+        codigoNave: dto.codigoNave,
+        nombre: dto.nombre,
+        superficieM2: dto.superficieM2,
+        tipoEstructura: dto.tipoEstructura,
+        estado: dto.estado ?? EstadoNave.DISPONIBLE,
+      },
+    });
+  }
+
+  async actualizarNave(idNave: number, dto: ActualizarNaveDto) {
+    await this.obtenerNavePorId(idNave);
+
+    return this.prisma.nave.update({
+      where: { idNave },
+      data: {
+        nombre: dto.nombre,
+        superficieM2: dto.superficieM2,
+        tipoEstructura: dto.tipoEstructura,
+        estado: dto.estado,
+      },
+    });
+  }
+
+  // ==========================================
+  // 2. CICLOS DE CULTIVO (HU01 - Sin Colisión)
+  // ==========================================
+
+  async listarCiclos(idNave?: number, estado?: EstadoCiclo) {
+    return this.prisma.cicloCultivo.findMany({
+      where: {
+        ...(idNave ? { idNave } : {}),
+        ...(estado ? { estado } : {}),
+      },
+      orderBy: { fechaInicio: 'desc' },
+      include: {
+        nave: {
+          select: {
+            idNave: true,
+            codigoNave: true,
+            nombre: true,
+            superficieM2: true,
+          },
+        },
+        _count: {
+          select: {
+            laboresAgricolas: true,
+            cosechas: true,
+          },
+        },
+      },
+    });
+  }
+
+  async obtenerCicloPorId(idCiclo: number) {
+    const ciclo = await this.prisma.cicloCultivo.findUnique({
+      where: { idCiclo },
+      include: {
+        nave: true,
+        laboresAgricolas: {
+          orderBy: { fechaEjecucion: 'desc' },
+          include: {
+            usuarioResponsable: {
+              select: {
+                idUsuario: true,
+                nombreCompleto: true,
+                email: true,
+                rol: true,
+              },
+            },
+          },
+        },
+        cosechas: {
+          orderBy: { fechaCosecha: 'desc' },
+          include: {
+            usuarioPesaje: {
+              select: {
+                idUsuario: true,
+                nombreCompleto: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!ciclo) {
+      throw new NotFoundException(`El ciclo de cultivo con ID ${idCiclo} no fue encontrado.`);
+    }
+
+    return ciclo;
+  }
+
+  /**
+   * Apertura de un ciclo de cultivo con validación de no solapamiento temporal
+   */
+  async crearCiclo(dto: CrearCicloDto) {
+    const nave = await this.prisma.nave.findUnique({
+      where: { idNave: dto.idNave },
+      include: {
+        ciclosCultivo: {
+          where: { estado: EstadoCiclo.ACTIVO },
+        },
+      },
+    });
+
+    if (!nave) {
+      throw new NotFoundException(`La nave con ID ${dto.idNave} no existe.`);
+    }
+
+    // Regla de Negocio Oficial: Evitar solapamientos de ciclos activos en la misma nave
+    if (nave.ciclosCultivo.length > 0 || nave.estado === EstadoNave.EN_CULTIVO) {
+      throw new ConflictException(
+        `La nave '${nave.codigoNave}' ya tiene un ciclo de cultivo activo. Debe cerrar el ciclo en curso antes de iniciar uno nuevo.`,
       );
     }
 
-    // Creación transaccional: Inserta ciclo y actualiza nave a EN_CULTIVO
     return this.prisma.$transaction(async (tx) => {
       const nuevoCiclo = await tx.cicloCultivo.create({
         data: {
-          idNave,
+          idNave: dto.idNave,
           temporada: dto.temporada,
           variedad: dto.variedad,
-          fechaInicio: new Date(fechaInicioStr),
-          fechaTerminoEstimada: fechaTerminoStr ? new Date(fechaTerminoStr) : null,
+          fechaInicio: new Date(dto.fechaInicio),
+          fechaTerminoEstimada: dto.fechaTerminoEstimada ? new Date(dto.fechaTerminoEstimada) : null,
           estado: EstadoCiclo.ACTIVO,
-          totalKgCosechados: 0,
-          costoTotalAcumulado: 0,
-          costoUnitarioKg: 0
         },
         include: {
-          nave: true
-        }
+          nave: true,
+        },
       });
 
+      // Actualizar estado de la nave a EN_CULTIVO
       await tx.nave.update({
-        where: { idNave },
-        data: { estado: EstadoNave.EN_CULTIVO }
+        where: { idNave: dto.idNave },
+        data: { estado: EstadoNave.EN_CULTIVO },
       });
 
-      this.logger.log(`Nuevo ciclo #${nuevoCiclo.idCiclo} creado en nave ${nave.codigoNave} (Supabase).`);
       return nuevoCiclo;
     });
   }
 
   /**
-   * Siembra controlada de las 4 Naves oficiales de Santa Laura Ltda. en Supabase si la tabla está vacía.
+   * Cierre formal de un ciclo de cultivo y cálculo automático de costo real $/Kg
+   */
+  async cerrarCiclo(idCiclo: number, dto: CerrarCicloDto) {
+    const ciclo = await this.prisma.cicloCultivo.findUnique({
+      where: { idCiclo },
+    });
+
+    if (!ciclo) {
+      throw new NotFoundException(`El ciclo con ID ${idCiclo} no existe.`);
+    }
+
+    if (ciclo.estado !== EstadoCiclo.ACTIVO) {
+      throw new BadRequestException(`El ciclo ya se encuentra en estado ${ciclo.estado}.`);
+    }
+
+    const totalKg = Number(ciclo.totalKgCosechados);
+    const costoAcumulado = Number(ciclo.costoTotalAcumulado);
+    const costoUnitarioKg = totalKg > 0 ? Number((costoAcumulado / totalKg).toFixed(2)) : 0;
+
+    return this.prisma.$transaction(async (tx) => {
+      const cicloCerrado = await tx.cicloCultivo.update({
+        where: { idCiclo },
+        data: {
+          estado: EstadoCiclo.FINALIZADO,
+          fechaCierreReal: dto.fechaCierreReal ? new Date(dto.fechaCierreReal) : new Date(),
+          costoUnitarioKg,
+        },
+        include: {
+          nave: true,
+        },
+      });
+
+      // Liberar la nave a DISPONIBLE
+      await tx.nave.update({
+        where: { idNave: ciclo.idNave },
+        data: { estado: EstadoNave.DISPONIBLE },
+      });
+
+      return cicloCerrado;
+    });
+  }
+
+  // ==========================================
+  // 3. LABORES AGRÍCOLAS EN TERRENO (HU02)
+  // ==========================================
+
+  async registrarLabor(idUsuarioResponsable: number, dto: CrearLaborDto) {
+    const ciclo = await this.prisma.cicloCultivo.findUnique({
+      where: { idCiclo: dto.idCiclo },
+    });
+
+    if (!ciclo) {
+      throw new NotFoundException(`El ciclo de cultivo con ID ${dto.idCiclo} no existe.`);
+    }
+
+    if (ciclo.estado !== EstadoCiclo.ACTIVO) {
+      throw new BadRequestException('No se pueden registrar labores en un ciclo finalizado o cancelado.');
+    }
+
+    return this.prisma.laborAgricola.create({
+      data: {
+        idCiclo: dto.idCiclo,
+        idUsuarioResponsable,
+        tipoLabor: dto.tipoLabor,
+        fechaEjecucion: new Date(dto.fechaEjecucion),
+        horasDedicadas: dto.horasDedicadas,
+        observacionesTecnicas: dto.observacionesTecnicas,
+      },
+      include: {
+        usuarioResponsable: {
+          select: {
+            idUsuario: true,
+            nombreCompleto: true,
+            email: true,
+            rol: true,
+          },
+        },
+        cicloCultivo: {
+          select: {
+            idCiclo: true,
+            temporada: true,
+            variedad: true,
+          },
+        },
+      },
+    });
+  }
+
+  async listarLaboresPorCiclo(idCiclo: number) {
+    return this.prisma.laborAgricola.findMany({
+      where: { idCiclo },
+      orderBy: { fechaEjecucion: 'desc' },
+      include: {
+        usuarioResponsable: {
+          select: {
+            idUsuario: true,
+            nombreCompleto: true,
+            email: true,
+            rol: true,
+          },
+        },
+      },
+    });
+  }
+
+  // ==========================================
+  // 4. PESAJE DE COSECHA EN BÁSCULA (HU03)
+  // ==========================================
+
+  async registrarCosecha(idUsuarioPesaje: number, dto: CrearCosechaDto) {
+    const ciclo = await this.prisma.cicloCultivo.findUnique({
+      where: { idCiclo: dto.idCiclo },
+    });
+
+    if (!ciclo) {
+      throw new NotFoundException(`El ciclo de cultivo con ID ${dto.idCiclo} no existe.`);
+    }
+
+    if (ciclo.estado !== EstadoCiclo.ACTIVO) {
+      throw new BadRequestException('No se pueden registrar cosechas en un ciclo finalizado o cancelado.');
+    }
+
+    const calidad = dto.calidadGrado ?? CalidadGrado.PRIMERA;
+    // Si es descarte, por regla de negocio los kilos disponibles para venta directa son 0
+    const kilosDisponibles =
+      dto.kilosDisponiblesVenta !== undefined
+        ? dto.kilosDisponiblesVenta
+        : calidad === CalidadGrado.DESCARTE
+          ? 0
+          : dto.kilosNetos;
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Crear el lote de cosecha pesada
+      const nuevaCosecha = await tx.cosecha.create({
+        data: {
+          idCiclo: dto.idCiclo,
+          idUsuarioPesaje,
+          fechaCosecha: new Date(dto.fechaCosecha),
+          kilosNetos: dto.kilosNetos,
+          calidadGrado: calidad,
+          kilosDisponiblesVenta: kilosDisponibles,
+        },
+        include: {
+          usuarioPesaje: {
+            select: {
+              idUsuario: true,
+              nombreCompleto: true,
+            },
+          },
+          cicloCultivo: {
+            select: {
+              idCiclo: true,
+              variedad: true,
+              temporada: true,
+            },
+          },
+        },
+      });
+
+      // 2. Incrementar atómicamente el total de kilos cosechados en el ciclo
+      await tx.cicloCultivo.update({
+        where: { idCiclo: dto.idCiclo },
+        data: {
+          totalKgCosechados: {
+            increment: dto.kilosNetos,
+          },
+        },
+      });
+
+      return nuevaCosecha;
+    });
+  }
+
+  async listarCosechasPorCiclo(idCiclo: number) {
+    return this.prisma.cosecha.findMany({
+      where: { idCiclo },
+      orderBy: { fechaCosecha: 'desc' },
+      include: {
+        usuarioPesaje: {
+          select: {
+            idUsuario: true,
+            nombreCompleto: true,
+          },
+        },
+      },
+    });
+  }
+
+  async obtenerStockCosechasDisponibles() {
+    return this.prisma.cosecha.findMany({
+      where: {
+        kilosDisponiblesVenta: {
+          gt: 0,
+        },
+      },
+      orderBy: { fechaCosecha: 'asc' },
+      include: {
+        cicloCultivo: {
+          select: {
+            idCiclo: true,
+            variedad: true,
+            temporada: true,
+            nave: {
+              select: {
+                codigoNave: true,
+                nombre: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Siembra controlada de las 4 Naves oficiales de Santa Laura Ltda. si la tabla está vacía
    */
   async sembrarNavesBase() {
     const totalNaves = await this.prisma.nave.count();
-
     if (totalNaves > 0) {
       const navesActuales = await this.prisma.nave.findMany({ orderBy: { idNave: 'asc' } });
       return {
         mensaje: `La tabla 'naves' ya contiene ${totalNaves} naves registradas en Supabase.`,
         naves: navesActuales,
-        sembradas: 0
+        sembradas: 0,
       };
     }
 
-    // Insertar las 4 naves de Santa Laura Ltda.
     const navesBase = [
       {
         codigoNave: 'NAV-01',
         nombre: 'Nave 1 - Tomate Larga Vida (Especialidad)',
         superficieM2: 2500,
         tipoEstructura: 'Multitúnel Metal',
-        estado: EstadoNave.DISPONIBLE
+        estado: EstadoNave.DISPONIBLE,
       },
       {
         codigoNave: 'NAV-02',
         nombre: 'Nave 2 - Pimiento Morrón (Complementaria)',
         superficieM2: 2000,
         tipoEstructura: 'Túnel Simple',
-        estado: EstadoNave.DISPONIBLE
+        estado: EstadoNave.DISPONIBLE,
       },
       {
         codigoNave: 'NAV-03',
         nombre: 'Nave 3 - Almácigos y Propagación',
         superficieM2: 1200,
         tipoEstructura: 'Invernadero Climatizado',
-        estado: EstadoNave.DISPONIBLE
+        estado: EstadoNave.DISPONIBLE,
       },
       {
         codigoNave: 'NAV-04',
         nombre: 'Nave 4 - Hortalizas Protegidas',
         superficieM2: 1800,
         tipoEstructura: 'Sombreadero Malla Raschel',
-        estado: EstadoNave.DISPONIBLE
-      }
+        estado: EstadoNave.DISPONIBLE,
+      },
     ];
 
-    await this.prisma.nave.createMany({
-      data: navesBase
-    });
-
-    // Insumos base si la tabla insumos está vacía
-    const totalInsumos = await this.prisma.insumo.count();
-    if (totalInsumos === 0) {
-      await this.prisma.insumo.createMany({
-        data: [
-          {
-            codigoInsumo: 'SEM-TOM-01',
-            nombre: 'Semilla Tomate Larga Vida Híbrido',
-            categoria: CategoriaInsumo.SEMILLA,
-            unidadMedida: 'UNIDADES',
-            stockActual: 5000,
-            stockMinimoAlerta: 1000,
-            costoUnitarioPromedio: 120,
-            esMaterialVegetal: true
-          },
-          {
-            codigoInsumo: 'SEM-PIM-01',
-            nombre: 'Semilla Pimiento Cuadrado Rojo',
-            categoria: CategoriaInsumo.SEMILLA,
-            unidadMedida: 'UNIDADES',
-            stockActual: 2000,
-            stockMinimoAlerta: 500,
-            costoUnitarioPromedio: 150,
-            esMaterialVegetal: true
-          }
-        ]
-      });
-    }
-
+    await this.prisma.nave.createMany({ data: navesBase });
     const navesCreadas = await this.prisma.nave.findMany({ orderBy: { idNave: 'asc' } });
-    this.logger.log(`Se sembraron exitosamente 4 naves base de Santa Laura Ltda. en Supabase.`);
-
     return {
-      mensaje: 'Las 4 naves base y el catálogo de semillas (SEM-TOM-01) fueron sembrados exitosamente en Supabase.',
+      mensaje: 'Las 4 naves base de Santa Laura Ltda. fueron sembradas exitosamente en Supabase.',
       naves: navesCreadas,
-      sembradas: 4
+      sembradas: 4,
     };
   }
 }
+

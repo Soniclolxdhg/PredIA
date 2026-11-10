@@ -250,6 +250,74 @@ export class ErpDataService {
     );
   }
 
+  /**
+   * HU01: Cierre formal de ciclo de cultivo (PATCH /produccion/ciclos/:idCiclo/cerrar)
+   */
+  cerrarCicloCultivo(idCiclo: number, fechaCierreReal?: string): Observable<{ exito: boolean; mensaje: string }> {
+    return this.http.patch<any>(`${this.apiUrl}/produccion/ciclos/${idCiclo}/cerrar`, {
+      fechaCierreReal: fechaCierreReal || new Date().toISOString().split('T')[0]
+    }).pipe(
+      map(() => {
+        this.cargarCiclos().subscribe();
+        this.cargarNaves().subscribe();
+        return {
+          exito: true,
+          mensaje: `Ciclo #${idCiclo} cerrado exitosamente en Supabase. Nave liberada a DISPONIBLE.`
+        };
+      }),
+      catchError((err) => of({
+        exito: false,
+        mensaje: err.error?.message || 'Error al cerrar ciclo en Supabase.'
+      }))
+    );
+  }
+
+  /**
+   * HU02: Registrar labor agrícola en terreno (POST /produccion/labores)
+   */
+  registrarLaborApi(dto: {
+    idCiclo: number;
+    tipoLabor: string;
+    fechaEjecucion: string;
+    horasDedicadas: number;
+    observacionesTecnicas?: string;
+  }): Observable<{ exito: boolean; mensaje: string }> {
+    return this.http.post<any>(`${this.apiUrl}/produccion/labores`, dto).pipe(
+      map(() => ({
+        exito: true,
+        mensaje: `Labor ${dto.tipoLabor} registrada exitosamente en Supabase.`
+      })),
+      catchError((err) => of({
+        exito: false,
+        mensaje: err.error?.message || 'Error al registrar labor en Supabase.'
+      }))
+    );
+  }
+
+  /**
+   * HU03: Registrar pesaje de cosecha (POST /produccion/cosechas)
+   */
+  registrarCosechaApi(dto: {
+    idCiclo: number;
+    fechaCosecha: string;
+    kilosNetos: number;
+    calidadGrado: 'PRIMERA' | 'SEGUNDA' | 'DESCARTE';
+  }): Observable<{ exito: boolean; mensaje: string }> {
+    return this.http.post<any>(`${this.apiUrl}/produccion/cosechas`, dto).pipe(
+      map(() => {
+        this.cargarCiclos().subscribe();
+        return {
+          exito: true,
+          mensaje: `Cosecha de ${dto.kilosNetos} Kg (${dto.calidadGrado}) registrada exitosamente en Supabase.`
+        };
+      }),
+      catchError((err) => of({
+        exito: false,
+        mensaje: err.error?.message || 'Error al registrar cosecha en Supabase.'
+      }))
+    );
+  }
+
   // ==========================================
   // NORMALIZADORES DE DATOS SUPABASE (PRISMA)
   // ==========================================

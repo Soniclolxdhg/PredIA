@@ -1,33 +1,26 @@
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsDateString, IsInt, IsNotEmpty, IsOptional, IsPositive, IsString, MaxLength } from 'class-validator';
 
-/**
- * DTO para la validación de apertura de un nuevo Ciclo de Cultivo (HU01).
- * Admite tanto notación camelCase como snake_case para compatibilidad total con frontend y API.
- */
 export class CrearCicloDto {
-  @IsOptional()
-  idNave?: number;
+  @IsInt({ message: 'El id de la nave debe ser un número entero.' })
+  @IsPositive({ message: 'El id de la nave debe ser un número positivo.' })
+  idNave: number;
 
-  @IsOptional()
-  id_nave?: number;
-
-  @IsString({ message: 'La temporada es obligatoria.' })
-  @IsNotEmpty({ message: 'La temporada no puede estar vacía.' })
+  @IsString({ message: 'La temporada debe ser una cadena de texto.' })
+  @IsNotEmpty({ message: 'La temporada es obligatoria (ej: PRIMAVERA_2026, OTONO_2026).' })
+  @MaxLength(20, { message: 'La temporada no puede exceder 20 caracteres.' })
   temporada: string;
 
   @IsString({ message: 'La variedad es obligatoria.' })
-  @IsNotEmpty({ message: 'La variedad no puede estar vacía.' })
+  @IsNotEmpty({ message: 'La variedad cultivada no puede estar vacía.' })
+  @MaxLength(50, { message: 'La variedad no puede exceder 50 caracteres.' })
   variedad: string;
 
-  @IsOptional()
-  fechaInicio?: string;
+  @IsDateString({}, { message: 'La fecha de inicio debe tener formato de fecha válido (AAAA-MM-DD).' })
+  @IsNotEmpty({ message: 'La fecha de inicio del ciclo es obligatoria.' })
+  fechaInicio: string;
 
   @IsOptional()
-  fecha_inicio?: string;
-
-  @IsOptional()
+  @IsDateString({}, { message: 'La fecha estimada de término debe tener formato de fecha válido (AAAA-MM-DD).' })
   fechaTerminoEstimada?: string;
-
-  @IsOptional()
-  fecha_termino_estimada?: string;
 }
+
