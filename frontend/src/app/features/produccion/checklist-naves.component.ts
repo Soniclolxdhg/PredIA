@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ErpDataService } from '../../core/services/erp-data.service';
@@ -54,8 +54,30 @@ import { ItemChecklist, InspeccionNave, Nave } from '../../core/models/erp.model
         <button (click)="mensajeExito.set(null)" class="text-emerald-700 font-bold">✕</button>
       </div>
 
+      <!-- Indicador de Carga de Naves -->
+      <div *ngIf="erpService.cargandoNaves()" class="p-8 text-center bg-white rounded-2xl border border-slate-200">
+        <span class="inline-block animate-spin text-2xl mb-2">🔄</span>
+        <p class="text-xs text-slate-600 font-medium">Cargando naves desde Supabase...</p>
+      </div>
+
+      <!-- Estado si no hay naves registradas en Supabase -->
+      <div *ngIf="!erpService.cargandoNaves() && erpService.naves().length === 0" class="p-8 text-center bg-amber-50 rounded-2xl border border-amber-200 shadow-xs">
+        <span class="text-3xl">🏡</span>
+        <h3 class="font-bold text-amber-900 text-sm mt-2">No hay naves registradas en la base de datos de Supabase</h3>
+        <p class="text-xs text-amber-700 max-w-md mx-auto mt-1 mb-4">
+          Para realizar inspecciones de terreno, primero deben registrarse las naves de Santa Laura Ltda. en Supabase.
+        </p>
+        <button
+          type="button"
+          (click)="inicializarNaves()"
+          class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-xs transition-colors">
+          <span>🌱</span>
+          <span>Inicializar Naves en Supabase</span>
+        </button>
+      </div>
+
       <!-- Selector Táctil de Nave (Pestañas Grandes) -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+      <div *ngIf="!erpService.cargandoNaves() && erpService.naves().length > 0" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         <button
           *ngFor="let n of erpService.naves()"
           type="button"
@@ -349,11 +371,23 @@ export class ChecklistNavesComponent {
   ]);
 
   constructor() {
-    // Selecciona la primera nave por defecto
-    const naves = this.erpService.naves();
-    if (naves.length > 0) {
-      this.naveSeleccionada.set(naves[0]);
-    }
+    // Selecciona automáticamente la primera nave cuando se cargan desde Supabase
+    effect(() => {
+      const naves = this.erpService.naves();
+      if (!this.naveSeleccionada() && naves.length > 0) {
+        this.naveSeleccionada.set(naves[0]);
+      }
+    });
+  }
+
+  inicializarNaves(): void {
+    this.erpService.sembrarNavesBase().subscribe({
+      next: (res) => {
+        if (res.exito) {
+          this.mensajeExito.set(res.mensaje);
+        }
+      }
+    });
   }
 
   seleccionarNave(nave: Nave): void {

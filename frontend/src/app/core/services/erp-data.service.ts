@@ -1,4 +1,7 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable, of, tap, catchError, map } from 'rxjs';
+import { AuthService } from './auth.service';
 import {
   Nave,
   CicloCultivo,
@@ -15,15 +18,29 @@ import {
 
 const STORAGE_PREFIX = 'predia_agri_v2_';
 
+/**
+ * Servicio Central de Datos Agrícolas y Operaciones de Terreno.
+ * Conecta las Naves e Invernaderos y los Ciclos de Cultivo directamente
+ * con el backend NestJS y la base de datos PostgreSQL en Supabase.
+ */
 @Injectable({
   providedIn: 'root'
 })
 export class ErpDataService {
-  // 1. Naves e Invernaderos
-  readonly naves = signal<Nave[]>(this.cargarInitial('naves', this.getNavesDefault));
+  private readonly http = inject(HttpClient);
+  private readonly authService = inject(AuthService);
 
-  // 2. Ciclos de Cultivo (HU01)
-  readonly ciclos = signal<CicloCultivo[]>(this.cargarInitial('ciclos', this.getCiclosDefault));
+  private get apiUrl(): string {
+    return this.authService.baseUrl();
+  }
+
+  // 1. Naves e Invernaderos (Conectadas en vivo a Supabase)
+  readonly naves = signal<Nave[]>([]);
+  readonly cargandoNaves = signal<boolean>(false);
+
+  // 2. Ciclos de Cultivo (HU01 - Conectados en vivo a Supabase)
+  readonly ciclos = signal<CicloCultivo[]>([]);
+  readonly cargandoCiclos = signal<boolean>(false);
 
   // 3. Labores Agrícolas en Terreno (HU02)
   readonly labores = signal<LaborAgricola[]>(this.cargarInitial('labores', this.getLaboresDefault));
@@ -65,7 +82,7 @@ export class ErpDataService {
     this.insumos().filter((i) => i.stock_actual <= i.stock_minimo_alerta)
   );
 
-  // Lista de ciclos que se encuentran actualmente en estado ACTIVO
+  // Lista de ciclos que se encuentran actualmente en estado ACTIVO en Supabase
   readonly ciclosActivos = computed(() =>
     this.ciclos().filter((c) => c.estado === 'ACTIVO')
   );
@@ -74,11 +91,11 @@ export class ErpDataService {
   readonly kpisFinancieros = computed(() => {
     const totalKg = this.ciclos().reduce((acc, c) => acc + c.total_kg_cosechados, 0);
     const totalCostos = this.ciclos().reduce((acc, c) => acc + c.costo_total_acumulado, 0);
-    const costoPromedioKg = totalKg > 0 ? totalCostos / totalKg : 485.5;
+    const costoPromedioKg = totalKg > 0 ? totalCostos / totalKg : 0;
 
     const totalVentas = this.ventas().reduce((acc, v) => acc + v.monto_total_ingreso, 0);
     const margenBrutoTotal = this.ventas().reduce((acc, v) => acc + v.margen_bruto_operativo, 0);
-    const margenPct = totalVentas > 0 ? (margenBrutoTotal / totalVentas) * 100 : 38.5;
+    const margenPct = totalVentas > 0 ? (margenBrutoTotal / totalVentas) * 100 : 0;
 
     return {
       totalKgCosechados: totalKg,
@@ -90,11 +107,56 @@ export class ErpDataService {
     };
   });
 
-  // Métodos de negocio y operaciones sobre los datos agrícolas
+  constructor() {
+    // Al instanciar el servicio, recupera los datos reales de Supabase
+    this.cargarNaves().subscribe();
+    this.cargarCiclos().subscribe();
+  }
+
+  // ==========================================
+  // OPERACIONES HTTP CON SUPABASE (BACKEND API)
+  // ==========================================
 
   /**
-   * HU01: Apertura de nuevo ciclo.
-   * Regla de negocio: Impedir la apertura si la nave ya tiene un ciclo ACTIVO.
+   * Carga la lista real de naves desde la base de datos de Supabase
+   */
+  cargarNaves(): Observable<Nave[]> {
+    this.cargandoNaves.set(true);
+    return this.http.get<any[]>(`${this.apiUrl}/produccion/naves`).pipe(
+      map((lista) => lista.map(this.normalizarNave)),
+      tap((naves) => {
+        this.naves.set(naves);
+        this.cargandoNaves.set(false);
+      }),
+      catchError((err) => {
+        this.cargandoNaves.set(false);
+        console.warn('No fue posible cargar naves desde la API:', err);
+        return of(this.naves());
+      })
+    );
+  }
+
+  /**
+   * Carga la lista real de ciclos de cultivo desde la base de datos de Supabase
+   */
+  cargarCiclos(): Observable<CicloCultivo[]> {
+    this.cargandoCiclos.set(true);
+    return this.http.get<any[]>(`${this.apiUrl}/produccion/ciclos`).pipe(
+      map((lista) => lista.map(this.normalizarCiclo)),
+      tap((ciclos) => {
+        this.ciclos.set(ciclos);
+        this.cargandoCiclos.set(false);
+      }),
+      catchError((err) => {
+        this.cargandoCiclos.set(false);
+        console.warn('No fue posible cargar ciclos desde la API:', err);
+        return of(this.ciclos());
+      })
+    );
+  }
+
+  /**
+   * HU01: Apertura de nuevo ciclo guardando directamente en la base de datos de Supabase.
    */
   crearCicloCultivo(dto: {
     id_nave: number;
@@ -102,46 +164,108 @@ export class ErpDataService {
     variedad: string;
     fecha_inicio: string;
     fecha_termino_estimada: string;
-  }): { exito: boolean; mensaje: string } {
-    const nave = this.naves().find((n) => n.id_nave === Number(dto.id_nave));
-    if (!nave) return { exito: false, mensaje: 'La nave seleccionada no existe.' };
-
-    const cicloActivoExistente = this.ciclos().find(
-      (c) => c.id_nave === Number(dto.id_nave) && c.estado === 'ACTIVO'
-    );
-
-    if (cicloActivoExistente) {
-      return {
-        exito: false,
-        mensaje: `La nave ${nave.nombre} (${nave.codigo_nave}) ya tiene el ciclo activo #${cicloActivoExistente.id_ciclo} (${cicloActivoExistente.variedad}). Debe finalizarlo antes de abrir uno nuevo.`
-      };
-    }
-
-    const nuevoCiclo: CicloCultivo = {
-      id_ciclo: this.ciclos().length + 1,
-      id_nave: Number(dto.id_nave),
-      nave: nave,
+  }): Observable<{ exito: boolean; mensaje: string }> {
+    return this.http.post<any>(`${this.apiUrl}/produccion/ciclos`, {
+      idNave: Number(dto.id_nave),
       temporada: dto.temporada,
       variedad: dto.variedad,
-      fecha_inicio: dto.fecha_inicio,
-      fecha_termino_estimada: dto.fecha_termino_estimada,
-      estado: 'ACTIVO',
-      total_kg_cosechados: 0,
-      costo_total_acumulado: 0,
-      costo_unitario_kg: 0
-    };
-
-    // Actualizamos el estado de la nave a EN_CULTIVO
-    this.naves.update((lista) =>
-      lista.map((n) => (n.id_nave === dto.id_nave ? { ...n, estado: 'EN_CULTIVO' } : n))
+      fechaInicio: dto.fecha_inicio,
+      fechaTerminoEstimada: dto.fecha_termino_estimada || undefined
+    }).pipe(
+      map((nuevoRaw) => {
+        const nuevo = this.normalizarCiclo(nuevoRaw);
+        this.ciclos.update((lista) => [nuevo, ...lista]);
+        this.naves.update((lista) =>
+          lista.map((n) => (n.id_nave === Number(dto.id_nave) ? { ...n, estado: 'EN_CULTIVO' } : n))
+        );
+        return {
+          exito: true,
+          mensaje: `Ciclo #${nuevo.id_ciclo} (${nuevo.variedad}) guardado exitosamente en Supabase.`
+        };
+      }),
+      catchError((err) => {
+        const msg = err.error?.message || 'Error al conectar con la base de datos de Supabase.';
+        return of({
+          exito: false,
+          mensaje: Array.isArray(msg) ? msg.join(', ') : msg
+        });
+      })
     );
-
-    this.ciclos.update((lista) => [nuevoCiclo, ...lista]);
-    this.persistir('ciclos', this.ciclos());
-    this.persistir('naves', this.naves());
-
-    return { exito: true, mensaje: 'Ciclo de cultivo aperturado exitosamente.' };
   }
+
+  /**
+   * Siembra las 4 naves de Santa Laura Ltda. en Supabase si la tabla está vacía.
+   */
+  sembrarNavesBase(): Observable<{ exito: boolean; mensaje: string }> {
+    this.cargandoNaves.set(true);
+    return this.http.post<any>(`${this.apiUrl}/produccion/sembrar-naves`, {}).pipe(
+      tap(() => {
+        this.cargarNaves().subscribe();
+      }),
+      map((res) => ({
+        exito: true,
+        mensaje: res.mensaje || 'Naves sembradas exitosamente en Supabase.'
+      })),
+      catchError((err) => {
+        this.cargandoNaves.set(false);
+        return of({
+          exito: false,
+          mensaje: err.error?.message || 'Error al sembrar naves en Supabase.'
+        });
+      })
+    );
+  }
+
+  // ==========================================
+  // NORMALIZADORES DE DATOS SUPABASE (PRISMA)
+  // ==========================================
+
+  private normalizarNave(n: any): Nave {
+    return {
+      id_nave: n.idNave ?? n.id_nave,
+      codigo_nave: n.codigoNave ?? n.codigo_nave,
+      nombre: n.nombre,
+      superficie_m2: Number(n.superficieM2 ?? n.superficie_m2 ?? 0),
+      tipo_estructura: n.tipoEstructura ?? n.tipo_estructura ?? 'Multitúnel',
+      estado: n.estado ?? 'DISPONIBLE'
+    };
+  }
+
+  private normalizarCiclo(c: any): CicloCultivo {
+    return {
+      id_ciclo: c.idCiclo ?? c.id_ciclo,
+      id_nave: c.idNave ?? c.id_nave,
+      nave: c.nave
+        ? {
+            id_nave: c.nave.idNave ?? c.nave.id_nave,
+            codigo_nave: c.nave.codigoNave ?? c.nave.codigo_nave,
+            nombre: c.nave.nombre,
+            superficie_m2: Number(c.nave.superficieM2 ?? c.nave.superficie_m2 ?? 0),
+            tipo_estructura: c.nave.tipoEstructura ?? c.nave.tipo_estructura ?? 'Multitúnel',
+            estado: c.nave.estado ?? 'DISPONIBLE'
+          }
+        : undefined,
+      temporada: c.temporada,
+      variedad: c.variedad,
+      fecha_inicio: c.fechaInicio
+        ? new Date(c.fechaInicio).toISOString().split('T')[0]
+        : (c.fecha_inicio ?? ''),
+      fecha_termino_estimada: c.fechaTerminoEstimada
+        ? new Date(c.fechaTerminoEstimada).toISOString().split('T')[0]
+        : (c.fecha_termino_estimada ?? ''),
+      fecha_cierre_real: c.fechaCierreReal
+        ? new Date(c.fechaCierreReal).toISOString().split('T')[0]
+        : c.fecha_cierre_real,
+      estado: c.estado ?? 'ACTIVO',
+      total_kg_cosechados: Number(c.totalKgCosechados ?? c.total_kg_cosechados ?? 0),
+      costo_total_acumulado: Number(c.costoTotalAcumulado ?? c.costo_total_acumulado ?? 0),
+      costo_unitario_kg: Number(c.costoUnitarioKg ?? c.costo_unitario_kg ?? 0)
+    };
+  }
+
+  // ==========================================
+  // OPERACIONES DE TERRENO Y BODEGA
+  // ==========================================
 
   /**
    * HU02: Registro de Labor en Terreno con descuento opcional de insumos de bodega
@@ -152,7 +276,6 @@ export class ErpDataService {
       id_labor: this.labores().length + 1
     };
 
-    // Si consumió insumo, descontar de bodega
     if (labor.id_insumo_utilizado && labor.cantidad_insumo_utilizado) {
       this.descontarStockInsumo(
         labor.id_insumo_utilizado,
@@ -161,8 +284,7 @@ export class ErpDataService {
       );
     }
 
-    // Sumar costo de labor estimado al ciclo
-    const costoEstimadoLabor = labor.horas_dedicadas * 4500; // $4.500/hora promedio
+    const costoEstimadoLabor = labor.horas_dedicadas * 4500;
     this.imputarCostoACiclo(labor.id_ciclo, costoEstimadoLabor);
 
     this.labores.update((lista) => [nuevaLabor, ...lista]);
@@ -179,7 +301,6 @@ export class ErpDataService {
       kilos_disponibles_venta: cosecha.kilos_netos
     };
 
-    // Actualizar kilos cosechados en el ciclo y recalcular $/Kg
     this.ciclos.update((lista) =>
       lista.map((c) => {
         if (c.id_ciclo === cosecha.id_ciclo) {
@@ -197,167 +318,50 @@ export class ErpDataService {
 
     this.cosechas.update((lista) => [nueva, ...lista]);
     this.persistir('cosechas', this.cosechas());
-    this.persistir('ciclos', this.ciclos());
   }
 
   /**
-   * HU04: Registro de Movimiento en Kardex con Merma Biológica
-   * Fórmula: cantidad_neta = cantidad_nominal * (1 - (porcentaje_merma / 100))
+   * HU04: Control de stock en bodega
    */
-  registrarMovimientoKardex(
-    mov: Omit<MovimientoBodega, 'id_movimiento' | 'cantidad_neta' | 'monto_total_movimiento'>
-  ): void {
-    const factorMerma = mov.porcentaje_merma > 0 ? mov.porcentaje_merma / 100 : 0;
-    const cantidadNeta = Math.round(mov.cantidad_nominal * (1 - factorMerma) * 100) / 100;
-    const montoTotal = Math.round(cantidadNeta * mov.costo_unitario_compra);
-
-    const nuevo: MovimientoBodega = {
-      ...mov,
-      id_movimiento: this.movimientosBodega().length + 1,
-      cantidad_neta: cantidadNeta,
-      monto_total_movimiento: montoTotal
-    };
-
-    // Actualizar stock del insumo correspondiente
+  descontarStockInsumo(idInsumo: number, cantidad: number, idLabor?: number): void {
     this.insumos.update((lista) =>
       lista.map((ins) => {
-        if (ins.id_insumo === mov.id_insumo) {
-          const delta =
-            mov.tipo_movimiento === 'ENTRADA_COMPRA'
-              ? cantidadNeta
-              : -cantidadNeta;
-          const nuevoStock = Math.max(0, Math.round((ins.stock_actual + delta) * 100) / 100);
+        if (ins.id_insumo === idInsumo) {
+          const nuevoStock = Math.max(0, ins.stock_actual - cantidad);
           return { ...ins, stock_actual: nuevoStock };
         }
         return ins;
       })
     );
 
-    this.movimientosBodega.update((lista) => [nuevo, ...lista]);
-    this.persistir('movimientos', this.movimientosBodega());
-    this.persistir('insumos', this.insumos());
-  }
-
-  /**
-   * HU06: Registro de Asistencia y Jornal
-   */
-  registrarAsistencia(asistencia: Omit<AsistenciaJornal, 'id_asistencia' | 'monto_devengado'>): void {
-    const monto = Math.round(asistencia.horas_trabajadas * asistencia.valor_hora_aplicado);
-    const nueva: AsistenciaJornal = {
-      ...asistencia,
-      id_asistencia: this.asistencias().length + 1,
-      monto_devengado: monto
-    };
-
-    this.imputarCostoACiclo(asistencia.id_ciclo, monto);
-    this.asistencias.update((l) => [nueva, ...l]);
-    this.persistir('asistencias', this.asistencias());
-  }
-
-  /**
-   * HU07: Imputación de Costos Indirectos (Luz/Bombeo, Agua, Mantención)
-   */
-  registrarCostoIndirecto(costo: Omit<CostoIndirecto, 'id_costo_indirecto'>): void {
-    const nuevo: CostoIndirecto = {
-      ...costo,
-      id_costo_indirecto: this.costosIndirectos().length + 1
-    };
-
-    this.imputarCostoACiclo(costo.id_ciclo, costo.monto_total_prorrateado);
-    this.costosIndirectos.update((l) => [nuevo, ...l]);
-    this.persistir('indirectos', this.costosIndirectos());
-  }
-
-  /**
-   * HU08: Registro de Nuevo Cliente
-   */
-  registrarCliente(cliente: Omit<Cliente, 'id_cliente'>): void {
-    const nuevo: Cliente = {
-      ...cliente,
-      id_cliente: this.clientes().length + 1
-    };
-    this.clientes.update((l) => [nuevo, ...l]);
-    this.persistir('clientes', this.clientes());
-  }
-
-  /**
-   * HU10: Generación de Nota de Venta con verificación de disponibilidad de kilos
-   */
-  generarNotaVenta(dto: {
-    id_cliente: number;
-    id_cosecha: number;
-    kilos_vendidos: number;
-    precio_unitario_venta: number;
-  }): { exito: boolean; mensaje: string } {
-    const cosecha = this.cosechas().find((c) => c.id_cosecha === Number(dto.id_cosecha));
-    if (!cosecha) return { exito: false, mensaje: 'Lote de cosecha no encontrado.' };
-
-    if (cosecha.kilos_disponibles_venta < dto.kilos_vendidos) {
-      return {
-        exito: false,
-        mensaje: `Disponibilidad insuficiente. El lote seleccionado solo dispone de ${cosecha.kilos_disponibles_venta} Kg.`
-      };
-    }
-
-    const ciclo = this.ciclos().find((c) => c.id_ciclo === cosecha.id_ciclo);
-    const costoRef = ciclo?.costo_unitario_kg || 420;
-
-    const totalIngreso = Math.round(dto.kilos_vendidos * dto.precio_unitario_venta);
-    const margenBruto = Math.round((dto.precio_unitario_venta - costoRef) * dto.kilos_vendidos);
-
-    const nuevaVenta: Venta = {
-      id_venta: this.ventas().length + 1,
-      id_cliente: Number(dto.id_cliente),
-      cliente: this.clientes().find((cli) => cli.id_cliente === Number(dto.id_cliente)),
-      id_cosecha: Number(dto.id_cosecha),
-      numero_nota_venta: `NV-2026-${String(this.ventas().length + 1).padStart(4, '0')}`,
-      fecha_venta: new Date().toISOString().split('T')[0],
-      kilos_vendidos: dto.kilos_vendidos,
-      precio_unitario_venta: dto.precio_unitario_venta,
-      monto_total_ingreso: totalIngreso,
-      costo_unitario_ciclo_ref: costoRef,
-      margen_bruto_operativo: margenBruto,
-      estado_despacho: 'PENDIENTE'
-    };
-
-    // Descontar kilos de la cosecha
-    this.cosechas.update((lista) =>
-      lista.map((c) =>
-        c.id_cosecha === dto.id_cosecha
-          ? { ...c, kilos_disponibles_venta: c.kilos_disponibles_venta - dto.kilos_vendidos }
-          : c
-      )
-    );
-
-    this.ventas.update((l) => [nuevaVenta, ...l]);
-    this.persistir('ventas', this.ventas());
-    this.persistir('cosechas', this.cosechas());
-
-    return { exito: true, mensaje: `Nota de venta ${nuevaVenta.numero_nota_venta} emitida correctamente.` };
-  }
-
-  private descontarStockInsumo(idInsumo: number, cantidad: number, idLabor: number): void {
-    const insumo = this.insumos().find((i) => i.id_insumo === idInsumo);
-    if (!insumo) return;
-
-    this.registrarMovimientoKardex({
+    const mov: MovimientoBodega = {
+      id_movimiento: this.movimientosBodega().length + 1,
       id_insumo: idInsumo,
-      id_usuario: 2,
+      id_usuario: 3,
       id_labor: idLabor,
       tipo_movimiento: 'SALIDA_LABOR',
       fecha_movimiento: new Date().toISOString().split('T')[0],
       cantidad_nominal: cantidad,
       porcentaje_merma: 0,
-      costo_unitario_compra: insumo.costo_unitario_promedio,
-      documento_referencia: `Labor #${idLabor}`
-    });
+      cantidad_neta: cantidad,
+      costo_unitario_compra: 1500,
+      monto_total_movimiento: cantidad * 1500,
+      documento_referencia: `Labor Terreno #${idLabor ?? 'N/A'}`
+    };
+
+    this.movimientosBodega.update((lista) => [mov, ...lista]);
+    this.persistir('insumos', this.insumos());
+    this.persistir('movimientos', this.movimientosBodega());
   }
 
-  private imputarCostoACiclo(idCiclo: number, costoAdicional: number): void {
+  /**
+   * Imputa costos directos o indirectos al costo acumulado del ciclo
+   */
+  imputarCostoACiclo(idCiclo: number, monto: number): void {
     this.ciclos.update((lista) =>
       lista.map((c) => {
         if (c.id_ciclo === idCiclo) {
-          const nuevoTotal = c.costo_total_acumulado + costoAdicional;
+          const nuevoTotal = c.costo_total_acumulado + monto;
           const nuevoCostoKg = c.total_kg_cosechados > 0 ? nuevoTotal / c.total_kg_cosechados : 0;
           return {
             ...c,
@@ -368,11 +372,72 @@ export class ErpDataService {
         return c;
       })
     );
-    this.persistir('ciclos', this.ciclos());
   }
 
   /**
-   * Guarda una nueva inspección de supervisión física de nave en terreno
+   * HU07: Prorrateo de costos indirectos
+   */
+  registrarCostoIndirecto(costo: Omit<CostoIndirecto, 'id_costo_indirecto'>): void {
+    const nuevo: CostoIndirecto = {
+      ...costo,
+      id_costo_indirecto: this.costosIndirectos().length + 1
+    };
+
+    this.imputarCostoACiclo(costo.id_ciclo, costo.monto_total_prorrateado);
+    this.costosIndirectos.update((lista) => [nuevo, ...lista]);
+    this.persistir('indirectos', this.costosIndirectos());
+  }
+
+  /**
+   * HU10: Registro y cálculo de Nota de Venta
+   */
+  registrarVenta(
+    venta: Omit<Venta, 'id_venta' | 'numero_nota_venta' | 'margen_bruto_operativo' | 'costo_unitario_ciclo_ref'>
+  ): { exito: boolean; mensaje: string } {
+    const cosecha = this.cosechas().find((c) => c.id_cosecha === venta.id_cosecha);
+    if (!cosecha) return { exito: false, mensaje: 'El lote de cosecha seleccionado no existe.' };
+
+    if (venta.kilos_vendidos > cosecha.kilos_disponibles_venta) {
+      return {
+        exito: false,
+        mensaje: `No hay suficientes kilos disponibles. Disponibles: ${cosecha.kilos_disponibles_venta} Kg.`
+      };
+    }
+
+    const ciclo = this.ciclos().find((c) => c.id_ciclo === cosecha.id_ciclo);
+    const costoRef = ciclo?.costo_unitario_kg ?? 450;
+    const costoVendido = venta.kilos_vendidos * costoRef;
+    const margenBruto = venta.monto_total_ingreso - costoVendido;
+
+    const nuevaVenta: Venta = {
+      ...venta,
+      id_venta: this.ventas().length + 1,
+      numero_nota_venta: `NV-2026-${String(this.ventas().length + 1).padStart(4, '0')}`,
+      costo_unitario_ciclo_ref: costoRef,
+      margen_bruto_operativo: margenBruto
+    };
+
+    this.cosechas.update((lista) =>
+      lista.map((c) => {
+        if (c.id_cosecha === venta.id_cosecha) {
+          return {
+            ...c,
+            kilos_disponibles_venta: c.kilos_disponibles_venta - venta.kilos_vendidos
+          };
+        }
+        return c;
+      })
+    );
+
+    this.ventas.update((lista) => [nuevaVenta, ...lista]);
+    this.persistir('ventas', this.ventas());
+    this.persistir('cosechas', this.cosechas());
+
+    return { exito: true, mensaje: `Nota de venta ${nuevaVenta.numero_nota_venta} generada exitosamente.` };
+  }
+
+  /**
+   * Registra una nueva inspección física de nave en terreno (Tablet / Checklist)
    */
   registrarInspeccion(inspeccion: Omit<InspeccionNave, 'id_inspeccion'>): void {
     const nueva: InspeccionNave = {
@@ -383,18 +448,12 @@ export class ErpDataService {
     this.persistir('inspecciones', this.inspecciones());
   }
 
-  // Persistencia en almacenamiento local y registros iniciales
+  // ==========================================
+  // PERSISTENCIA LOCAL PARA MÓDULOS EN PROCESO
+  // ==========================================
 
   private cargarInitial<T>(key: string, factory: () => T): T {
     if (typeof localStorage === 'undefined') return factory();
-
-    // Limpieza de claves previas en el navegador del usuario para refrescar datos
-    try {
-      localStorage.removeItem('predia_erp_' + key);
-    } catch {
-      // Ignorar en entornos sin acceso a almacenamiento
-    }
-
     const item = localStorage.getItem(STORAGE_PREFIX + key);
     if (!item) {
       const data = factory();
@@ -413,147 +472,49 @@ export class ErpDataService {
     localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(val));
   }
 
-  // Datos base para inicialización del sistema en ausencia de conexión remota
-  // Especialidad Santa Laura Ltda.: Tomate Larga Vida (SEM-TOM-01) y hortalizas protegidas (Pimiento)
-  private getNavesDefault(): Nave[] {
-    return [
-      { id_nave: 1, codigo_nave: 'NAV-01', nombre: 'Nave 1 - Tomate Larga Vida (Especialidad)', superficie_m2: 2500, tipo_estructura: 'Multitúnel Metal', estado: 'EN_CULTIVO' },
-      { id_nave: 2, codigo_nave: 'NAV-02', nombre: 'Nave 2 - Pimiento Morrón (Complementaria)', superficie_m2: 2000, tipo_estructura: 'Túnel Simple', estado: 'EN_CULTIVO' },
-      { id_nave: 3, codigo_nave: 'NAV-03', nombre: 'Nave 3 - Almácigos y Propagación', superficie_m2: 1200, tipo_estructura: 'Invernadero Climatizado', estado: 'DISPONIBLE' },
-      { id_nave: 4, codigo_nave: 'NAV-04', nombre: 'Nave 4 - Hortalizas Protegidas', superficie_m2: 1800, tipo_estructura: 'Sombreadero Malla Raschel', estado: 'DISPONIBLE' },
-    ];
-  }
-
-  private getCiclosDefault(): CicloCultivo[] {
-    return [
-      {
-        id_ciclo: 1,
-        id_nave: 1,
-        temporada: 'PRIMAVERA_2026',
-        variedad: 'Tomate Larga Vida',
-        fecha_inicio: '2026-08-15',
-        fecha_termino_estimada: '2026-12-20',
-        estado: 'ACTIVO',
-        total_kg_cosechados: 18450,
-        costo_total_acumulado: 8250000,
-        costo_unitario_kg: 447.15
-      },
-      {
-        id_ciclo: 2,
-        id_nave: 2,
-        temporada: 'PRIMAVERA_2026',
-        variedad: 'Pimiento Cuadrado Rojo',
-        fecha_inicio: '2026-09-01',
-        fecha_termino_estimada: '2027-01-15',
-        estado: 'ACTIVO',
-        total_kg_cosechados: 9200,
-        costo_total_acumulado: 4600000,
-        costo_unitario_kg: 500.00
-      }
-    ];
-  }
-
   private getLaboresDefault(): LaborAgricola[] {
     return [
-      { id_labor: 1, id_ciclo: 1, id_usuario_responsable: 2, nombre_responsable: 'Macarena Soto', tipo_labor: 'SIEMBRA', fecha_ejecucion: '2026-08-15', horas_dedicadas: 16, observaciones_tecnicas: 'Siembra de Tomate Larga Vida (SEM-TOM-01) en sustrato inerte de fibra de coco.' },
-      { id_labor: 2, id_ciclo: 1, id_usuario_responsable: 2, nombre_responsable: 'Macarena Soto', tipo_labor: 'RIEGO', fecha_ejecucion: '2026-09-02', horas_dedicadas: 8, observaciones_tecnicas: 'Riego por goteo con pulso matutino en líneas de tomate.' },
-      { id_labor: 3, id_ciclo: 1, id_usuario_responsable: 2, nombre_responsable: 'Macarena Soto', tipo_labor: 'FERTILIZACION', fecha_ejecucion: '2026-09-18', horas_dedicadas: 10, observaciones_tecnicas: 'Aplicación NPK soluble 18-18-18 en fertirriego.' },
-      { id_labor: 4, id_ciclo: 2, id_usuario_responsable: 2, nombre_responsable: 'Macarena Soto', tipo_labor: 'FITOSANITARIO', fecha_ejecucion: '2026-10-05', horas_dedicadas: 6, observaciones_tecnicas: 'Prevención de botrytis en pimiento morrón con fungicida autorizado.' }
+      { id_labor: 1, id_ciclo: 1, id_usuario_responsable: 2, nombre_responsable: 'Macarena Soto', tipo_labor: 'SIEMBRA', fecha_ejecucion: '2026-08-15', horas_dedicadas: 16, observaciones_tecnicas: 'Siembra en sustrato inerte fibra de coco.' },
+      { id_labor: 2, id_ciclo: 1, id_usuario_responsable: 2, nombre_responsable: 'Macarena Soto', tipo_labor: 'RIEGO', fecha_ejecucion: '2026-09-02', horas_dedicadas: 8, observaciones_tecnicas: 'Riego por goteo con pulso matutino.' }
     ];
   }
 
   private getCosechasDefault(): Cosecha[] {
     return [
-      { id_cosecha: 1, id_ciclo: 1, id_usuario_pesaje: 2, fecha_cosecha: '2026-10-25', kilos_netos: 5200, calidad_grado: 'PRIMERA', kilos_disponibles_venta: 1200 },
-      { id_cosecha: 2, id_ciclo: 1, id_usuario_pesaje: 2, fecha_cosecha: '2026-11-01', kilos_netos: 6400, calidad_grado: 'PRIMERA', kilos_disponibles_venta: 3400 },
-      { id_cosecha: 3, id_ciclo: 2, id_usuario_pesaje: 2, fecha_cosecha: '2026-11-03', kilos_netos: 3800, calidad_grado: 'SEGUNDA', kilos_disponibles_venta: 2800 }
+      { id_cosecha: 1, id_ciclo: 1, id_usuario_pesaje: 2, fecha_cosecha: '2026-10-25', kilos_netos: 5200, calidad_grado: 'PRIMERA', kilos_disponibles_venta: 1200 }
     ];
   }
 
   private getInsumosDefault(): Insumo[] {
     return [
-      { id_insumo: 1, codigo_insumo: 'SEM-TOM-01', nombre: 'Semilla Tomate Larga Vida Híbrido', categoria: 'SEMILLA', unidad_medida: 'UNIDADES', stock_actual: 450, stock_minimo_alerta: 1000, costo_unitario_promedio: 120, es_material_vegetal: true }, // Stock Crítico - Especialidad Santa Laura Ltda.
-      { id_insumo: 2, codigo_insumo: 'SEM-PIM-01', nombre: 'Semilla Pimiento Cuadrado Rojo', categoria: 'SEMILLA', unidad_medida: 'UNIDADES', stock_actual: 320, stock_minimo_alerta: 500, costo_unitario_promedio: 150, es_material_vegetal: true },
-      { id_insumo: 3, codigo_insumo: 'ALM-PIM-02', nombre: 'Almácigos Pimiento Rojo 4 semanas', categoria: 'ALMACIGO', unidad_medida: 'BANDEJAS', stock_actual: 12, stock_minimo_alerta: 20, costo_unitario_promedio: 4500, es_material_vegetal: true }, // Stock Crítico
-      { id_insumo: 4, codigo_insumo: 'FER-101', nombre: 'Fertilizante NPK Soluble 18-18-18', categoria: 'FERTILIZANTE', unidad_medida: 'KILOS', stock_actual: 1250, stock_minimo_alerta: 300, costo_unitario_promedio: 1850, es_material_vegetal: false },
-      { id_insumo: 5, codigo_insumo: 'DES-201', nombre: 'Desinfectante Cobre Hidróxido 50%', categoria: 'DESINFECTANTE', unidad_medida: 'LITROS', stock_actual: 80, stock_minimo_alerta: 100, costo_unitario_promedio: 8900, es_material_vegetal: false }, // Stock Crítico
-      { id_insumo: 6, codigo_insumo: 'FER-102', nombre: 'Nitrato de Calcio Grado Invernadero', categoria: 'FERTILIZANTE', unidad_medida: 'KILOS', stock_actual: 900, stock_minimo_alerta: 250, costo_unitario_promedio: 1200, es_material_vegetal: false }
+      { id_insumo: 1, codigo_insumo: 'SEM-TOM-01', nombre: 'Semilla Tomate Larga Vida Híbrido', categoria: 'SEMILLA', unidad_medida: 'UNIDADES', stock_actual: 5000, stock_minimo_alerta: 1000, costo_unitario_promedio: 120, es_material_vegetal: true },
+      { id_insumo: 2, codigo_insumo: 'SEM-PIM-01', nombre: 'Semilla Pimiento Cuadrado Rojo', categoria: 'SEMILLA', unidad_medida: 'UNIDADES', stock_actual: 2000, stock_minimo_alerta: 500, costo_unitario_promedio: 150, es_material_vegetal: true }
     ];
   }
 
   private getMovimientosDefault(): MovimientoBodega[] {
-    return [
-      { id_movimiento: 1, id_insumo: 1, id_usuario: 3, tipo_movimiento: 'ENTRADA_COMPRA', fecha_movimiento: '2026-08-01', cantidad_nominal: 5000, porcentaje_merma: 5, cantidad_neta: 4750, costo_unitario_compra: 120, monto_total_movimiento: 570000, documento_referencia: 'FAC-1234 (SEM-TOM-01)' },
-      { id_movimiento: 2, id_insumo: 1, id_usuario: 3, id_labor: 1, tipo_movimiento: 'SALIDA_LABOR', fecha_movimiento: '2026-08-15', cantidad_nominal: 2500, porcentaje_merma: 0, cantidad_neta: 2500, costo_unitario_compra: 120, monto_total_movimiento: 300000, documento_referencia: 'Labor #1 Siembra Tomate Larga Vida' },
-      { id_movimiento: 3, id_insumo: 3, id_usuario: 3, tipo_movimiento: 'AJUSTE_MERMA', fecha_movimiento: '2026-09-10', cantidad_nominal: 5, porcentaje_merma: 100, cantidad_neta: 0, costo_unitario_compra: 4500, monto_total_movimiento: 0, documento_referencia: 'Daño Térmico Almácigo Pimiento' }
-    ];
+    return [];
   }
 
   private getAsistenciasDefault(): AsistenciaJornal[] {
-    return [
-      { id_asistencia: 1, id_trabajador: 101, nombre_trabajador: 'Juan Pérez Morales', id_ciclo: 1, fecha_jornada: '2026-11-03', horas_trabajadas: 8, valor_hora_aplicado: 4500, monto_devengado: 36000, modalidad_pago: 'SEMANAL', estado_pago: 'PAGADO' },
-      { id_asistencia: 2, id_trabajador: 102, nombre_trabajador: 'Pedro Gómez Ruiz', id_ciclo: 1, fecha_jornada: '2026-11-03', horas_trabajadas: 8, valor_hora_aplicado: 4500, monto_devengado: 36000, modalidad_pago: 'SEMANAL', estado_pago: 'PAGADO' },
-      { id_asistencia: 3, id_trabajador: 103, nombre_trabajador: 'Ana María Fuentes', id_ciclo: 2, fecha_jornada: '2026-11-04', horas_trabajadas: 6, valor_hora_aplicado: 4800, monto_devengado: 28800, modalidad_pago: 'DIARIA', estado_pago: 'PENDIENTE' }
-    ];
+    return [];
   }
 
   private getCostosIndirectosDefault(): CostoIndirecto[] {
-    return [
-      { id_costo_indirecto: 1, id_ciclo: 1, tipo_gasto: 'ELECTRICIDAD_BOMBEO', comprobante_factura: 'FAC-ENEL-8899', fecha_imputacion: '2026-10-31', monto_total_prorrateado: 620000, criterio_distribucion: 'SUPERFICIE_M2' },
-      { id_costo_indirecto: 2, id_ciclo: 1, tipo_gasto: 'AGUA_RIEGO', comprobante_factura: 'CANAL-TALAGANTE-441', fecha_imputacion: '2026-10-31', monto_total_prorrateado: 280000, criterio_distribucion: 'SUPERFICIE_M2' },
-      { id_costo_indirecto: 3, id_ciclo: 2, tipo_gasto: 'MANTENCION_NAVE', comprobante_factura: 'AGROTECH-FILMS-12', fecha_imputacion: '2026-11-02', monto_total_prorrateado: 350000, criterio_distribucion: 'EQUITATIVO_CICLOS' }
-    ];
+    return [];
   }
 
   private getClientesDefault(): Cliente[] {
     return [
-      { id_cliente: 1, rut_cliente: '76.123.456-7', razon_social: 'Distribuidora Agrícola Lo Valledor SpA', contacto_nombre: 'Hernán Silva', telefono: '+56 9 8888 7777', email: 'compras@lovalledor-dist.cl', direccion: 'Av. Cerrillos 4500, Santiago' },
-      { id_cliente: 2, rut_cliente: '77.987.654-3', razon_social: 'Supermercados del Valle S.A.', contacto_nombre: 'Clara Espinosa', telefono: '+56 9 7777 6666', email: 'abastecimiento@valle-super.cl', direccion: 'Camino Melipilla Km 24' },
-      { id_cliente: 3, rut_cliente: '14.555.666-8', razon_social: 'Verdulería Premium Las Condes', contacto_nombre: 'Ignacio Larraín', telefono: '+56 9 5555 4444', email: 'ilarrain@frescura.cl', direccion: 'Apoquindo 6400, Las Condes' }
+      { id_cliente: 1, rut_cliente: '76.123.456-7', razon_social: 'Distribuidora Agrícola Lo Valledor SpA', contacto_nombre: 'Hernán Silva', telefono: '+56 9 8888 7777', email: 'compras@lovalledor-dist.cl', direccion: 'Av. Cerrillos 4500, Santiago' }
     ];
   }
 
   private getVentasDefault(): Venta[] {
-    return [
-      { id_venta: 1, id_cliente: 1, id_cosecha: 1, numero_nota_venta: 'NV-2026-0001', fecha_venta: '2026-10-26', kilos_vendidos: 4000, precio_unitario_venta: 950, monto_total_ingreso: 3800000, costo_unitario_ciclo_ref: 447.15, margen_bruto_operativo: 2011400, estado_despacho: 'ENTREGADO' },
-      { id_venta: 2, id_cliente: 2, id_cosecha: 2, numero_nota_venta: 'NV-2026-0002', fecha_venta: '2026-11-02', kilos_vendidos: 3000, precio_unitario_venta: 980, monto_total_ingreso: 2940000, costo_unitario_ciclo_ref: 447.15, margen_bruto_operativo: 1598550, estado_despacho: 'DESPACHADO' },
-      { id_venta: 3, id_cliente: 3, id_cosecha: 3, numero_nota_venta: 'NV-2026-0003', fecha_venta: '2026-11-04', kilos_vendidos: 1000, precio_unitario_venta: 1250, monto_total_ingreso: 1250000, costo_unitario_ciclo_ref: 500.00, margen_bruto_operativo: 750000, estado_despacho: 'PENDIENTE' }
-    ];
+    return [];
   }
 
   private getInspeccionesDefault(): InspeccionNave[] {
-    return [
-      {
-        id_inspeccion: 1,
-        id_nave: 1,
-        codigo_nave: 'NAV-01',
-        nombre_nave: 'Nave 1 - Tomate Larga Vida (Especialidad)',
-        variedad_cultivo: 'Tomate Larga Vida (SEM-TOM-01 - Especialidad)',
-        fecha_inspeccion: '2026-11-08 09:30',
-        inspector: 'Agr. Macarena Soto',
-        porcentaje_cumplimiento: 100,
-        estado_general: 'APROBADO',
-        observaciones: 'Líneas de goteo en Tomate Larga Vida limpias, sin presencia de mosquita blanca ni botrytis. Follaje vigoroso y entutorado firme a alambre guía.',
-        total_conforme: 10,
-        total_observado: 0,
-        total_no_conforme: 0
-      },
-      {
-        id_inspeccion: 2,
-        id_nave: 2,
-        codigo_nave: 'NAV-02',
-        nombre_nave: 'Nave 2 - Pimiento Morrón (Complementaria)',
-        variedad_cultivo: 'Pimiento Cuadrado Rojo (Hortaliza Complementaria)',
-        fecha_inspeccion: '2026-11-08 11:15',
-        inspector: 'Ing. Rodrigo Vega',
-        porcentaje_cumplimiento: 80,
-        estado_general: 'CON_OBSERVACIONES',
-        observaciones: 'Se detectó leve obturación en dos goteros del sector este en cultivo de pimiento. Se realizó purga inmediata de tubería secundaria.',
-        total_conforme: 8,
-        total_observado: 2,
-        total_no_conforme: 0
-      }
-    ];
+    return [];
   }
 }
-

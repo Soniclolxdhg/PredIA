@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ErpDataService } from '../../core/services/erp-data.service';
@@ -7,7 +7,7 @@ import { Nave } from '../../core/models/erp.models';
 /**
  * Componente para la gestión de Ciclos de Cultivo e Invernaderos (HU01).
  * Controla la ocupación de las naves y la apertura de nuevos ciclos agrícolas,
- * aplicando la regla de negocio que prohíbe ciclos simultáneos en una misma nave.
+ * conectado en tiempo real con PostgreSQL en Supabase a través del backend NestJS.
  */
 @Component({
   selector: 'app-ciclos-cultivo',
@@ -15,25 +15,43 @@ import { Nave } from '../../core/models/erp.models';
   imports: [CommonModule, ReactiveFormsModule],
   template: `
     <div class="space-y-6">
-      <!-- Encabezado con título del módulo y acción para abrir nuevo ciclo -->
+      <!-- Encabezado con título del módulo y acciones -->
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
         <div>
           <div class="flex items-center gap-2">
             <span class="text-2xl">🏡</span>
             <h2 class="text-xl font-bold text-slate-800">Ciclos de Cultivo & Naves (HU01)</h2>
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              Supabase En Línea
+            </span>
           </div>
           <p class="text-xs sm:text-sm text-slate-500 mt-1">
-            Control de ocupación de invernaderos y aperturas de ciclo productivo.
+            Control de ocupación de invernaderos y aperturas de ciclo productivo en base de datos real.
           </p>
         </div>
 
-        <button
-          type="button"
-          (click)="abrirModal()"
-          class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm rounded-xl shadow-xs transition-colors touch-target">
-          <span>➕</span>
-          <span>Aperturar Nuevo Ciclo</span>
-        </button>
+        <div class="flex items-center gap-2">
+          <!-- Botón de Sincronización Manual con Supabase -->
+          <button
+            type="button"
+            (click)="recargarDatos()"
+            [disabled]="erpService.cargandoCiclos() || erpService.cargandoNaves()"
+            title="Sincronizar con Supabase"
+            class="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 font-semibold text-xs rounded-xl border border-slate-300 transition-colors touch-target">
+            <span [class.animate-spin]="erpService.cargandoCiclos() || erpService.cargandoNaves()">🔄</span>
+            <span>Sincronizar</span>
+          </button>
+
+          <!-- Botón de Apertura de Nuevo Ciclo -->
+          <button
+            type="button"
+            (click)="abrirModal()"
+            class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm rounded-xl shadow-xs transition-colors touch-target">
+            <span>➕</span>
+            <span>Aperturar Nuevo Ciclo</span>
+          </button>
+        </div>
       </div>
 
       <!-- Banner Informativo del Modelo Agronómico de Santa Laura Ltda. -->
@@ -70,10 +88,44 @@ import { Nave } from '../../core/models/erp.models';
 
       <!-- Tarjetas de estado físico de cada invernadero -->
       <div>
-        <h3 class="text-sm font-bold uppercase tracking-wider text-slate-500 mb-3">
-          Estado de Naves e Invernaderos (Superficie Total: {{ totalSuperficie }} m²)
-        </h3>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-bold uppercase tracking-wider text-slate-500">
+            Estado de Naves e Invernaderos (Superficie Total: {{ totalSuperficie | number }} m²)
+          </h3>
+          <span class="text-xs font-medium text-slate-500">
+            {{ erpService.naves().length }} naves en Supabase
+          </span>
+        </div>
+
+        <!-- Cargando naves -->
+        <div *ngIf="erpService.cargandoNaves()" class="p-8 text-center bg-white rounded-2xl border border-slate-200">
+          <span class="inline-block animate-spin text-2xl mb-2">🔄</span>
+          <p class="text-xs text-slate-600 font-medium">Cargando naves desde Supabase...</p>
+        </div>
+
+        <!-- Estado si no hay naves en Supabase -->
+        <div
+          *ngIf="!erpService.cargandoNaves() && erpService.naves().length === 0"
+          class="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center shadow-xs">
+          <span class="text-3xl">🏡</span>
+          <h4 class="font-bold text-amber-900 mt-2 text-base">La base de datos de Supabase no tiene naves inicializadas</h4>
+          <p class="text-xs text-amber-700 max-w-lg mx-auto mt-1 mb-4">
+            Para aperturar ciclos de cultivo en Santa Laura Ltda., se requiere registrar las 4 naves base (NAV-01 a NAV-04) en la tabla <code class="font-mono bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-semibold">naves</code> de Supabase.
+          </p>
+          <button
+            type="button"
+            (click)="sembrarNaves()"
+            [disabled]="sembrando() || erpService.cargandoNaves()"
+            class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition-colors touch-target">
+            <span [class.animate-spin]="sembrando()">🌱</span>
+            <span>{{ sembrando() ? 'Inicializando en Supabase...' : 'Inicializar Naves de Santa Laura Ltda. en Supabase' }}</span>
+          </button>
+        </div>
+
+        <!-- Grilla de naves existentes en Supabase -->
+        <div
+          *ngIf="!erpService.cargandoNaves() && erpService.naves().length > 0"
+          class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div
             *ngFor="let nave of erpService.naves()"
             class="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs hover:shadow-md transition-shadow">
@@ -98,10 +150,39 @@ import { Nave } from '../../core/models/erp.models';
       <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div class="p-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
           <h3 class="font-bold text-slate-800 text-sm">Historial y Ciclos Activos de la Temporada</h3>
-          <span class="text-xs text-slate-500">{{ erpService.ciclos().length }} ciclos registrados</span>
+          <span class="text-xs text-slate-500">{{ erpService.ciclos().length }} ciclos en Supabase</span>
         </div>
 
-        <div class="overflow-x-auto">
+        <!-- Indicador de carga de ciclos -->
+        <div *ngIf="erpService.cargandoCiclos()" class="p-8 text-center bg-white">
+          <span class="inline-block animate-spin text-2xl mb-2">🔄</span>
+          <p class="text-xs text-slate-600 font-medium">Consultando tabla 'ciclos_cultivo' en Supabase...</p>
+        </div>
+
+        <!-- Estado vacío real (cuando la tabla de Supabase está vacía) -->
+        <div
+          *ngIf="!erpService.cargandoCiclos() && erpService.ciclos().length === 0"
+          class="p-8 text-center bg-white">
+          <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto text-2xl mb-3">
+            📋
+          </div>
+          <h4 class="font-bold text-slate-800 text-sm">No hay ciclos de cultivo registrados en la base de datos de Supabase</h4>
+          <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+            Actualmente la tabla <code class="font-mono bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-semibold">ciclos_cultivo</code> no contiene registros. Haz clic en "Aperturar Nuevo Ciclo" para registrar un ciclo productivo en la base de datos real.
+          </p>
+          <button
+            type="button"
+            (click)="abrirModal()"
+            class="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs rounded-xl shadow-xs transition-colors">
+            <span>➕</span>
+            <span>Aperturar Nuevo Ciclo</span>
+          </button>
+        </div>
+
+        <!-- Tabla con ciclos reales de Supabase -->
+        <div
+          *ngIf="!erpService.cargandoCiclos() && erpService.ciclos().length > 0"
+          class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-xs sm:text-sm">
             <thead>
               <tr class="bg-slate-100/75 border-b border-slate-200 text-slate-600 font-semibold text-xs uppercase">
@@ -181,7 +262,7 @@ import { Nave } from '../../core/models/erp.models';
                 </option>
               </select>
               <p class="text-[11px] text-slate-500 mt-1">
-                * Regla de negocio: No se permite aperturar si la nave ya tiene un ciclo ACTIVO.
+                * Regla de negocio: No se permite aperturar si la nave ya tiene un ciclo ACTIVO en Supabase.
               </p>
             </div>
 
@@ -253,14 +334,16 @@ import { Nave } from '../../core/models/erp.models';
               <button
                 type="button"
                 (click)="cerrarModal()"
+                [disabled]="guardando()"
                 class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl font-medium">
                 Cancelar
               </button>
               <button
                 type="submit"
-                [disabled]="cicloForm.invalid"
-                class="px-5 py-2 text-sm bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-semibold rounded-xl shadow-xs transition-colors">
-                Guardar y Aperturar
+                [disabled]="cicloForm.invalid || guardando()"
+                class="inline-flex items-center gap-2 px-5 py-2 text-sm bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-semibold rounded-xl shadow-xs transition-colors">
+                <span *ngIf="guardando()" class="inline-block animate-spin">🔄</span>
+                <span>{{ guardando() ? 'Guardando en Supabase...' : 'Guardar y Aperturar' }}</span>
               </button>
             </div>
           </form>
@@ -269,13 +352,15 @@ import { Nave } from '../../core/models/erp.models';
     </div>
   `
 })
-export class CiclosCultivoComponent {
+export class CiclosCultivoComponent implements OnInit {
   // Inyección de servicios centrales
   readonly erpService = inject(ErpDataService);
   private readonly fb = inject(FormBuilder);
 
   // Señales reactivas para la interfaz
   readonly modalVisible = signal(false);
+  readonly guardando = signal(false);
+  readonly sembrando = signal(false);
   readonly mensajeError = signal<string | null>(null);
   readonly mensajeExito = signal<string | null>(null);
 
@@ -287,6 +372,18 @@ export class CiclosCultivoComponent {
     fecha_inicio: [new Date().toISOString().split('T')[0], [Validators.required]],
     fecha_termino_estimada: ['', [Validators.required]]
   });
+
+  ngOnInit(): void {
+    this.recargarDatos();
+  }
+
+  /**
+   * Carga o actualiza tanto las naves como los ciclos directamente desde Supabase
+   */
+  recargarDatos(): void {
+    this.erpService.cargarNaves().subscribe();
+    this.erpService.cargarCiclos().subscribe();
+  }
 
   /**
    * Calcula la superficie total acumulada sumando los metros cuadrados de todas las naves
@@ -313,6 +410,29 @@ export class CiclosCultivoComponent {
       case 'MANTENCION': return 'bg-amber-100 text-amber-800 border-amber-300';
       default: return 'bg-slate-100 text-slate-700 border-slate-300';
     }
+  }
+
+  /**
+   * Siembra las 4 naves base de Santa Laura Ltda. en Supabase si la tabla está vacía
+   */
+  sembrarNaves(): void {
+    this.sembrando.set(true);
+    this.mensajeError.set(null);
+
+    this.erpService.sembrarNavesBase().subscribe({
+      next: (res) => {
+        this.sembrando.set(false);
+        if (res.exito) {
+          this.mensajeExito.set(res.mensaje);
+        } else {
+          this.mensajeError.set(res.mensaje);
+        }
+      },
+      error: () => {
+        this.sembrando.set(false);
+        this.mensajeError.set('No fue posible conectar con el servidor para inicializar naves.');
+      }
+    });
   }
 
   /**
@@ -345,17 +465,28 @@ export class CiclosCultivoComponent {
   }
 
   /**
-   * Procesa la solicitud de apertura verificando la regla de negocio en el servicio
+   * Procesa la solicitud de apertura enviándola a Supabase a través del backend REST
    */
   onSubmitCiclo(): void {
     if (this.cicloForm.invalid) return;
 
-    const res = this.erpService.crearCicloCultivo(this.cicloForm.value);
-    if (!res.exito) {
-      this.mensajeError.set(res.mensaje);
-    } else {
-      this.mensajeExito.set(res.mensaje);
-      this.cerrarModal();
-    }
+    this.guardando.set(true);
+    this.mensajeError.set(null);
+
+    this.erpService.crearCicloCultivo(this.cicloForm.value).subscribe({
+      next: (res) => {
+        this.guardando.set(false);
+        if (!res.exito) {
+          this.mensajeError.set(res.mensaje);
+        } else {
+          this.mensajeExito.set(res.mensaje);
+          this.cerrarModal();
+        }
+      },
+      error: () => {
+        this.guardando.set(false);
+        this.mensajeError.set('Error inesperado de comunicación con la base de datos de Supabase.');
+      }
+    });
   }
 }
