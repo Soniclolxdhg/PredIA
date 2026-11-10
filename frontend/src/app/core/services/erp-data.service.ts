@@ -9,7 +9,8 @@ import {
   CostoIndirecto,
   Cosecha,
   Cliente,
-  Venta
+  Venta,
+  InspeccionNave
 } from '../models/erp.models';
 
 const STORAGE_PREFIX = 'predia_erp_';
@@ -53,6 +54,11 @@ export class ErpDataService {
 
   // 10. Notas de Venta (HU10)
   readonly ventas = signal<Venta[]>(this.cargarInitial('ventas', this.getVentasDefault));
+
+  // 11. Inspecciones y Checklist de Naves (Supervisión en Terreno)
+  readonly inspecciones = signal<InspeccionNave[]>(
+    this.cargarInitial('inspecciones', this.getInspeccionesDefault)
+  );
 
   // Señales reactivas computadas para KPIs agronómicos y financieros
   readonly insumosCriticos = computed(() =>
@@ -365,6 +371,18 @@ export class ErpDataService {
     this.persistir('ciclos', this.ciclos());
   }
 
+  /**
+   * Guarda una nueva inspección de supervisión física de nave en terreno
+   */
+  registrarInspeccion(inspeccion: Omit<InspeccionNave, 'id_inspeccion'>): void {
+    const nueva: InspeccionNave = {
+      ...inspeccion,
+      id_inspeccion: this.inspecciones().length + 1
+    };
+    this.inspecciones.update((lista) => [nueva, ...lista]);
+    this.persistir('inspecciones', this.inspecciones());
+  }
+
   // Persistencia en almacenamiento local y registros iniciales
 
   private cargarInitial<T>(key: string, factory: () => T): T {
@@ -488,6 +506,41 @@ export class ErpDataService {
       { id_venta: 1, id_cliente: 1, id_cosecha: 1, numero_nota_venta: 'NV-2026-0001', fecha_venta: '2026-10-26', kilos_vendidos: 4000, precio_unitario_venta: 950, monto_total_ingreso: 3800000, costo_unitario_ciclo_ref: 447.15, margen_bruto_operativo: 2011400, estado_despacho: 'ENTREGADO' },
       { id_venta: 2, id_cliente: 2, id_cosecha: 2, numero_nota_venta: 'NV-2026-0002', fecha_venta: '2026-11-02', kilos_vendidos: 3000, precio_unitario_venta: 980, monto_total_ingreso: 2940000, costo_unitario_ciclo_ref: 447.15, margen_bruto_operativo: 1598550, estado_despacho: 'DESPACHADO' },
       { id_venta: 3, id_cliente: 3, id_cosecha: 3, numero_nota_venta: 'NV-2026-0003', fecha_venta: '2026-11-04', kilos_vendidos: 1000, precio_unitario_venta: 1250, monto_total_ingreso: 1250000, costo_unitario_ciclo_ref: 500.00, margen_bruto_operativo: 750000, estado_despacho: 'PENDIENTE' }
+    ];
+  }
+
+  private getInspeccionesDefault(): InspeccionNave[] {
+    return [
+      {
+        id_inspeccion: 1,
+        id_nave: 1,
+        codigo_nave: 'NAV-01',
+        nombre_nave: 'Nave Central Tomates',
+        variedad_cultivo: 'Tomate Larga Vida (Ciclo Activo #1)',
+        fecha_inspeccion: '2026-11-08 09:30',
+        inspector: 'Agr. Macarena Soto',
+        porcentaje_cumplimiento: 100,
+        estado_general: 'APROBADO',
+        observaciones: 'Líneas de goteo limpias, sin presencia de mosquita blanca ni botrytis. Follaje vigoroso y entutorado firme.',
+        total_conforme: 10,
+        total_observado: 0,
+        total_no_conforme: 0
+      },
+      {
+        id_inspeccion: 2,
+        id_nave: 2,
+        codigo_nave: 'NAV-02',
+        nombre_nave: 'Nave Pimientos Holandeses',
+        variedad_cultivo: 'Pimiento Morrón Rojo (Ciclo Activo #2)',
+        fecha_inspeccion: '2026-11-08 11:15',
+        inspector: 'Ing. Rodrigo Vega',
+        porcentaje_cumplimiento: 80,
+        estado_general: 'CON_OBSERVACIONES',
+        observaciones: 'Se detectó leve obturación en dos goteros del sector este. Se realizó purga inmediata de tubería secundaria.',
+        total_conforme: 8,
+        total_observado: 2,
+        total_no_conforme: 0
+      }
     ];
   }
 }

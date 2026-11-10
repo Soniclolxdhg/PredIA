@@ -43,13 +43,18 @@ export const routes: Routes = [
         data: { roles: ['ADMINISTRADOR', 'AGRONOMO', 'GERENTE', 'BODEGUERO'] }
       },
 
-      // Simulador de naves e instrumental para supervisión
+      // Checklist de inspección y supervisión física de naves en terreno
       {
-        path: 'produccion/simulador',
+        path: 'produccion/checklist',
         loadComponent: () =>
-          import('./features/produccion/simulador-naves.component').then((m) => m.SimuladorNavesComponent),
+          import('./features/produccion/checklist-naves.component').then((m) => m.ChecklistNavesComponent),
         canActivate: [roleGuard],
         data: { roles: ['ADMINISTRADOR', 'AGRONOMO', 'GERENTE', 'BODEGUERO'] }
+      },
+      {
+        path: 'produccion/simulador',
+        redirectTo: 'produccion/checklist',
+        pathMatch: 'full'
       },
 
       // Registro de labores agrícolas en terreno (HU02)

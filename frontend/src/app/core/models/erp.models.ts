@@ -150,3 +150,30 @@ export interface HistoricoClima {
   datos_meteorologicos_jsonb?: any;
 }
 
+export type EstadoItemChecklist = 'CONFORME' | 'OBSERVADO' | 'NO_CONFORME' | 'PENDIENTE';
+export type CategoriaChecklist = 'SANIDAD' | 'RIEGO' | 'ESTRUCTURA' | 'MANEJO' | 'BIOSEGURIDAD';
+
+export interface ItemChecklist {
+  id: string;
+  categoria: CategoriaChecklist;
+  titulo: string;
+  descripcion: string;
+  estado: EstadoItemChecklist;
+}
+
+export interface InspeccionNave {
+  id_inspeccion: number;
+  id_nave: number;
+  codigo_nave: string;
+  nombre_nave: string;
+  variedad_cultivo: string;
+  fecha_inspeccion: string;
+  inspector: string;
+  porcentaje_cumplimiento: number;
+  estado_general: 'APROBADO' | 'CON_OBSERVACIONES' | 'CRITICO';
+  observaciones?: string;
+  total_conforme: number;
+  total_observado: number;
+  total_no_conforme: number;
+}
+

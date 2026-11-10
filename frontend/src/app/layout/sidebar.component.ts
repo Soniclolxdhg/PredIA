@@ -77,15 +77,15 @@ import { AuthService } from '../core/services/auth.service';
               <span>Ciclos & Naves (HU01)</span>
             </a>
             <a
-              routerLink="/produccion/simulador"
+              routerLink="/produccion/checklist"
               routerLinkActive="bg-emerald-600 text-white shadow-sm"
               (click)="closeSidebar.emit()"
               class="flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
               <span class="flex items-center gap-2.5">
-                <span class="text-base">📱</span>
-                <span>Simulador Naves (Tablet)</span>
+                <span class="text-base">📋</span>
+                <span>Checklist Naves (Tablet)</span>
               </span>
-              <span class="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-mono font-bold">En Vivo</span>
+              <span class="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-mono font-bold">Terreno</span>
             </a>
             <a
               routerLink="/produccion/labores"
