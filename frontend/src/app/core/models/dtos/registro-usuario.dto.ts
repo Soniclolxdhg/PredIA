@@ -11,3 +11,4 @@ export interface RegistroUsuarioDto {
   password: string;
   rol?: RolUsuario;
 }
+

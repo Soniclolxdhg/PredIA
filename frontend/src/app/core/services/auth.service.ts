@@ -11,7 +11,6 @@ import { RegistroUsuarioDto } from '../models/dtos';
 const TOKEN_KEY = 'predia_access_token';
 const USER_KEY = 'predia_usuario_sesion';
 const API_URL_KEY = 'predia_api_base_url';
-const USERS_LIST_KEY = 'predia_usuarios_lista';
 
 /**
  * Servicio Central de Autenticación y Control de Accesos (RBAC).
@@ -40,10 +39,8 @@ export class AuthService {
     this.recuperarUsuarioInicial()
   );
 
-  // Señal reactiva con la lista de usuarios administrables
-  readonly usuarios = signal<Usuario[]>(
-    this.recuperarListaUsuarios()
-  );
+  // Señal reactiva con la lista de usuarios administrables (cargada exclusivamente vía API)
+  readonly usuarios = signal<Usuario[]>([]);
 
   // Señal de estado de carga de usuarios
   readonly cargandoUsuarios = signal<boolean>(false);
@@ -59,13 +56,19 @@ export class AuthService {
   readonly isGerente = computed(() => this.userRole() === 'GERENTE');
 
   readonly canAccessProduction = computed(() => this.isAdmin() || this.isAgronomo());
-  readonly canAccessWarehouse = computed(() => this.isAdmin() || this.isBodeguero());
+  readonly canAccessWarehouse = computed(() => this.isAdmin() || this.isBodeguero() || this.isAgronomo() || this.isGerente());
   readonly canAccessCosting = computed(() => this.isAdmin() || this.isGerente());
   readonly canAccessExecutive = computed(() => this.isAdmin() || this.isGerente());
   readonly canAccessSales = computed(() => this.isAdmin() || this.isGerente());
   readonly canAccessWeather = computed(() => this.isAdmin() || this.isAgronomo() || this.isGerente());
 
   constructor() {
+    // Purgar de LocalStorage cualquier lista obsoleta o datos mock anteriores
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('predia_usuarios_lista');
+      localStorage.removeItem('predia_usuarios_list');
+    }
+
     // Si hay token o sesión, consulta los usuarios reales desde la API
     if (this.token()) {
       this.cargarUsuarios().subscribe();
@@ -95,45 +98,6 @@ export class AuthService {
       localStorage.removeItem(USER_KEY);
       return null;
     }
-  }
-
-  /**
-   * Obtiene la nómina de colaboradores desde almacenamiento local evitando usuarios mock ficticios
-   */
-  private recuperarListaUsuarios(): Usuario[] {
-    const raw = localStorage.getItem(USERS_LIST_KEY);
-    if (raw) {
-      try {
-        const parsed: Usuario[] = JSON.parse(raw);
-        // Filtrar usuarios mock de demostración obsoletos
-        const filtrados = parsed.filter(
-          (u) =>
-            u.nombre_completo !== 'Ing. Rodrigo Vega (Admin)' &&
-            u.nombre_completo !== 'Gerente General (Santa Laura)'
-        );
-        if (filtrados.length > 0) return filtrados;
-      } catch {
-        // En caso de fallo de lectura, se carga la lista limpia
-      }
-    }
-    const listaInicial: Usuario[] = [
-      {
-        id_usuario: 1,
-        nombre_completo: 'Administrador General',
-        rut: '11.111.111-1',
-        email: 'admin@predia.cl',
-        rol: 'ADMINISTRADOR',
-        activo: true
-      }
-    ];
-    return listaInicial;
-  }
-
-  /**
-   * Guarda la lista actualizada de usuarios verificados en el almacenamiento local del navegador
-   */
-  private persistirUsuarios(lista: Usuario[]): void {
-    localStorage.setItem(USERS_LIST_KEY, JSON.stringify(lista));
   }
 
   /**
@@ -179,7 +143,6 @@ export class AuthService {
       tap((usuarios) => {
         if (usuarios.length > 0) {
           this.usuarios.set(usuarios);
-          this.persistirUsuarios(usuarios);
         }
         this.cargandoUsuarios.set(false);
         console.log(`📥 [GET ${AUTH_ENDPOINTS.USUARIOS}] ${usuarios.length} usuarios recibidos de Supabase/API:`, usuarios);
@@ -251,16 +214,14 @@ export class AuthService {
         };
         const nuevo = this.normalizarUsuario(nuevoRaw);
 
-        // Agrega a la lista local SOLO tras confirmación positiva de la base de datos
+        // Agrega a la señal en memoria SOLO tras confirmación positiva de la base de datos
         this.usuarios.update((lista) => {
           const sinDuplicados = lista.filter(
             (u) =>
               u.email.toLowerCase() !== nuevo.email.toLowerCase() &&
               u.rut !== nuevo.rut
           );
-          const actualizada = [nuevo, ...sinDuplicados];
-          this.persistirUsuarios(actualizada);
-          return actualizada;
+          return [nuevo, ...sinDuplicados];
         });
 
         return {
@@ -318,7 +279,6 @@ export class AuthService {
       return u;
     });
     this.usuarios.set(nuevaLista);
-    this.persistirUsuarios(nuevaLista);
   }
 
   /**

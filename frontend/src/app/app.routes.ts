@@ -75,6 +75,29 @@ export const routes: Routes = [
         data: { roles: ['ADMINISTRADOR', 'AGRONOMO'] }
       },
 
+      // ==========================================
+      // FASE 3: MÓDULO BODEGA E INSUMOS (HU04, HU05)
+      // ==========================================
+      {
+        path: 'bodega/kardex',
+        loadComponent: () =>
+          import('./features/bodega/kardex-inventario.component').then((m) => m.KardexInventarioComponent),
+        canActivate: [roleGuard],
+        data: { roles: ['ADMINISTRADOR', 'BODEGUERO', 'AGRONOMO', 'GERENTE'] }
+      },
+      {
+        path: 'bodega/alertas',
+        loadComponent: () =>
+          import('./features/bodega/alertas-stock.component').then((m) => m.AlertasStockComponent),
+        canActivate: [roleGuard],
+        data: { roles: ['ADMINISTRADOR', 'BODEGUERO', 'AGRONOMO', 'GERENTE'] }
+      },
+      {
+        path: 'bodega',
+        redirectTo: 'bodega/kardex',
+        pathMatch: 'full'
+      },
+
       // Redirecciones de conveniencia dentro del módulo de producción
       {
         path: 'produccion',

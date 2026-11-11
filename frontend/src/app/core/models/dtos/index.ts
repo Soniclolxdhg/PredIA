@@ -5,3 +5,6 @@ export * from './cerrar-ciclo.dto';
 export * from './crear-labor.dto';
 export * from './crear-cosecha.dto';
 export * from './registro-usuario.dto';
+export * from './crear-insumo.dto';
+export * from './actualizar-insumo.dto';
+export * from './registrar-movimiento.dto';

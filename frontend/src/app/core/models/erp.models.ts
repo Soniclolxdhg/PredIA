@@ -4,7 +4,8 @@ import {
   TipoLabor,
   CategoriaInsumo,
   TipoMovimiento,
-  ModalidadPago
+  ModalidadPago,
+  EstadoAlerta
 } from './enum.types';
 
 export interface Usuario {
@@ -63,6 +64,24 @@ export interface Insumo {
   stock_minimo_alerta: number;
   costo_unitario_promedio: number;
   es_material_vegetal: boolean;
+  es_stock_critico?: boolean;
+}
+
+export interface AlertaStock {
+  id_alerta: number;
+  id_insumo: number;
+  tipo_alerta: string;
+  mensaje: string;
+  fecha_emision: string;
+  estado: EstadoAlerta;
+  insumo?: {
+    id_insumo?: number;
+    codigo_insumo: string;
+    nombre: string;
+    unidad_medida?: string;
+    stock_actual?: number;
+    stock_minimo_alerta?: number;
+  };
 }
 
 export interface MovimientoBodega {

@@ -90,6 +90,44 @@
         </a>
       </div>
     </div>
+
+    <!-- Módulo de Bodega e Insumos (Fase 3 Activa) -->
+    <div *ngIf="authService.canAccessWarehouse()">
+      <div class="text-[11px] font-bold uppercase tracking-wider text-amber-400 px-3 mb-1.5 flex items-center justify-between">
+        <span>Bodega & Insumos</span>
+        <span class="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-mono">Fase 3</span>
+      </div>
+      <div class="space-y-1">
+        <a
+          routerLink="/bodega/kardex"
+          routerLinkActive="bg-amber-700 text-white shadow-sm"
+          (click)="closeSidebar.emit()"
+          class="flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
+          <span class="flex items-center gap-2.5">
+            <span class="text-base">📦</span>
+            <span>Kardex & Mermas (HU04)</span>
+          </span>
+          <span *ngIf="erpService.insumos().length > 0" class="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded font-mono">
+            {{ erpService.insumos().length }}
+          </span>
+        </a>
+        <a
+          routerLink="/bodega/alertas"
+          routerLinkActive="bg-rose-700 text-white shadow-sm"
+          (click)="closeSidebar.emit()"
+          class="flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
+          <span class="flex items-center gap-2.5">
+            <span class="text-base">🚨</span>
+            <span>Alertas de Stock (HU05)</span>
+          </span>
+          <span
+            *ngIf="erpService.insumosCriticos().length > 0"
+            class="text-[10px] bg-rose-900 text-rose-200 px-1.5 py-0.5 rounded-full font-mono font-bold animate-pulse">
+            {{ erpService.insumosCriticos().length }}
+          </span>
+        </a>
+      </div>
+    </div>
   </nav>
 
   <!-- Pie de página del menú con identificación institucional -->

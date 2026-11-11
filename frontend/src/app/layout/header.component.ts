@@ -1,21 +1,24 @@
 import { Component, EventEmitter, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
+import { ErpDataService } from '../core/services/erp-data.service';
 import { RolUsuario } from '../core/models/enum.types';
 
 /**
  * Componente del Encabezado Principal (Header).
  * Muestra el título de la empresa, el selector rápido de rol de acceso,
- * la información del usuario con sesión activa y la opción para cerrar sesión.
+ * notificaciones de stock crítico, información de usuario y logout.
  */
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   templateUrl: './header.component.html'
 })
 export class HeaderComponent {
   readonly authService = inject(AuthService);
+  readonly erpService = inject(ErpDataService);
   @Output() toggleSidebar = new EventEmitter<void>();
 
   // Lista de perfiles disponibles para alternar

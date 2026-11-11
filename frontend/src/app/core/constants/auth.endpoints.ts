@@ -8,3 +8,4 @@ export const AUTH_ENDPOINTS = {
   PERFIL: '/auth/perfil',
   USUARIOS: '/auth/usuarios'
 } as const;
+

@@ -1,8 +1,9 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of, tap, catchError, map } from 'rxjs';
+import { Observable, of, tap, catchError, map, throwError } from 'rxjs';
 import { AuthService } from './auth.service';
 import { ProduccionApiService } from './produccion.service';
+import { InventarioApiService } from './inventario.service';
 import {
   CrearNaveDto,
   CrearCicloDto,
@@ -16,6 +17,7 @@ import {
   LaborAgricola,
   Insumo,
   MovimientoBodega,
+  AlertaStock,
   AsistenciaJornal,
   CostoIndirecto,
   Cosecha,
@@ -24,12 +26,11 @@ import {
   InspeccionNave
 } from '../models/erp.models';
 
-const STORAGE_PREFIX = 'predia_agri_v2_';
-
 /**
  * Servicio Central de Datos Agrícolas y Operaciones de Terreno.
  * Conecta las Naves e Invernaderos y los Ciclos de Cultivo directamente
  * con el backend NestJS y la base de datos PostgreSQL en Supabase.
+ * Los datos se gestionan en memoria reactiva (Signals) sin almacenamiento en LocalStorage.
  */
 @Injectable({
   providedIn: 'root'
@@ -38,6 +39,7 @@ export class ErpDataService {
   private readonly http = inject(HttpClient);
   private readonly authService = inject(AuthService);
   private readonly produccionApi = inject(ProduccionApiService);
+  private readonly inventarioApi = inject(InventarioApiService);
 
   private get apiUrl(): string {
     return this.authService.baseUrl();
@@ -52,43 +54,40 @@ export class ErpDataService {
   readonly cargandoCiclos = signal<boolean>(false);
 
   // 3. Labores Agrícolas en Terreno (HU02)
-  readonly labores = signal<LaborAgricola[]>(this.cargarInitial('labores', this.getLaboresDefault));
+  readonly labores = signal<LaborAgricola[]>(this.getLaboresDefault());
 
   // 4. Cosechas y Pesaje (HU03)
-  readonly cosechas = signal<Cosecha[]>(this.cargarInitial('cosechas', this.getCosechasDefault));
+  readonly cosechas = signal<Cosecha[]>(this.getCosechasDefault());
 
-  // 5. Insumos y Bodega (HU04)
-  readonly insumos = signal<Insumo[]>(this.cargarInitial('insumos', this.getInsumosDefault));
+  // 5. Insumos y Bodega (HU04 - Conectados en vivo a API)
+  readonly insumos = signal<Insumo[]>([]);
+  readonly cargandoInsumos = signal<boolean>(false);
 
-  // 6. Kardex y Mermas (HU04)
-  readonly movimientosBodega = signal<MovimientoBodega[]>(
-    this.cargarInitial('movimientos', this.getMovimientosDefault)
-  );
+  // 6. Kardex y Mermas (HU04 - Conectados en vivo a API)
+  readonly movimientosBodega = signal<MovimientoBodega[]>([]);
+  readonly cargandoMovimientos = signal<boolean>(false);
+
+  // 6.b Alertas de Stock Crítico (HU05)
+  readonly alertasStock = signal<AlertaStock[]>([]);
 
   // 7. Asistencia y Jornales (HU06)
-  readonly asistencias = signal<AsistenciaJornal[]>(
-    this.cargarInitial('asistencias', this.getAsistenciasDefault)
-  );
+  readonly asistencias = signal<AsistenciaJornal[]>(this.getAsistenciasDefault());
 
   // 8. Costos Indirectos (HU07)
-  readonly costosIndirectos = signal<CostoIndirecto[]>(
-    this.cargarInitial('indirectos', this.getCostosIndirectosDefault)
-  );
+  readonly costosIndirectos = signal<CostoIndirecto[]>(this.getCostosIndirectosDefault());
 
   // 9. Directorio Clientes (HU08)
-  readonly clientes = signal<Cliente[]>(this.cargarInitial('clientes', this.getClientesDefault));
+  readonly clientes = signal<Cliente[]>(this.getClientesDefault());
 
   // 10. Notas de Venta (HU10)
-  readonly ventas = signal<Venta[]>(this.cargarInitial('ventas', this.getVentasDefault));
+  readonly ventas = signal<Venta[]>(this.getVentasDefault());
 
   // 11. Inspecciones y Checklist de Naves (Supervisión en Terreno)
-  readonly inspecciones = signal<InspeccionNave[]>(
-    this.cargarInitial('inspecciones', this.getInspeccionesDefault)
-  );
+  readonly inspecciones = signal<InspeccionNave[]>(this.getInspeccionesDefault());
 
   // Señales reactivas computadas para KPIs agronómicos y financieros
   readonly insumosCriticos = computed(() =>
-    this.insumos().filter((i) => i.stock_actual <= i.stock_minimo_alerta)
+    this.insumos().filter((i) => i.es_stock_critico || i.stock_actual <= i.stock_minimo_alerta)
   );
 
   // Lista de ciclos que se encuentran actualmente en estado ACTIVO en Supabase
@@ -117,9 +116,67 @@ export class ErpDataService {
   });
 
   constructor() {
+    // Purgar de LocalStorage cualquier dato de negocio y mock previo para evitar inconsistencias
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const clavesABorrar: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && (k.startsWith('predia_agri_') || k.startsWith('predia_agri_v2_') || k === 'predia_usuarios_list' || k === 'predia_usuarios_lista')) {
+            clavesABorrar.push(k);
+          }
+        }
+        clavesABorrar.forEach((k) => localStorage.removeItem(k));
+      } catch {
+        // Ignorar excepciones en entornos sin acceso a almacenamiento local
+      }
+    }
+
     // Al instanciar el servicio, recupera los datos reales de Supabase
     this.cargarNaves().subscribe();
     this.cargarCiclos().subscribe();
+    this.cargarInsumos().subscribe({ error: () => {} });
+    this.cargarMovimientos().subscribe({ error: () => {} });
+    this.cargarAlertas().subscribe({ error: () => {} });
+  }
+
+  // ==========================================
+  // OPERACIONES HTTP BODEGA E INSUMOS (HU04, HU05)
+  // ==========================================
+
+  cargarInsumos(soloStockBajo?: boolean): Observable<Insumo[]> {
+    this.cargandoInsumos.set(true);
+    return this.inventarioApi.listarInsumos(soloStockBajo).pipe(
+      tap((ins) => {
+        this.insumos.set(ins);
+        this.cargandoInsumos.set(false);
+      }),
+      catchError((err) => {
+        this.cargandoInsumos.set(false);
+        return throwError(() => err);
+      })
+    );
+  }
+
+  cargarMovimientos(): Observable<MovimientoBodega[]> {
+    this.cargandoMovimientos.set(true);
+    return this.inventarioApi.consultarKardex().pipe(
+      tap((movs) => {
+        this.movimientosBodega.set(movs);
+        this.cargandoMovimientos.set(false);
+      }),
+      catchError((err) => {
+        this.cargandoMovimientos.set(false);
+        return throwError(() => err);
+      })
+    );
+  }
+
+  cargarAlertas(): Observable<AlertaStock[]> {
+    return this.inventarioApi.listarAlertas('ABIERTA').pipe(
+      tap((alerts) => this.alertasStock.set(alerts)),
+      catchError((err) => throwError(() => err))
+    );
   }
 
   // ==========================================
@@ -404,7 +461,6 @@ export class ErpDataService {
     this.imputarCostoACiclo(labor.id_ciclo, costoEstimadoLabor);
 
     this.labores.update((lista) => [nuevaLabor, ...lista]);
-    this.persistir('labores', this.labores());
   }
 
   /**
@@ -433,7 +489,6 @@ export class ErpDataService {
     );
 
     this.cosechas.update((lista) => [nueva, ...lista]);
-    this.persistir('cosechas', this.cosechas());
   }
 
   /**
@@ -466,8 +521,6 @@ export class ErpDataService {
     };
 
     this.movimientosBodega.update((lista) => [mov, ...lista]);
-    this.persistir('insumos', this.insumos());
-    this.persistir('movimientos', this.movimientosBodega());
   }
 
   /**
@@ -501,7 +554,6 @@ export class ErpDataService {
 
     this.imputarCostoACiclo(costo.id_ciclo, costo.monto_total_prorrateado);
     this.costosIndirectos.update((lista) => [nuevo, ...lista]);
-    this.persistir('indirectos', this.costosIndirectos());
   }
 
   /**
@@ -546,8 +598,6 @@ export class ErpDataService {
     );
 
     this.ventas.update((lista) => [nuevaVenta, ...lista]);
-    this.persistir('ventas', this.ventas());
-    this.persistir('cosechas', this.cosechas());
 
     return { exito: true, mensaje: `Nota de venta ${nuevaVenta.numero_nota_venta} generada exitosamente.` };
   }
@@ -561,31 +611,6 @@ export class ErpDataService {
       id_inspeccion: this.inspecciones().length + 1
     };
     this.inspecciones.update((lista) => [nueva, ...lista]);
-    this.persistir('inspecciones', this.inspecciones());
-  }
-
-  // ==========================================
-  // PERSISTENCIA LOCAL PARA MÓDULOS EN PROCESO
-  // ==========================================
-
-  private cargarInitial<T>(key: string, factory: () => T): T {
-    if (typeof localStorage === 'undefined') return factory();
-    const item = localStorage.getItem(STORAGE_PREFIX + key);
-    if (!item) {
-      const data = factory();
-      this.persistir(key, data);
-      return data;
-    }
-    try {
-      return JSON.parse(item);
-    } catch {
-      return factory();
-    }
-  }
-
-  private persistir<T>(key: string, val: T): void {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(val));
   }
 
   private getLaboresDefault(): LaborAgricola[] {
