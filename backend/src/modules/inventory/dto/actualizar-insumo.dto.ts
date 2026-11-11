@@ -35,3 +35,4 @@ export class ActualizarInsumoDto {
   @IsBoolean({ message: 'esMaterialVegetal debe ser booleano.' })
   esMaterialVegetal?: boolean;
 }
+

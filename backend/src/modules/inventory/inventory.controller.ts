@@ -92,3 +92,4 @@ export class InventoryController {
     return this.inventoryService.atenderAlerta(id);
   }
 }
+

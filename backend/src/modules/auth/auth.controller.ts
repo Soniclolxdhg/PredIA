@@ -1,4 +1,15 @@
-import { Controller, Post, Body, Get, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Query,
+  UseGuards,
+  Request,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import { RolUsuario } from '@prisma/client';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegistroDto } from './dto/registro.dto';
@@ -24,6 +35,16 @@ export class AuthController {
   @Get('perfil')
   obtenerPerfil(@Request() req: { user: any }) {
     return req.user;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('usuarios')
+  async listarUsuarios(
+    @Query('rol') rol?: RolUsuario,
+    @Query('activo') activo?: string,
+  ) {
+    const activoBool = activo !== undefined ? activo === 'true' : undefined;
+    return this.authService.listarUsuarios(rol, activoBool);
   }
 }
 

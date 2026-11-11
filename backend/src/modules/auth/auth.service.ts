@@ -6,6 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { RolUsuario } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { ServicioPrisma } from '../../common/prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
@@ -110,6 +111,31 @@ export class AuthService {
         rol: usuario.rol,
       },
     };
+  }
+
+  /**
+   * Obtiene la lista de usuarios del sistema (excluyendo hashPassword)
+   * Permite filtrar opcionalmente por rol y estado activo
+   */
+  async listarUsuarios(rol?: RolUsuario, activo?: boolean) {
+    return this.prisma.usuario.findMany({
+      where: {
+        ...(rol ? { rol } : {}),
+        ...(activo !== undefined ? { activo } : {}),
+      },
+      select: {
+        idUsuario: true,
+        nombreCompleto: true,
+        email: true,
+        rut: true,
+        rol: true,
+        activo: true,
+        fechaCreacion: true,
+      },
+      orderBy: {
+        nombreCompleto: 'asc',
+      },
+    });
   }
 }
 

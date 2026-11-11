@@ -11,6 +11,7 @@ describe('AuthService', () => {
     usuario: {
       findUnique: jest.Mock;
       findFirst: jest.Mock;
+      findMany: jest.Mock;
       create: jest.Mock;
     };
   };
@@ -23,6 +24,7 @@ describe('AuthService', () => {
       usuario: {
         findUnique: jest.fn(),
         findFirst: jest.fn(),
+        findMany: jest.fn(),
         create: jest.fn(),
       },
     };
@@ -92,6 +94,38 @@ describe('AuthService', () => {
       expect(resultado.accessToken).toBe('jwt-token-simulado');
       expect(resultado.usuario.email).toBe('admin@predia.cl');
       expect(resultado.usuario.rol).toBe('ADMINISTRADOR');
+    });
+  });
+
+  describe('listarUsuarios', () => {
+    it('debe retornar la lista de usuarios excluyendo hashPassword', async () => {
+      const usuariosSimulados = [
+        {
+          idUsuario: 1,
+          nombreCompleto: 'Administrador General',
+          email: 'admin@predia.cl',
+          rut: '11.111.111-1',
+          rol: 'ADMINISTRADOR',
+          activo: true,
+          fechaCreacion: new Date(),
+        },
+        {
+          idUsuario: 2,
+          nombreCompleto: 'Juan Agrónomo',
+          email: 'juan@predia.cl',
+          rut: '22.222.222-2',
+          rol: 'AGRONOMO',
+          activo: true,
+          fechaCreacion: new Date(),
+        },
+      ];
+
+      prisma.usuario.findMany.mockResolvedValue(usuariosSimulados);
+
+      const resultado = await service.listarUsuarios();
+      expect(resultado).toHaveLength(2);
+      expect(resultado[0].nombreCompleto).toBe('Administrador General');
+      expect(prisma.usuario.findMany).toHaveBeenCalled();
     });
   });
 });

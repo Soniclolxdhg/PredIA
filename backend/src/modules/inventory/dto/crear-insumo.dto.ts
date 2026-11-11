@@ -51,3 +51,4 @@ export class CrearInsumoDto {
   @IsBoolean({ message: 'esMaterialVegetal debe ser un valor booleano (true/false).' })
   esMaterialVegetal?: boolean;
 }
+

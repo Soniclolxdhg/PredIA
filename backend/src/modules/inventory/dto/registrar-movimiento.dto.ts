@@ -53,3 +53,4 @@ export class RegistrarMovimientoDto {
   @IsDateString({}, { message: 'La fecha del movimiento debe tener formato válido (AAAA-MM-DD).' })
   fechaMovimiento?: string;
 }
+
