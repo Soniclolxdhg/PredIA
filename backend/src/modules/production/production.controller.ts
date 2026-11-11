@@ -115,5 +115,10 @@ export class ProductionController {
   obtenerStockCosechasDisponibles() {
     return this.productionService.obtenerStockCosechasDisponibles();
   }
+
+  @Post('sembrar-naves')
+  sembrarNaves() {
+    return this.productionService.sembrarNavesBase();
+  }
 }
 

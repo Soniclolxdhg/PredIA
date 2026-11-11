@@ -425,5 +425,59 @@ export class ProductionService {
       },
     });
   }
+
+  /**
+   * Siembra controlada de las 4 Naves oficiales de Santa Laura Ltda. si la tabla está vacía
+   */
+  async sembrarNavesBase() {
+    const totalNaves = await this.prisma.nave.count();
+    if (totalNaves > 0) {
+      const navesActuales = await this.prisma.nave.findMany({ orderBy: { idNave: 'asc' } });
+      return {
+        mensaje: `La tabla 'naves' ya contiene ${totalNaves} naves registradas en Supabase.`,
+        naves: navesActuales,
+        sembradas: 0,
+      };
+    }
+
+    const navesBase = [
+      {
+        codigoNave: 'NAV-01',
+        nombre: 'Nave 1 - Tomate Larga Vida (Especialidad)',
+        superficieM2: 2500,
+        tipoEstructura: 'Multitúnel Metal',
+        estado: EstadoNave.DISPONIBLE,
+      },
+      {
+        codigoNave: 'NAV-02',
+        nombre: 'Nave 2 - Pimiento Morrón (Complementaria)',
+        superficieM2: 2000,
+        tipoEstructura: 'Túnel Simple',
+        estado: EstadoNave.DISPONIBLE,
+      },
+      {
+        codigoNave: 'NAV-03',
+        nombre: 'Nave 3 - Almácigos y Propagación',
+        superficieM2: 1200,
+        tipoEstructura: 'Invernadero Climatizado',
+        estado: EstadoNave.DISPONIBLE,
+      },
+      {
+        codigoNave: 'NAV-04',
+        nombre: 'Nave 4 - Hortalizas Protegidas',
+        superficieM2: 1800,
+        tipoEstructura: 'Sombreadero Malla Raschel',
+        estado: EstadoNave.DISPONIBLE,
+      },
+    ];
+
+    await this.prisma.nave.createMany({ data: navesBase });
+    const navesCreadas = await this.prisma.nave.findMany({ orderBy: { idNave: 'asc' } });
+    return {
+      mensaje: 'Las 4 naves base de Santa Laura Ltda. fueron sembradas exitosamente en Supabase.',
+      naves: navesCreadas,
+      sembradas: 4,
+    };
+  }
 }
 
