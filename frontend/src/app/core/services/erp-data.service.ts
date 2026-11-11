@@ -2,6 +2,14 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of, tap, catchError, map } from 'rxjs';
 import { AuthService } from './auth.service';
+import { ProduccionApiService } from './produccion.service';
+import {
+  CrearNaveDto,
+  CrearCicloDto,
+  CerrarCicloDto,
+  CrearLaborDto,
+  CrearCosechaDto
+} from '../models/dtos';
 import {
   Nave,
   CicloCultivo,
@@ -29,6 +37,7 @@ const STORAGE_PREFIX = 'predia_agri_v2_';
 export class ErpDataService {
   private readonly http = inject(HttpClient);
   private readonly authService = inject(AuthService);
+  private readonly produccionApi = inject(ProduccionApiService);
 
   private get apiUrl(): string {
     return this.authService.baseUrl();
@@ -122,7 +131,7 @@ export class ErpDataService {
    */
   cargarNaves(): Observable<Nave[]> {
     this.cargandoNaves.set(true);
-    return this.http.get<any[]>(`${this.apiUrl}/produccion/naves`).pipe(
+    return this.produccionApi.listarNaves().pipe(
       map((lista) => lista.map(this.normalizarNave)),
       tap((naves) => {
         this.naves.set(naves);
@@ -139,18 +148,24 @@ export class ErpDataService {
   /**
    * Registra una nueva Nave o Invernadero directamente en la base de datos de Supabase.
    */
-  crearNave(dto: {
-    codigo_nave: string;
-    nombre: string;
-    superficie_m2: number;
-    tipo_estructura?: string;
-  }): Observable<{ exito: boolean; mensaje: string; nave?: Nave }> {
-    return this.http.post<any>(`${this.apiUrl}/produccion/naves`, {
-      codigoNave: dto.codigo_nave.trim().toUpperCase(),
-      nombre: dto.nombre.trim(),
-      superficieM2: Number(dto.superficie_m2),
-      tipoEstructura: dto.tipo_estructura || 'Multitúnel Metal'
-    }).pipe(
+  crearNave(
+    dto: CrearNaveDto | {
+      codigo_nave: string;
+      nombre: string;
+      superficie_m2: number;
+      tipo_estructura?: string;
+    }
+  ): Observable<{ exito: boolean; mensaje: string; nave?: Nave }> {
+    const payload: CrearNaveDto = 'codigoNave' in dto
+      ? dto
+      : {
+          codigoNave: dto.codigo_nave.trim().toUpperCase(),
+          nombre: dto.nombre.trim(),
+          superficieM2: Number(dto.superficie_m2),
+          tipoEstructura: dto.tipo_estructura || 'Multitúnel Metal'
+        };
+
+    return this.produccionApi.crearNave(payload).pipe(
       map((nuevaRaw) => {
         const nueva = this.normalizarNave(nuevaRaw);
         this.naves.update((lista) => [...lista, nueva]);
@@ -175,7 +190,7 @@ export class ErpDataService {
    */
   cargarCiclos(): Observable<CicloCultivo[]> {
     this.cargandoCiclos.set(true);
-    return this.http.get<any[]>(`${this.apiUrl}/produccion/ciclos`).pipe(
+    return this.produccionApi.listarCiclos().pipe(
       map((lista) => lista.map(this.normalizarCiclo)),
       tap((ciclos) => {
         this.ciclos.set(ciclos);
@@ -192,25 +207,33 @@ export class ErpDataService {
   /**
    * HU01: Apertura de nuevo ciclo guardando directamente en la base de datos de Supabase.
    */
-  crearCicloCultivo(dto: {
-    id_nave: number;
-    temporada: string;
-    variedad: string;
-    fecha_inicio: string;
-    fecha_termino_estimada: string;
-  }): Observable<{ exito: boolean; mensaje: string }> {
-    return this.http.post<any>(`${this.apiUrl}/produccion/ciclos`, {
-      idNave: Number(dto.id_nave),
-      temporada: dto.temporada,
-      variedad: dto.variedad,
-      fechaInicio: dto.fecha_inicio,
-      fechaTerminoEstimada: dto.fecha_termino_estimada || undefined
-    }).pipe(
+  crearCicloCultivo(
+    dto: CrearCicloDto | {
+      id_nave: number;
+      temporada: string;
+      variedad: string;
+      fecha_inicio: string;
+      fecha_termino_estimada: string;
+    }
+  ): Observable<{ exito: boolean; mensaje: string }> {
+    const payload: CrearCicloDto = 'idNave' in dto
+      ? dto
+      : {
+          idNave: Number(dto.id_nave),
+          temporada: dto.temporada,
+          variedad: dto.variedad,
+          fechaInicio: dto.fecha_inicio,
+          fechaTerminoEstimada: dto.fecha_termino_estimada || undefined
+        };
+
+    const naveId = payload.idNave;
+
+    return this.produccionApi.crearCiclo(payload).pipe(
       map((nuevoRaw) => {
         const nuevo = this.normalizarCiclo(nuevoRaw);
         this.ciclos.update((lista) => [nuevo, ...lista]);
         this.naves.update((lista) =>
-          lista.map((n) => (n.id_nave === Number(dto.id_nave) ? { ...n, estado: 'EN_CULTIVO' } : n))
+          lista.map((n) => (n.id_nave === naveId ? { ...n, estado: 'EN_CULTIVO' } : n))
         );
         return {
           exito: true,
@@ -232,7 +255,7 @@ export class ErpDataService {
    */
   sembrarNavesBase(): Observable<{ exito: boolean; mensaje: string }> {
     this.cargandoNaves.set(true);
-    return this.http.post<any>(`${this.apiUrl}/produccion/sembrar-naves`, {}).pipe(
+    return this.produccionApi.sembrarNavesBase().pipe(
       tap(() => {
         this.cargarNaves().subscribe();
       }),
@@ -254,9 +277,11 @@ export class ErpDataService {
    * HU01: Cierre formal de ciclo de cultivo (PATCH /produccion/ciclos/:idCiclo/cerrar)
    */
   cerrarCicloCultivo(idCiclo: number, fechaCierreReal?: string): Observable<{ exito: boolean; mensaje: string }> {
-    return this.http.patch<any>(`${this.apiUrl}/produccion/ciclos/${idCiclo}/cerrar`, {
+    const payload: CerrarCicloDto = {
       fechaCierreReal: fechaCierreReal || new Date().toISOString().split('T')[0]
-    }).pipe(
+    };
+
+    return this.produccionApi.cerrarCiclo(idCiclo, payload).pipe(
       map(() => {
         this.cargarCiclos().subscribe();
         this.cargarNaves().subscribe();
@@ -275,14 +300,8 @@ export class ErpDataService {
   /**
    * HU02: Registrar labor agrícola en terreno (POST /produccion/labores)
    */
-  registrarLaborApi(dto: {
-    idCiclo: number;
-    tipoLabor: string;
-    fechaEjecucion: string;
-    horasDedicadas: number;
-    observacionesTecnicas?: string;
-  }): Observable<{ exito: boolean; mensaje: string }> {
-    return this.http.post<any>(`${this.apiUrl}/produccion/labores`, dto).pipe(
+  registrarLaborApi(dto: CrearLaborDto): Observable<{ exito: boolean; mensaje: string }> {
+    return this.produccionApi.registrarLabor(dto).pipe(
       map(() => ({
         exito: true,
         mensaje: `Labor ${dto.tipoLabor} registrada exitosamente en Supabase.`
@@ -297,13 +316,8 @@ export class ErpDataService {
   /**
    * HU03: Registrar pesaje de cosecha (POST /produccion/cosechas)
    */
-  registrarCosechaApi(dto: {
-    idCiclo: number;
-    fechaCosecha: string;
-    kilosNetos: number;
-    calidadGrado: 'PRIMERA' | 'SEGUNDA' | 'DESCARTE';
-  }): Observable<{ exito: boolean; mensaje: string }> {
-    return this.http.post<any>(`${this.apiUrl}/produccion/cosechas`, dto).pipe(
+  registrarCosechaApi(dto: CrearCosechaDto): Observable<{ exito: boolean; mensaje: string }> {
+    return this.produccionApi.registrarCosecha(dto).pipe(
       map(() => {
         this.cargarCiclos().subscribe();
         return {

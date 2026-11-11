@@ -8,3 +8,4 @@ globs: ["backend/**"]
 - **Prohibido:** No editar, modificar, borrar ni crear archivos en la carpeta `backend/`.
 - **Permitido:** Solo lectura (`read_file`, inspección de código) para consultar contratos, DTOs, controladores y endpoints para conectar el frontend.
 - **Alcance del trabajo:** 100% exclusivo en `frontend/`.
+

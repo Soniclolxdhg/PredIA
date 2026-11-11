@@ -19,3 +19,4 @@
 - Toda la integración se realiza exclusivamente desde el lado del cliente (`frontend/`).
 - Consumir los endpoints expuestos por la API (`/api/...`) tal cual están implementados por el equipo de backend.
 - Mantener las validaciones de negocio en el frontend acordes a las respuestas y contratos del backend.
+
