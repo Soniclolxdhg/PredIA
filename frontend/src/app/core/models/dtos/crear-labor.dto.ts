@@ -8,3 +8,4 @@ export interface CrearLaborDto {
   horasDedicadas: number;
   observacionesTecnicas?: string;
 }
+

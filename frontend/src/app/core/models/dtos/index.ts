@@ -4,3 +4,4 @@ export * from './crear-ciclo.dto';
 export * from './cerrar-ciclo.dto';
 export * from './crear-labor.dto';
 export * from './crear-cosecha.dto';
+export * from './registro-usuario.dto';

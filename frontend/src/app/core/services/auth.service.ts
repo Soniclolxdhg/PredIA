@@ -1,9 +1,11 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, of, tap, catchError } from 'rxjs';
+import { Observable, of, tap, catchError, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { LoginRequest, LoginResponse, RolUsuario, Usuario } from '../models/auth.models';
+import { AUTH_ENDPOINTS } from '../constants/auth.endpoints';
+import { RegistroUsuarioDto } from '../models/dtos';
 
 // Claves de almacenamiento local para persistencia de sesión
 const TOKEN_KEY = 'predia_access_token';
@@ -14,7 +16,7 @@ const USERS_LIST_KEY = 'predia_usuarios_lista';
 /**
  * Servicio Central de Autenticación y Control de Accesos (RBAC).
  * Gestiona el ciclo de vida de la sesión mediante Angular Signals,
- * el token de autenticación JWT y el listado de usuarios del sistema.
+ * el token de autenticación JWT y el listado real de usuarios sincronizado con Supabase.
  */
 @Injectable({
   providedIn: 'root'
@@ -43,6 +45,9 @@ export class AuthService {
     this.recuperarListaUsuarios()
   );
 
+  // Señal de estado de carga de usuarios
+  readonly cargandoUsuarios = signal<boolean>(false);
+
   // Señales computadas para verificación de estado y rol de acceso
   readonly isAuthenticated = computed(() => !!this.token() && !!this.currentUser());
   readonly userRole = computed<RolUsuario | null>(() => this.currentUser()?.rol ?? null);
@@ -59,6 +64,13 @@ export class AuthService {
   readonly canAccessExecutive = computed(() => this.isAdmin() || this.isGerente());
   readonly canAccessSales = computed(() => this.isAdmin() || this.isGerente());
   readonly canAccessWeather = computed(() => this.isAdmin() || this.isAgronomo() || this.isGerente());
+
+  constructor() {
+    // Si hay token o sesión, consulta los usuarios reales desde la API
+    if (this.token()) {
+      this.cargarUsuarios().subscribe();
+    }
+  }
 
   /**
    * Recupera el usuario guardado en el navegador o crea un usuario inicial por defecto
@@ -86,57 +98,39 @@ export class AuthService {
   }
 
   /**
-   * Obtiene la nómina de colaboradores desde almacenamiento local o carga el equipo base de Santa Laura Ltda.
+   * Obtiene la nómina de colaboradores desde almacenamiento local evitando usuarios mock ficticios
    */
   private recuperarListaUsuarios(): Usuario[] {
     const raw = localStorage.getItem(USERS_LIST_KEY);
     if (raw) {
       try {
-        return JSON.parse(raw);
+        const parsed: Usuario[] = JSON.parse(raw);
+        // Filtrar usuarios mock de demostración obsoletos
+        const filtrados = parsed.filter(
+          (u) =>
+            u.nombre_completo !== 'Ing. Rodrigo Vega (Admin)' &&
+            u.nombre_completo !== 'Gerente General (Santa Laura)'
+        );
+        if (filtrados.length > 0) return filtrados;
       } catch {
-        // En caso de fallo de lectura, se carga la lista por defecto
+        // En caso de fallo de lectura, se carga la lista limpia
       }
     }
-    const listaDefault: Usuario[] = [
+    const listaInicial: Usuario[] = [
       {
         id_usuario: 1,
-        nombre_completo: 'Ing. Rodrigo Vega (Admin)',
+        nombre_completo: 'Administrador General',
         rut: '11.111.111-1',
         email: 'admin@predia.cl',
         rol: 'ADMINISTRADOR',
         activo: true
-      },
-      {
-        id_usuario: 2,
-        nombre_completo: 'Agr. Macarena Soto',
-        rut: '15.222.333-4',
-        email: 'agronomo@predia.cl',
-        rol: 'AGRONOMO',
-        activo: true
-      },
-      {
-        id_usuario: 3,
-        nombre_completo: 'Carlos Mendoza (Bodega)',
-        rut: '12.444.555-6',
-        email: 'bodeguero@predia.cl',
-        rol: 'BODEGUERO',
-        activo: true
-      },
-      {
-        id_usuario: 4,
-        nombre_completo: 'Gerente General (Santa Laura)',
-        rut: '09.888.777-K',
-        email: 'gerencia@predia.cl',
-        rol: 'GERENTE',
-        activo: true
       }
     ];
-    this.persistirUsuarios(listaDefault);
-    return listaDefault;
+    return listaInicial;
   }
 
   /**
-   * Guarda la lista actualizada de usuarios en el almacenamiento local del navegador
+   * Guarda la lista actualizada de usuarios verificados en el almacenamiento local del navegador
    */
   private persistirUsuarios(lista: Usuario[]): void {
     localStorage.setItem(USERS_LIST_KEY, JSON.stringify(lista));
@@ -151,7 +145,7 @@ export class AuthService {
       nombre_completo: raw.nombre_completo ?? raw.nombreCompleto ?? 'Usuario PredIA',
       rut: raw.rut ?? '11.111.111-1',
       email: raw.email ?? 'usuario@predia.cl',
-      rol: raw.rol ?? 'ADMINISTRADOR',
+      rol: raw.rol ?? 'AGRONOMO',
       activo: raw.activo ?? true
     };
   }
@@ -173,10 +167,36 @@ export class AuthService {
   }
 
   /**
+   * Consulta la lista real de usuarios registrados en Supabase PostgreSQL a través del backend NestJS
+   */
+  cargarUsuarios(): Observable<Usuario[]> {
+    this.cargandoUsuarios.set(true);
+    const url = `${this.baseUrl()}${AUTH_ENDPOINTS.USUARIOS}`;
+    console.log(`📤 [GET ${AUTH_ENDPOINTS.USUARIOS}] Consultando usuarios en el servidor...`);
+
+    return this.http.get<any[]>(url).pipe(
+      map((listaRaw) => (Array.isArray(listaRaw) ? listaRaw.map(this.normalizarUsuario) : [])),
+      tap((usuarios) => {
+        if (usuarios.length > 0) {
+          this.usuarios.set(usuarios);
+          this.persistirUsuarios(usuarios);
+        }
+        this.cargandoUsuarios.set(false);
+        console.log(`📥 [GET ${AUTH_ENDPOINTS.USUARIOS}] ${usuarios.length} usuarios recibidos de Supabase/API:`, usuarios);
+      }),
+      catchError((err) => {
+        this.cargandoUsuarios.set(false);
+        console.warn(`⚠️ [GET ${AUTH_ENDPOINTS.USUARIOS}] No fue posible obtener usuarios del backend:`, err.status, err.message);
+        return of(this.usuarios());
+      })
+    );
+  }
+
+  /**
    * Ejecuta la autenticación contra el backend mediante petición HTTP POST
    */
   login(credenciales: LoginRequest): Observable<LoginResponse> {
-    const url = `${this.baseUrl()}/auth/login`;
+    const url = `${this.baseUrl()}${AUTH_ENDPOINTS.LOGIN}`;
     return this.http.post<LoginResponse>(url, credenciales).pipe(
       tap((res) => {
         const normalizado = this.normalizarUsuario(res.usuario);
@@ -184,12 +204,16 @@ export class AuthService {
         localStorage.setItem(USER_KEY, JSON.stringify(normalizado));
         this.token.set(res.accessToken);
         this.currentUser.set(normalizado);
+        // Cargar usuarios inmediatamente tras autenticarse con éxito
+        this.cargarUsuarios().subscribe();
       })
     );
   }
 
   /**
-   * Registra un nuevo usuario en la lista local y notifica en paralelo al backend NestJS si está conectado
+   * Registra un nuevo usuario en la base de datos de Supabase vía NestJS.
+   * Valida la respuesta HTTP: SOLO si la API responde 201 Created se guarda el usuario.
+   * Si la API responde 409 Conflict o error, NO se guarda en localStorage y se informa el error.
    */
   crearUsuario(dto: {
     nombre_completo: string;
@@ -197,50 +221,73 @@ export class AuthService {
     email: string;
     password?: string;
     rol: RolUsuario;
-  }): { exito: boolean; mensaje: string } {
-    const lista = this.usuarios();
-
-    // Valida que no exista duplicidad por correo electrónico ni por RUT
-    const existe = lista.find(
-      (u) => u.email.toLowerCase() === dto.email.toLowerCase() || u.rut === dto.rut
-    );
-    if (existe) {
-      return {
-        exito: false,
-        mensaje: 'Ya existe un usuario registrado con ese correo o RUT.'
-      };
-    }
-
-    const nuevoUsuario: Usuario = {
-      id_usuario: lista.length + 1,
-      nombre_completo: dto.nombre_completo.trim(),
+  }): Observable<{ exito: boolean; mensaje: string; usuario?: Usuario }> {
+    const registroPayload: RegistroUsuarioDto = {
+      nombreCompleto: dto.nombre_completo.trim(),
       rut: dto.rut.trim(),
       email: dto.email.trim().toLowerCase(),
-      rol: dto.rol,
-      activo: true
-    };
-
-    // Sincronización en segundo plano con el backend
-    const registroPayload = {
-      nombreCompleto: nuevoUsuario.nombre_completo,
-      rut: nuevoUsuario.rut,
-      email: nuevoUsuario.email,
       password: dto.password || 'PredIA2026!',
-      rol: nuevoUsuario.rol
+      rol: dto.rol
     };
 
-    this.http.post(`${this.baseUrl()}/auth/registro`, registroPayload)
-      .pipe(catchError(() => of(null)))
-      .subscribe();
+    const url = `${this.baseUrl()}${AUTH_ENDPOINTS.REGISTRO}`;
+    console.log(`📤 [POST ${AUTH_ENDPOINTS.REGISTRO}] Enviando registro de usuario a Supabase:`, {
+      nombreCompleto: registroPayload.nombreCompleto,
+      rut: registroPayload.rut,
+      email: registroPayload.email,
+      rol: registroPayload.rol
+    });
 
-    const nuevaLista = [nuevoUsuario, ...lista];
-    this.usuarios.set(nuevaLista);
-    this.persistirUsuarios(nuevaLista);
+    return this.http.post<any>(url, registroPayload).pipe(
+      map((res) => {
+        console.log(`📥 [POST ${AUTH_ENDPOINTS.REGISTRO}] Usuario creado con éxito en Supabase:`, res);
+        const nuevoRaw = res?.usuario ?? {
+          id_usuario: this.usuarios().length + 1,
+          nombre_completo: registroPayload.nombreCompleto,
+          rut: registroPayload.rut,
+          email: registroPayload.email,
+          rol: registroPayload.rol,
+          activo: true
+        };
+        const nuevo = this.normalizarUsuario(nuevoRaw);
 
-    return {
-      exito: true,
-      mensaje: `Usuario ${nuevoUsuario.nombre_completo} creado exitosamente con rol ${nuevoUsuario.rol}.`
-    };
+        // Agrega a la lista local SOLO tras confirmación positiva de la base de datos
+        this.usuarios.update((lista) => {
+          const sinDuplicados = lista.filter(
+            (u) =>
+              u.email.toLowerCase() !== nuevo.email.toLowerCase() &&
+              u.rut !== nuevo.rut
+          );
+          const actualizada = [nuevo, ...sinDuplicados];
+          this.persistirUsuarios(actualizada);
+          return actualizada;
+        });
+
+        return {
+          exito: true,
+          mensaje: res?.mensaje || `Usuario ${nuevo.nombre_completo} creado exitosamente con rol ${nuevo.rol}.`,
+          usuario: nuevo
+        };
+      }),
+      catchError((err) => {
+        console.error(`❌ [POST ${AUTH_ENDPOINTS.REGISTRO}] Error al registrar en Supabase:`, err.status, err.error);
+        const rawMsg = err.error?.message;
+        let mensaje = 'Error al registrar el usuario en el servidor.';
+        if (Array.isArray(rawMsg)) {
+          mensaje = rawMsg.join(', ');
+        } else if (typeof rawMsg === 'string') {
+          mensaje = rawMsg;
+        } else if (err.status === 409) {
+          mensaje = 'El correo electrónico o RUT ya se encuentra registrado en el sistema.';
+        }
+
+        // CRÍTICO: NO se modifica la señal de usuarios y NO se persiste nada en localStorage
+        return of({
+          exito: false,
+          mensaje
+        });
+      })
+    );
   }
 
   /**
@@ -313,7 +360,7 @@ export class AuthService {
    * Solicita al servidor los datos del perfil del usuario actualmente autenticado
    */
   obtenerPerfil(): Observable<any> {
-    const url = `${this.baseUrl()}/auth/perfil`;
+    const url = `${this.baseUrl()}${AUTH_ENDPOINTS.PERFIL}`;
     return this.http.get<any>(url);
   }
 

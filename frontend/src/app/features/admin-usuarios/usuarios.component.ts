@@ -1,13 +1,15 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../../core/services/auth.service';
 import { RolUsuario, Usuario } from '../../core/models/auth.models';
+import { rutChilenoValidator, formatearRutChileno } from '../../core/validators/rut.validator';
 
 /**
  * Componente del Mantenedor de Usuarios del Sistema.
  * Permite al Administrador gestionar las cuentas de usuario, asignar roles RBAC,
- * actualizar o restablecer contraseñas y habilitar o inhabilitar accesos.
+ * actualizar o restablecer contraseñas y habilitar o inhabilitar accesos,
+ * sincronizado en tiempo real con Supabase a través del backend NestJS.
  */
 @Component({
   selector: 'app-admin-usuarios',
@@ -15,7 +17,7 @@ import { RolUsuario, Usuario } from '../../core/models/auth.models';
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './usuarios.component.html'
 })
-export class UsuariosComponent {
+export class UsuariosComponent implements OnInit {
   // Inyección de servicios centrales
   readonly authService = inject(AuthService);
   private readonly fb = inject(FormBuilder);
@@ -24,15 +26,25 @@ export class UsuariosComponent {
   readonly mensajeExito = signal<string | null>(null);
   readonly mensajeError = signal<string | null>(null);
 
+  // Señal de estado mientras se realiza la petición de creación
+  readonly guardandoUsuario = signal<boolean>(false);
+
   // Señales para el control de apertura y cierre de ventanas modales
   readonly modalCrearAbierto = signal(false);
   readonly modalPasswordAbierto = signal(false);
   readonly usuarioSeleccionado = signal<Usuario | null>(null);
 
-  // Formulario reactivo para la creación de un nuevo usuario
+  // Formulario reactivo para la creación de un nuevo usuario con validaciones estrictas
   readonly crearUsuarioForm: FormGroup = this.fb.group({
-    nombre_completo: ['', [Validators.required, Validators.minLength(3)]],
-    rut: ['', [Validators.required]],
+    nombre_completo: [
+      '',
+      [
+        Validators.required,
+        Validators.minLength(3),
+        Validators.pattern(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)
+      ]
+    ],
+    rut: ['', [Validators.required, rutChilenoValidator]],
     email: ['', [Validators.required, Validators.email]],
     password: ['PredIA2026!', [Validators.required, Validators.minLength(6)]],
     rol: ['AGRONOMO' as RolUsuario, [Validators.required]]
@@ -43,6 +55,29 @@ export class UsuariosComponent {
     nuevaPassword: ['', [Validators.required, Validators.minLength(6)]],
     confirmarPassword: ['', [Validators.required]]
   });
+
+  ngOnInit(): void {
+    // Al cargar la vista de administración, consulta los colaboradores reales de Supabase
+    this.sincronizarUsuarios();
+  }
+
+  /**
+   * Refresca la lista de usuarios consultando la base de datos de Supabase vía NestJS
+   */
+  sincronizarUsuarios(): void {
+    this.authService.cargarUsuarios().subscribe();
+  }
+
+  /**
+   * Aplica formateo visual automático al RUT chileno al desenfocar el campo (ej: 213405020 -> 21.340.502-0)
+   */
+  onRutBlur(): void {
+    const control = this.crearUsuarioForm.get('rut');
+    if (control && control.value) {
+      const formateado = formatearRutChileno(control.value);
+      control.setValue(formateado, { emitEvent: true });
+    }
+  }
 
   /**
    * Cuenta la cantidad de usuarios que tienen el flag 'activo' en verdadero
@@ -97,6 +132,7 @@ export class UsuariosComponent {
       password: 'PredIA2026!',
       rol: 'AGRONOMO'
     });
+    this.mensajeError.set(null);
     this.modalCrearAbierto.set(true);
   }
 
@@ -108,29 +144,45 @@ export class UsuariosComponent {
   }
 
   /**
-   * Valida y procesa el envío del formulario para dar de alta al nuevo usuario
+   * Valida y procesa el envío del formulario para dar de alta al nuevo usuario en Supabase
    */
   onSubmitCrearUsuario(): void {
-    if (this.crearUsuarioForm.invalid) return;
+    if (this.crearUsuarioForm.invalid) {
+      this.crearUsuarioForm.markAllAsTouched();
+      return;
+    }
 
     const payload = this.crearUsuarioForm.value;
-    console.log('📤 [POST Botón Guardar Usuario] Enviando datos de usuario:', {
+    console.log('📤 [POST Botón Guardar Usuario] Enviando datos de usuario a la API:', {
       nombre_completo: payload.nombre_completo,
       rut: payload.rut,
       email: payload.email,
       rol: payload.rol
     });
 
-    const res = this.authService.crearUsuario(payload);
-    console.log('📥 [POST Guardar Usuario] Resultado:', res);
+    this.guardandoUsuario.set(true);
+    this.mensajeError.set(null);
 
-    if (res.exito) {
-      this.mensajeExito.set(res.mensaje);
-      this.mensajeError.set(null);
-      this.cerrarModalCrear();
-    } else {
-      this.mensajeError.set(res.mensaje);
-    }
+    this.authService.crearUsuario(payload).subscribe({
+      next: (res) => {
+        this.guardandoUsuario.set(false);
+        console.log('📥 [POST Guardar Usuario] Respuesta del servidor:', res);
+
+        if (res.exito) {
+          this.mensajeExito.set(res.mensaje);
+          this.mensajeError.set(null);
+          this.cerrarModalCrear();
+        } else {
+          // Si el backend responde 409 Conflict o error, se muestra el mensaje y el modal permanece abierto
+          this.mensajeError.set(res.mensaje);
+        }
+      },
+      error: (err) => {
+        this.guardandoUsuario.set(false);
+        console.error('❌ [POST Guardar Usuario] Error de comunicación:', err);
+        this.mensajeError.set('Error inesperado de comunicación con el servidor.');
+      }
+    });
   }
 
   /**

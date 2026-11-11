@@ -9,3 +9,4 @@ export interface CrearCicloDto {
   fechaInicio: string;
   fechaTerminoEstimada?: string;
 }
+

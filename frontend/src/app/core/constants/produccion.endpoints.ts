@@ -22,3 +22,4 @@ export const PRODUCCION_ENDPOINTS = {
   COSECHAS_POR_CICLO: (idCiclo: number) => `/produccion/ciclos/${idCiclo}/cosechas`,
   COSECHAS_DISPONIBLES: '/produccion/cosechas/disponibles',
 } as const;
+

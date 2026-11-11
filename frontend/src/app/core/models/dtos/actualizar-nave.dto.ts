@@ -7,3 +7,4 @@ export interface ActualizarNaveDto {
   tipoEstructura?: string;
   estado?: 'DISPONIBLE' | 'EN_CULTIVO' | 'MANTENCION';
 }
+

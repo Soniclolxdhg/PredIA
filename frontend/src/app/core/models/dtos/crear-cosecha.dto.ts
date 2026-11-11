@@ -7,3 +7,4 @@ export interface CrearCosechaDto {
   kilosNetos: number;
   calidadGrado: 'PRIMERA' | 'SEGUNDA' | 'DESCARTE';
 }
+

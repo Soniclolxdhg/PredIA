@@ -1,5 +1,5 @@
 <div class="space-y-6 max-w-7xl mx-auto">
-  <!-- Barra superior con título y acción principal -->
+  <!-- Barra superior con título y acciones principales -->
   <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
     <div>
       <div class="flex items-center gap-2">
@@ -7,26 +7,40 @@
         <h1 class="text-xl font-bold text-slate-800">Gestión de Usuarios & Control de Accesos</h1>
       </div>
       <p class="text-xs sm:text-sm text-slate-500 mt-1">
-        Administración de cuentas, asignación de perfiles de acceso y seguridad del sistema.
+        Administración de colaboradores, asignación de perfiles RBAC y seguridad en Supabase PostgreSQL.
       </p>
     </div>
 
-    <button
-      type="button"
-      (click)="abrirModalCrear()"
-      class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm rounded-xl shadow-xs transition-colors touch-target">
-      <span>➕</span>
-      <span>Nuevo Usuario</span>
-    </button>
+    <div class="flex flex-wrap items-center gap-2">
+      <!-- Botón de Sincronización con la Base de Datos -->
+      <button
+        type="button"
+        (click)="sincronizarUsuarios()"
+        [disabled]="authService.cargandoUsuarios()"
+        title="Consultar usuarios reales en Supabase"
+        class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 font-semibold text-xs rounded-xl border border-slate-300 transition-colors touch-target">
+        <span [class.animate-spin]="authService.cargandoUsuarios()">🔄</span>
+        <span>Sincronizar</span>
+      </button>
+
+      <!-- Botón para Abrir Modal de Creación -->
+      <button
+        type="button"
+        (click)="abrirModalCrear()"
+        class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm rounded-xl shadow-xs transition-colors touch-target">
+        <span>➕</span>
+        <span>Nuevo Usuario</span>
+      </button>
+    </div>
   </div>
 
-  <!-- Alertas de estado para operaciones exitosas o con error -->
+  <!-- Alertas globales de retroalimentación -->
   <div *ngIf="mensajeExito()" class="p-4 bg-emerald-50 border border-emerald-300 text-emerald-800 text-sm rounded-xl flex items-center justify-between">
     <span class="font-medium">✓ {{ mensajeExito() }}</span>
     <button (click)="mensajeExito.set(null)" class="text-emerald-700 font-bold hover:text-emerald-950">✕</button>
   </div>
 
-  <div *ngIf="mensajeError()" class="p-4 bg-rose-50 border border-rose-300 text-rose-800 text-sm rounded-xl flex items-center justify-between">
+  <div *ngIf="mensajeError() && !modalCrearAbierto()" class="p-4 bg-rose-50 border border-rose-300 text-rose-800 text-sm rounded-xl flex items-center justify-between">
     <span class="font-medium">⚠️ {{ mensajeError() }}</span>
     <button (click)="mensajeError.set(null)" class="text-rose-700 font-bold hover:text-rose-950">✕</button>
   </div>
@@ -54,15 +68,40 @@
   <!-- Tabla principal con listado de colaboradores -->
   <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
     <div class="p-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/60">
-      <div class="font-bold text-sm text-slate-800">
-        Listado Oficial de Cuentas Santa Laura Ltda.
+      <div class="font-bold text-sm text-slate-800 flex items-center gap-2">
+        <span>Listado Oficial de Cuentas Santa Laura Ltda.</span>
+        <span *ngIf="authService.cargandoUsuarios()" class="text-xs text-slate-500 animate-pulse font-normal">
+          (Consultando Supabase...)
+        </span>
       </div>
       <div class="text-xs text-slate-500">
-        Haga clic en una acción para cambiar clave o alternar estado.
+        {{ authService.usuarios().length }} colaboradores registrados en el sistema.
       </div>
     </div>
 
-    <div class="overflow-x-auto">
+    <!-- Indicador de carga de usuarios -->
+    <div *ngIf="authService.cargandoUsuarios()" class="p-8 text-center bg-white">
+      <span class="inline-block animate-spin text-2xl mb-2">🔄</span>
+      <p class="text-xs text-slate-600 font-medium">Cargando nómina de colaboradores desde la API...</p>
+    </div>
+
+    <!-- Estado vacío si no hay usuarios registrados -->
+    <div
+      *ngIf="!authService.cargandoUsuarios() && authService.usuarios().length === 0"
+      class="p-8 text-center bg-white">
+      <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto text-2xl mb-3">
+        👥
+      </div>
+      <h4 class="font-bold text-slate-800 text-sm">No hay usuarios registrados</h4>
+      <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+        Haz clic en "Nuevo Usuario" para dar de alta al primer colaborador en la base de datos real.
+      </p>
+    </div>
+
+    <!-- Tabla con usuarios reales -->
+    <div
+      *ngIf="!authService.cargandoUsuarios() && authService.usuarios().length > 0"
+      class="overflow-x-auto">
       <table class="w-full text-left text-sm text-slate-700">
         <thead class="bg-slate-100 text-xs uppercase text-slate-600 tracking-wider">
           <tr>
@@ -138,12 +177,21 @@
       <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
         <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
           <span>👤</span>
-          <span>Crear Nuevo Usuario</span>
+          <span>Crear Nuevo Usuario en Supabase</span>
         </h3>
         <button (click)="cerrarModalCrear()" class="text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
       </div>
 
+      <!-- Alerta de Error DENTRO del modal (Muestra rechazo por duplicado 409) -->
+      <div
+        *ngIf="mensajeError()"
+        class="p-3.5 bg-rose-50 border border-rose-300 text-rose-800 text-xs rounded-xl flex items-center justify-between mb-4">
+        <span class="font-bold">⚠️ {{ mensajeError() }}</span>
+        <button type="button" (click)="mensajeError.set(null)" class="text-rose-600 font-bold hover:text-rose-900">✕</button>
+      </div>
+
       <form [formGroup]="crearUsuarioForm" (ngSubmit)="onSubmitCrearUsuario()" class="space-y-4">
+        <!-- Campo: Nombre Completo -->
         <div>
           <label class="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">
             Nombre Completo *
@@ -151,28 +199,39 @@
           <input
             type="text"
             formControlName="nombre_completo"
-            placeholder="Ej. Juan Pérez González"
-            class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:border-emerald-600 focus:outline-none" />
+            placeholder="Ej. Yamil Briceño"
+            [class.border-rose-400]="crearUsuarioForm.get('nombre_completo')?.touched && crearUsuarioForm.get('nombre_completo')?.invalid"
+            class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none" />
           <div *ngIf="crearUsuarioForm.get('nombre_completo')?.touched && crearUsuarioForm.get('nombre_completo')?.invalid" class="text-[11px] text-rose-600 mt-1">
-            Ingrese el nombre completo (mínimo 3 caracteres).
+            <span *ngIf="crearUsuarioForm.get('nombre_completo')?.errors?.['required']">El nombre completo es obligatorio.</span>
+            <span *ngIf="crearUsuarioForm.get('nombre_completo')?.errors?.['minlength']">Debe tener al menos 3 caracteres.</span>
+            <span *ngIf="crearUsuarioForm.get('nombre_completo')?.errors?.['pattern']">Solo se permiten letras y espacios (sin caracteres especiales).</span>
           </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <!-- Campo: RUT Chileno con validador Módulo 11 -->
           <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">
-              RUT *
-            </label>
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-xs font-bold text-slate-700 uppercase tracking-wide">
+                RUT Chileno *
+              </label>
+              <span class="text-[10px] text-slate-400 font-mono">Con DV</span>
+            </div>
             <input
               type="text"
               formControlName="rut"
-              placeholder="12.345.678-9"
-              class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:border-emerald-600 focus:outline-none" />
+              (blur)="onRutBlur()"
+              placeholder="12.345.678-9 o 213405020"
+              [class.border-rose-400]="crearUsuarioForm.get('rut')?.touched && crearUsuarioForm.get('rut')?.invalid"
+              class="w-full p-2.5 text-sm font-mono rounded-xl border border-slate-300 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none" />
             <div *ngIf="crearUsuarioForm.get('rut')?.touched && crearUsuarioForm.get('rut')?.invalid" class="text-[11px] text-rose-600 mt-1">
-              RUT requerido.
+              <span *ngIf="crearUsuarioForm.get('rut')?.errors?.['required']">El RUT es obligatorio.</span>
+              <span *ngIf="crearUsuarioForm.get('rut')?.errors?.['rutInvalido']">RUT chileno inválido (dígito verificador incorrecto o formato no válido).</span>
             </div>
           </div>
 
+          <!-- Campo: Rol del Sistema -->
           <div>
             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">
               Rol del Sistema *
@@ -188,20 +247,24 @@
           </div>
         </div>
 
+        <!-- Campo: Correo Electrónico -->
         <div>
           <label class="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">
-            Correo Electrónico *
+            Correo Electrónico Corporativo *
           </label>
           <input
             type="email"
             formControlName="email"
             placeholder="usuario@predia.cl"
-            class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:border-emerald-600 focus:outline-none" />
+            [class.border-rose-400]="crearUsuarioForm.get('email')?.touched && crearUsuarioForm.get('email')?.invalid"
+            class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none" />
           <div *ngIf="crearUsuarioForm.get('email')?.touched && crearUsuarioForm.get('email')?.invalid" class="text-[11px] text-rose-600 mt-1">
-            Ingrese un correo corporativo válido.
+            <span *ngIf="crearUsuarioForm.get('email')?.errors?.['required']">El correo electrónico es obligatorio.</span>
+            <span *ngIf="crearUsuarioForm.get('email')?.errors?.['email']">Ingrese una dirección de correo válida (ej: nombre&#64;dominio.cl).</span>
           </div>
         </div>
 
+        <!-- Campo: Contraseña Inicial -->
         <div>
           <label class="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">
             Contraseña Inicial *
@@ -210,24 +273,29 @@
             type="password"
             formControlName="password"
             placeholder="Mínimo 6 caracteres"
-            class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:border-emerald-600 focus:outline-none" />
+            [class.border-rose-400]="crearUsuarioForm.get('password')?.touched && crearUsuarioForm.get('password')?.invalid"
+            class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none" />
           <div *ngIf="crearUsuarioForm.get('password')?.touched && crearUsuarioForm.get('password')?.invalid" class="text-[11px] text-rose-600 mt-1">
-            Mínimo 6 caracteres.
+            <span *ngIf="crearUsuarioForm.get('password')?.errors?.['required']">La contraseña es obligatoria.</span>
+            <span *ngIf="crearUsuarioForm.get('password')?.errors?.['minlength']">La contraseña debe tener al menos 6 caracteres.</span>
           </div>
         </div>
 
+        <!-- Acciones del Modal -->
         <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
           <button
             type="button"
             (click)="cerrarModalCrear()"
+            [disabled]="guardandoUsuario()"
             class="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800">
             Cancelar
           </button>
           <button
             type="submit"
-            [disabled]="crearUsuarioForm.invalid"
-            class="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-semibold text-sm rounded-xl shadow-xs transition-colors">
-            Guardar Usuario
+            [disabled]="crearUsuarioForm.invalid || guardandoUsuario()"
+            class="inline-flex items-center gap-2 px-5 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-semibold text-sm rounded-xl shadow-xs transition-colors">
+            <span *ngIf="guardandoUsuario()" class="inline-block animate-spin">🔄</span>
+            <span>{{ guardandoUsuario() ? 'Guardando en Supabase...' : 'Guardar Usuario' }}</span>
           </button>
         </div>
       </form>

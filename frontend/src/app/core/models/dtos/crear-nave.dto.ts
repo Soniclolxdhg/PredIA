@@ -9,3 +9,4 @@ export interface CrearNaveDto {
   tipoEstructura?: string;
   estado?: 'DISPONIBLE' | 'EN_CULTIVO' | 'MANTENCION';
 }
+

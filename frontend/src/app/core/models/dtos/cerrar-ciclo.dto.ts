@@ -5,3 +5,4 @@
 export interface CerrarCicloDto {
   fechaCierreReal?: string;
 }
+
