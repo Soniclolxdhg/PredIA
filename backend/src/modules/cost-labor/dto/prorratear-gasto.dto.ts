@@ -37,3 +37,4 @@ export class ProrratearGastoDto {
   @IsString({ message: 'La glosa debe ser texto.' })
   glosaDetalle?: string;
 }
+

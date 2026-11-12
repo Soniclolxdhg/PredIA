@@ -105,3 +105,4 @@ export class CostLaborController {
     return this.costLaborService.listarCostosIndirectos(idCicloNum);
   }
 }
+

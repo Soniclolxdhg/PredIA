@@ -7,4 +7,4 @@ import { CostLaborService } from './cost-labor.service';
   providers: [CostLaborService],
   exports: [CostLaborService],
 })
-export class CostLaborModule {}
+export class CostLaborModule { }

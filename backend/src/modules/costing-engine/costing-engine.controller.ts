@@ -27,3 +27,4 @@ export class CostingEngineController {
     return this.costingEngineService.consolidarLiquidacionCiclo(idCiclo);
   }
 }
+

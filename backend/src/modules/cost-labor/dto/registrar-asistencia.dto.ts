@@ -45,3 +45,4 @@ export class RegistrarAsistenciaDto {
   })
   estadoPago?: EstadoPago;
 }
+

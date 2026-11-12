@@ -46,3 +46,4 @@ export class CrearTrabajadorDto {
   @IsBoolean({ message: 'activo debe ser booleano.' })
   activo?: boolean;
 }
+

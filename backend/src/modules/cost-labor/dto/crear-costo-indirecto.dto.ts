@@ -41,3 +41,4 @@ export class CrearCostoIndirectoDto {
   @IsString({ message: 'La glosa de detalle debe ser texto.' })
   glosaDetalle?: string;
 }
+

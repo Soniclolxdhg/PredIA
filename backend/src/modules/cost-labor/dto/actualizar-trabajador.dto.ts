@@ -41,3 +41,4 @@ export class ActualizarTrabajadorDto {
   @IsBoolean({ message: 'activo debe ser booleano.' })
   activo?: boolean;
 }
+
