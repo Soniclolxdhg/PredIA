@@ -8,7 +8,7 @@
       <div>
         <div class="text-base font-extrabold tracking-tight text-white flex items-center gap-1.5">
           <span>PredIA</span>
-          <span class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono">Sistema</span>
+          <span class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono">ERP</span>
         </div>
         <div class="text-[10px] text-slate-400 font-medium">Santa Laura Ltda. • Gestión Agrícola</div>
       </div>
@@ -24,33 +24,55 @@
   </div>
 
   <!-- Menú dinámico según permisos de usuario -->
-  <nav class="flex-1 overflow-y-auto p-3 space-y-5">
+  <nav class="flex-1 overflow-y-auto p-3 space-y-4">
+    <!-- Panel General (Dashboard) para todos los usuarios autenticados -->
+    <div>
+      <a
+        routerLink="/dashboard"
+        routerLinkActive="bg-emerald-600 text-white shadow-sm"
+        (click)="closeSidebar.emit()"
+        class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
+        <span class="text-base">📊</span>
+        <span>Panel Principal</span>
+      </a>
+    </div>
+
     <!-- Opciones de administración (exclusivo para rol ADMINISTRADOR) -->
     <div *ngIf="authService.isAdmin()">
       <div class="text-[11px] font-bold uppercase tracking-wider text-purple-400 px-3 mb-1.5 flex items-center justify-between">
         <span>Administración</span>
-        <span class="text-[9px] bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded font-mono">Solo Admin</span>
+        <span class="text-[9px] bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded font-mono">Admin</span>
       </div>
-      <a
-        routerLink="/admin/usuarios"
-        routerLinkActive="bg-purple-700 text-white shadow-sm"
-        (click)="closeSidebar.emit()"
-        class="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
-        <span class="flex items-center gap-2.5">
-          <span class="text-base">👥</span>
-          <span>Usuarios & Claves</span>
-        </span>
-        <span class="text-[10px] bg-purple-900/60 text-purple-200 px-1.5 py-0.5 rounded font-mono font-bold">
-          {{ authService.usuarios().length }}
-        </span>
-      </a>
+      <div class="space-y-1">
+        <a
+          routerLink="/admin/usuarios"
+          routerLinkActive="bg-purple-700 text-white shadow-sm"
+          (click)="closeSidebar.emit()"
+          class="flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
+          <span class="flex items-center gap-2.5">
+            <span class="text-base">👥</span>
+            <span>Usuarios & Claves</span>
+          </span>
+          <span class="text-[10px] bg-purple-900/60 text-purple-200 px-1.5 py-0.5 rounded font-mono font-bold">
+            {{ authService.usuarios().length }}
+          </span>
+        </a>
+        <a
+          routerLink="/admin/catalogos"
+          routerLinkActive="bg-purple-700 text-white shadow-sm"
+          (click)="closeSidebar.emit()"
+          class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
+          <span class="text-base">📑</span>
+          <span>Catálogos Maestros</span>
+        </a>
+      </div>
     </div>
 
     <!-- Módulo de Producción y Terreno (Activo) -->
     <div *ngIf="authService.canAccessProduction()">
       <div class="text-[11px] font-bold uppercase tracking-wider text-emerald-400 px-3 mb-1.5 flex items-center justify-between">
         <span>Producción & Terreno</span>
-        <span class="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-mono">Módulo Activo</span>
+        <span class="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-mono">Oficial</span>
       </div>
       <div class="space-y-1">
         <a
@@ -91,11 +113,11 @@
       </div>
     </div>
 
-    <!-- Módulo de Bodega e Insumos (Fase 3 Activa) -->
+    <!-- Módulo de Bodega e Insumos (Activo) -->
     <div *ngIf="authService.canAccessWarehouse()">
       <div class="text-[11px] font-bold uppercase tracking-wider text-amber-400 px-3 mb-1.5 flex items-center justify-between">
         <span>Bodega & Insumos</span>
-        <span class="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-mono">Fase 3</span>
+        <span class="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-mono">Oficial</span>
       </div>
       <div class="space-y-1">
         <a
@@ -128,6 +150,76 @@
         </a>
       </div>
     </div>
+
+    <!-- Módulo de Costos & Jornales (Prototipo) -->
+    <div *ngIf="authService.isAdmin() || authService.isGerente()">
+      <div class="text-[11px] font-bold uppercase tracking-wider text-blue-400 px-3 mb-1.5 flex items-center justify-between">
+        <span>Costos & Finanzas</span>
+        <span class="text-[9px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded font-mono">Prototipo</span>
+      </div>
+      <div class="space-y-1">
+        <a
+          routerLink="/costos/asistencia"
+          routerLinkActive="bg-blue-700 text-white shadow-sm"
+          (click)="closeSidebar.emit()"
+          class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
+          <span class="text-base">👷</span>
+          <span>Asistencia Jornales (HU06)</span>
+        </a>
+        <a
+          routerLink="/costos/indirectos"
+          routerLinkActive="bg-blue-700 text-white shadow-sm"
+          (click)="closeSidebar.emit()"
+          class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
+          <span class="text-base">💡</span>
+          <span>Costos Indirectos (HU07)</span>
+        </a>
+        <a
+          routerLink="/costos/consolidado"
+          routerLinkActive="bg-blue-700 text-white shadow-sm"
+          (click)="closeSidebar.emit()"
+          class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
+          <span class="text-base">💲</span>
+          <span>Consolidado $/Kg (HU09)</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Módulo Comercial (Prototipo) -->
+    <div *ngIf="authService.isAdmin() || authService.isGerente()">
+      <div class="text-[11px] font-bold uppercase tracking-wider text-teal-400 px-3 mb-1.5 flex items-center justify-between">
+        <span>Comercial</span>
+        <span class="text-[9px] bg-teal-500/20 text-teal-300 px-1.5 py-0.5 rounded font-mono">Prototipo</span>
+      </div>
+      <div class="space-y-1">
+        <a
+          routerLink="/ventas"
+          routerLinkActive="bg-teal-700 text-white shadow-sm"
+          (click)="closeSidebar.emit()"
+          class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
+          <span class="text-base">🛒</span>
+          <span>Notas de Venta (HU08/10)</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Agroclima -->
+    <div>
+      <div class="text-[11px] font-bold uppercase tracking-wider text-sky-400 px-3 mb-1.5 flex items-center justify-between">
+        <span>Agroclima</span>
+        <span class="text-[9px] bg-sky-500/20 text-sky-300 px-1.5 py-0.5 rounded font-mono">Open-Meteo</span>
+      </div>
+      <div class="space-y-1">
+        <a
+          routerLink="/clima"
+          routerLinkActive="bg-sky-700 text-white shadow-sm"
+          (click)="closeSidebar.emit()"
+          class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
+          <span class="text-base">⛅</span>
+          <span>Pronóstico & Heladas (HU11)</span>
+        </a>
+      </div>
+    </div>
   </nav>
 
   <!-- Pie de página del menú con identificación institucional -->
@@ -135,4 +227,3 @@
     <span>Proyecto de Integración • INACAP 2026</span>
   </div>
 </aside>
-

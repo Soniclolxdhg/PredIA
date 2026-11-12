@@ -1,9 +1,19 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, ReactiveFormsModule, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { ErpDataService } from '../../core/services/erp-data.service';
 import { Nave } from '../../core/models/erp.models';
 import { CrearNaveDto, CrearCicloDto } from '../../core/models/dtos';
+
+/**
+ * Validador para asegurar que la fecha de término estimada sea posterior a la de inicio
+ */
+function fechaTerminoPosteriorValidator(group: AbstractControl): ValidationErrors | null {
+  const inicio = group.get('fecha_inicio')?.value;
+  const termino = group.get('fecha_termino_estimada')?.value;
+  if (!inicio || !termino) return null;
+  return new Date(termino) > new Date(inicio) ? null : { fechaTerminoNoPosterior: true };
+}
 
 /**
  * Componente para la gestión de Ciclos de Cultivo e Invernaderos (HU01).
@@ -29,26 +39,36 @@ export class CiclosCultivoComponent implements OnInit {
   readonly sembrando = signal(false);
   readonly mensajeError = signal<string | null>(null);
   readonly mensajeExito = signal<string | null>(null);
+  readonly ultimaActualizacion = signal<Date | null>(null);
 
-  // Sugerencias rápidas de códigos de naves
-  readonly sugerenciasCodigo = ['NAV-01', 'NAV-02', 'NAV-03', 'NAV-04', 'NAV-05'];
-
-  // Formulario reactivo para la creación de nueva Nave
+  // Formulario reactivo para la creación de nueva Nave (código asignado de solo lectura)
   readonly naveForm: FormGroup = this.fb.group({
-    codigo_nave: ['', [Validators.required, Validators.minLength(3)]],
+    codigo_nave: [{ value: '', disabled: false }, [Validators.required, Validators.minLength(3)]],
     nombre: ['', [Validators.required, Validators.minLength(3)]],
     superficie_m2: [2500, [Validators.required, Validators.min(10)]],
     tipo_estructura: ['Multitúnel Metal', [Validators.required]]
   });
 
-  // Formulario reactivo para la apertura del ciclo productivo
-  readonly cicloForm: FormGroup = this.fb.group({
-    id_nave: ['', [Validators.required]],
-    temporada: ['PRIMAVERA_2026', [Validators.required]],
-    variedad: ['', [Validators.required, Validators.minLength(3)]],
-    fecha_inicio: [new Date().toISOString().split('T')[0], [Validators.required]],
-    fecha_termino_estimada: ['', [Validators.required]]
-  });
+  // Formulario reactivo para la apertura del ciclo productivo con validación de fechas
+  readonly cicloForm: FormGroup = this.fb.group(
+    {
+      id_nave: ['', [Validators.required]],
+      temporada: ['PRIMAVERA_2026', [Validators.required]],
+      variedad: ['', [Validators.required, Validators.minLength(3)]],
+      fecha_inicio: [new Date().toISOString().split('T')[0], [Validators.required]],
+      fecha_termino_estimada: ['', [Validators.required]]
+    },
+    { validators: [fechaTerminoPosteriorValidator] }
+  );
+
+  /**
+   * Cierre accesible de ventanas modales con tecla Escape
+   */
+  @HostListener('document:keydown.escape')
+  onEscapePressed(): void {
+    if (this.modalCicloVisible()) this.cerrarModalCiclo();
+    if (this.modalNaveVisible()) this.cerrarModalNave();
+  }
 
   ngOnInit(): void {
     this.recargarDatos();
@@ -58,8 +78,15 @@ export class CiclosCultivoComponent implements OnInit {
    * Carga o actualiza tanto las naves como los ciclos directamente desde Supabase
    */
   recargarDatos(): void {
-    this.erpService.cargarNaves().subscribe();
-    this.erpService.cargarCiclos().subscribe();
+    this.mensajeError.set(null);
+    this.erpService.cargarNaves().subscribe({
+      next: () => this.ultimaActualizacion.set(new Date()),
+      error: () => this.mensajeError.set('Error al sincronizar naves con el servidor.')
+    });
+    this.erpService.cargarCiclos().subscribe({
+      next: () => this.ultimaActualizacion.set(new Date()),
+      error: () => this.mensajeError.set('Error al sincronizar ciclos con el servidor.')
+    });
   }
 
   /**
@@ -103,6 +130,7 @@ export class CiclosCultivoComponent implements OnInit {
         console.log('📥 [POST /produccion/naves/sembrar] Respuesta recibida:', res);
         if (res.exito) {
           this.mensajeExito.set(res.mensaje);
+          this.recargarDatos();
         } else {
           this.mensajeError.set(res.mensaje);
         }
@@ -120,12 +148,13 @@ export class CiclosCultivoComponent implements OnInit {
   // ==========================================
 
   abrirModalNave(): void {
+    // Generación de código sugerido de solo lectura para cumplir con DTO del backend
     const totalActual = this.erpService.naves().length;
     const proxNum = totalActual + 1;
-    const proxCod = `NAV-${proxNum < 10 ? '0' + proxNum : proxNum}`;
+    const codSugerido = `NAV-${proxNum < 10 ? '0' + proxNum : proxNum}`;
 
     this.naveForm.reset({
-      codigo_nave: proxCod,
+      codigo_nave: codSugerido,
       nombre: `Nave ${proxNum} - Invernadero`,
       superficie_m2: 2500,
       tipo_estructura: 'Multitúnel Metal'
@@ -138,18 +167,18 @@ export class CiclosCultivoComponent implements OnInit {
     this.modalNaveVisible.set(false);
   }
 
-  sugerirCodigo(cod: string): void {
-    this.naveForm.patchValue({ codigo_nave: cod });
-  }
-
   onSubmitNave(): void {
-    if (this.naveForm.invalid) return;
+    if (this.naveForm.invalid) {
+      this.naveForm.markAllAsTouched();
+      return;
+    }
 
+    const val = this.naveForm.getRawValue();
     const dto: CrearNaveDto = {
-      codigoNave: this.naveForm.value.codigo_nave.trim().toUpperCase(),
-      nombre: this.naveForm.value.nombre.trim(),
-      superficieM2: Number(this.naveForm.value.superficie_m2),
-      tipoEstructura: this.naveForm.value.tipo_estructura
+      codigoNave: String(val.codigo_nave).trim().toUpperCase(),
+      nombre: String(val.nombre).trim(),
+      superficieM2: Number(val.superficie_m2),
+      tipoEstructura: String(val.tipo_estructura)
     };
 
     console.log('📤 [POST Botón Guardar Nave] Enviando DTO CrearNave a la API:', dto);
@@ -166,6 +195,7 @@ export class CiclosCultivoComponent implements OnInit {
         } else {
           this.mensajeExito.set(res.mensaje);
           this.cerrarModalNave();
+          this.recargarDatos();
         }
       },
       error: (err) => {
@@ -201,14 +231,18 @@ export class CiclosCultivoComponent implements OnInit {
   }
 
   onSubmitCiclo(): void {
-    if (this.cicloForm.invalid) return;
+    if (this.cicloForm.invalid) {
+      this.cicloForm.markAllAsTouched();
+      return;
+    }
 
+    const val = this.cicloForm.getRawValue();
     const dto: CrearCicloDto = {
-      idNave: Number(this.cicloForm.value.id_nave),
-      temporada: this.cicloForm.value.temporada,
-      variedad: this.cicloForm.value.variedad.trim(),
-      fechaInicio: this.cicloForm.value.fecha_inicio,
-      fechaTerminoEstimada: this.cicloForm.value.fecha_termino_estimada || undefined
+      idNave: Number(val.id_nave),
+      temporada: val.temporada,
+      variedad: String(val.variedad).trim(),
+      fechaInicio: val.fecha_inicio,
+      fechaTerminoEstimada: val.fecha_termino_estimada || undefined
     };
 
     console.log('📤 [POST Botón Aperturar Ciclo] Enviando DTO CrearCiclo a la API:', dto);
@@ -225,6 +259,7 @@ export class CiclosCultivoComponent implements OnInit {
         } else {
           this.mensajeExito.set(res.mensaje);
           this.cerrarModalCiclo();
+          this.recargarDatos();
         }
       },
       error: (err) => {

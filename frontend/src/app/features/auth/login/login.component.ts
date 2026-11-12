@@ -29,8 +29,6 @@ import { AuthService } from '../../../core/services/auth.service';
     LucideLock,
     LucideEye,
     LucideEyeOff,
-    LucideCloud,
-    LucideLaptop,
     LucideSprout,
     LucideAlertCircle
   ],
@@ -42,20 +40,16 @@ export class LoginComponent {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
-  // Formulario reactivo con validaciones de email y longitud mínima de contraseña
+  // Formulario reactivo con campos vacíos por defecto
   readonly loginForm: FormGroup = this.fb.group({
-    email: ['admin@predia.cl', [Validators.required, Validators.email]],
-    password: ['AdminPredIA2026!', [Validators.required, Validators.minLength(6)]]
+    email: ['', [Validators.required, Validators.email]],
+    password: ['', [Validators.required, Validators.minLength(6)]]
   });
 
   // Señales reactivas para el estado de la vista
   readonly cargando = signal(false);
   readonly mensajeError = signal<string | string[] | null>(null);
   readonly mostrarPassword = signal(false);
-
-  // Direcciones base configurables para el backend
-  readonly urlRender = 'https://predia-backend.onrender.com/api';
-  readonly urlLocal = 'http://localhost:3000/api';
 
   /**
    * Determina si el valor recibido corresponde a un arreglo
@@ -77,13 +71,6 @@ export class LoginComponent {
    */
   alternarMostrarPassword(): void {
     this.mostrarPassword.update((v) => !v);
-  }
-
-  /**
-   * Cambia la URL base del servicio de autenticación entre el servidor local y el remoto en la nube
-   */
-  cambiarEntornoApi(url: string): void {
-    this.authService.setBaseUrl(url);
   }
 
   /**

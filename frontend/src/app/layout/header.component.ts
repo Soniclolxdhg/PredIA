@@ -21,33 +21,6 @@ export class HeaderComponent {
   readonly erpService = inject(ErpDataService);
   @Output() toggleSidebar = new EventEmitter<void>();
 
-  // Lista de perfiles disponibles para alternar
-  readonly roles: RolUsuario[] = ['ADMINISTRADOR', 'AGRONOMO', 'BODEGUERO', 'GERENTE'];
-
-  /**
-   * Retorna el emoji asociado a cada perfil de usuario
-   */
-  getIconoRol(rol: RolUsuario): string {
-    switch (rol) {
-      case 'ADMINISTRADOR': return '👑';
-      case 'AGRONOMO': return '🌱';
-      case 'BODEGUERO': return '📦';
-      case 'GERENTE': return '📊';
-    }
-  }
-
-  /**
-   * Retorna las clases de Tailwind cuando un botón de rol está seleccionado
-   */
-  getBotonRolActivo(rol: RolUsuario): string {
-    switch (rol) {
-      case 'ADMINISTRADOR': return 'bg-purple-600 text-white shadow-xs font-bold';
-      case 'AGRONOMO': return 'bg-emerald-600 text-white shadow-xs font-bold';
-      case 'BODEGUERO': return 'bg-amber-600 text-white shadow-xs font-bold';
-      case 'GERENTE': return 'bg-blue-600 text-white shadow-xs font-bold';
-    }
-  }
-
   /**
    * Retorna la combinación de clases de Tailwind para la insignia del rol del usuario
    */

@@ -9,3 +9,4 @@ export const INVENTARIO_ENDPOINTS = {
   ALERTAS: '/inventario/alertas',
   ATENDER_ALERTA: (id: number) => `/inventario/alertas/${id}/atender`
 } as const;
+

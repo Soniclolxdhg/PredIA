@@ -14,31 +14,6 @@
       </p>
     </div>
 
-    <!-- Selector de Backend API -->
-    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 mb-5">
-      <div class="text-[11px] font-bold text-slate-500 mb-2">
-        <span>SERVIDOR API:</span>
-      </div>
-      <div class="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          (click)="cambiarEntornoApi(urlRender)"
-          [class]="authService.baseUrl() === urlRender ? 'bg-emerald-700 text-white font-bold shadow-xs' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'"
-          class="py-2 px-2 text-xs rounded-xl transition-all flex items-center justify-center gap-1.5">
-          <svg lucideCloud [size]="14"></svg>
-          <span>Render (Nube)</span>
-        </button>
-        <button
-          type="button"
-          (click)="cambiarEntornoApi(urlLocal)"
-          [class]="authService.baseUrl() === urlLocal ? 'bg-emerald-700 text-white font-bold shadow-xs' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'"
-          class="py-2 px-2 text-xs rounded-xl transition-all flex items-center justify-center gap-1.5">
-          <svg lucideLaptop [size]="14"></svg>
-          <span>Local (3000)</span>
-        </button>
-      </div>
-    </div>
-
     <!-- Alerta de Error -->
     <div *ngIf="mensajeError()" class="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-rose-800 text-xs mb-5 flex items-start gap-2.5">
       <svg lucideAlertCircle [size]="18" class="text-rose-600 shrink-0 mt-0.5"></svg>

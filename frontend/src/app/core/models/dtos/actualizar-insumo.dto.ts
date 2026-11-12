@@ -10,3 +10,4 @@ export interface ActualizarInsumoDto {
   stockMinimoAlerta?: number;
   esMaterialVegetal?: boolean;
 }
+

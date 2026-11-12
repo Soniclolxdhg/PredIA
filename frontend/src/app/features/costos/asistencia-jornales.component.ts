@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ErpDataService } from '../../core/services/erp-data.service';
@@ -14,8 +14,11 @@ import { ModalidadPago } from '../../core/models/enum.types';
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div class="flex items-center gap-2">
-            <span class="text-2xl">👷</span>
+            <span class="text-2xl" aria-hidden="true">👷</span>
             <h2 class="text-xl font-bold text-slate-800">Asistencia & Jornales de Mano de Obra (HU06)</h2>
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+              Prototipo
+            </span>
           </div>
           <p class="text-xs sm:text-sm text-slate-500 mt-1">
             Imputación de horas hombre y cálculo del monto devengado por modalidad de contrato.
@@ -31,10 +34,21 @@ import { ModalidadPago } from '../../core/models/enum.types';
         </button>
       </div>
 
+      <!-- Banner de Estado Prototipo -->
+      <div class="p-4 bg-amber-50 border border-amber-300 rounded-2xl text-xs sm:text-sm text-amber-900 shadow-xs flex items-start gap-3">
+        <span class="text-xl">⚠️</span>
+        <div class="space-y-1">
+          <div class="font-bold">Módulo Demostrativo / En Integración</div>
+          <p class="text-xs text-amber-800">
+            Los endpoints para asistencia y jornales de mano de obra (<code class="font-mono bg-amber-100 px-1 py-0.5 rounded">/api/costos/asistencia</code>) están pendientes de implementación en el backend. Los registros se conservan únicamente en memoria de sesión y su estado inicial es <strong>PENDIENTE</strong> hasta confirmación contable.
+          </p>
+        </div>
+      </div>
+
       <!-- Alerta de Éxito -->
       <div *ngIf="mensajeExito()" class="p-4 bg-emerald-50 border border-emerald-300 text-emerald-800 text-sm rounded-xl flex items-center justify-between">
         <span class="font-bold">✓ {{ mensajeExito() }}</span>
-        <button (click)="mensajeExito.set(null)" class="text-emerald-700 font-bold">✕</button>
+        <button (click)="mensajeExito.set(null)" class="text-emerald-700 font-bold px-2 py-1">✕</button>
       </div>
 
       <!-- Tabla de Asistencia y Jornales -->
@@ -77,6 +91,11 @@ import { ModalidadPago } from '../../core/models/enum.types';
                   </span>
                 </td>
               </tr>
+              <tr *ngIf="erpService.asistencias().length === 0">
+                <td colspan="8" class="p-8 text-center text-slate-500 text-xs">
+                  No hay jornadas registradas. Presione "Registrar Jornada de Trabajo" para imputar horas a un ciclo activo.
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -85,14 +104,17 @@ import { ModalidadPago } from '../../core/models/enum.types';
       <!-- Modal de Registro de Asistencia -->
       <div
         *ngIf="modalVisible()"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tituloModalAsistencia"
         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
         <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
           <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-            <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+            <h3 id="tituloModalAsistencia" class="font-bold text-slate-900 text-base flex items-center gap-2">
               <span>👷</span>
               <span>Registrar Jornal de Mano de Obra</span>
             </h3>
-            <button (click)="cerrarModal()" class="text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
+            <button (click)="cerrarModal()" class="text-slate-400 hover:text-slate-700 font-bold text-lg px-2">✕</button>
           </div>
 
           <form [formGroup]="asistenciaForm" (ngSubmit)="onSubmitAsistencia()" class="space-y-4">
@@ -205,6 +227,11 @@ export class AsistenciaJornalesComponent {
     modalidad_pago: ['SEMANAL', [Validators.required]]
   });
 
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    this.cerrarModal();
+  }
+
   get totalDevengado(): number {
     return this.erpService.asistencias().reduce((acc, a) => acc + a.monto_devengado, 0);
   }
@@ -227,19 +254,20 @@ export class AsistenciaJornalesComponent {
     if (this.asistenciaForm.invalid) return;
 
     const val = this.asistenciaForm.value;
+    const nuevoId = this.erpService.asistencias().length + 1;
 
     this.erpService.registrarAsistencia({
-      id_trabajador: Math.floor(Math.random() * 900) + 100,
-      nombre_trabajador: val.nombre_trabajador,
+      id_trabajador: nuevoId,
+      nombre_trabajador: val.nombre_trabajador.trim(),
       id_ciclo: Number(val.id_ciclo),
       fecha_jornada: val.fecha_jornada,
       horas_trabajadas: Number(val.horas_trabajadas),
       valor_hora_aplicado: Number(val.valor_hora_aplicado),
       modalidad_pago: val.modalidad_pago,
-      estado_pago: 'PAGADO'
+      estado_pago: 'PENDIENTE'
     });
 
-    this.mensajeExito.set(`Jornal de ${val.nombre_trabajador} registrado e imputado al ciclo.`);
+    this.mensajeExito.set(`Jornal de ${val.nombre_trabajador} registrado con estado PENDIENTE.`);
     this.cerrarModal();
   }
 }

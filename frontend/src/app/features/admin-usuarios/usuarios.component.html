@@ -3,7 +3,7 @@
   <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
     <div>
       <div class="flex items-center gap-2">
-        <span class="text-2xl">👥</span>
+        <span class="text-2xl" aria-hidden="true">👥</span>
         <h1 class="text-xl font-bold text-slate-800">Gestión de Usuarios & Control de Accesos</h1>
       </div>
       <p class="text-xs sm:text-sm text-slate-500 mt-1">
@@ -17,7 +17,7 @@
         type="button"
         (click)="sincronizarUsuarios()"
         [disabled]="authService.cargandoUsuarios()"
-        title="Consultar usuarios reales en Supabase"
+        title="Consultar usuarios reales en el backend"
         class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 font-semibold text-xs rounded-xl border border-slate-300 transition-colors touch-target">
         <span [class.animate-spin]="authService.cargandoUsuarios()">🔄</span>
         <span>Sincronizar</span>
@@ -35,14 +35,34 @@
   </div>
 
   <!-- Alertas globales de retroalimentación -->
-  <div *ngIf="mensajeExito()" class="p-4 bg-emerald-50 border border-emerald-300 text-emerald-800 text-sm rounded-xl flex items-center justify-between">
-    <span class="font-medium">✓ {{ mensajeExito() }}</span>
-    <button (click)="mensajeExito.set(null)" class="text-emerald-700 font-bold hover:text-emerald-950">✕</button>
+  <div
+    *ngIf="mensajeExito()"
+    role="status"
+    class="p-4 bg-emerald-50 border border-emerald-300 text-emerald-800 text-sm rounded-xl flex items-center justify-between shadow-xs">
+    <div class="flex items-center gap-2">
+      <span class="font-bold">✓</span>
+      <span>{{ mensajeExito() }}</span>
+    </div>
+    <button
+      type="button"
+      (click)="mensajeExito.set(null)"
+      class="text-emerald-700 font-bold hover:text-emerald-950 px-2 py-1"
+      aria-label="Cerrar notificación">✕</button>
   </div>
 
-  <div *ngIf="mensajeError() && !modalCrearAbierto()" class="p-4 bg-rose-50 border border-rose-300 text-rose-800 text-sm rounded-xl flex items-center justify-between">
-    <span class="font-medium">⚠️ {{ mensajeError() }}</span>
-    <button (click)="mensajeError.set(null)" class="text-rose-700 font-bold hover:text-rose-950">✕</button>
+  <div
+    *ngIf="mensajeError() && !modalCrearAbierto() && !modalEditarAbierto() && !modalPasswordAbierto()"
+    role="alert"
+    class="p-4 bg-rose-50 border border-rose-300 text-rose-800 text-sm rounded-xl flex items-center justify-between shadow-xs">
+    <div class="flex items-center gap-2">
+      <span class="font-bold">⚠️</span>
+      <span>{{ mensajeError() }}</span>
+    </div>
+    <button
+      type="button"
+      (click)="mensajeError.set(null)"
+      class="text-rose-700 font-bold hover:text-rose-950 px-2 py-1"
+      aria-label="Cerrar alerta">✕</button>
   </div>
 
   <!-- Tarjetas de resumen con métricas de usuarios registrados -->
@@ -65,17 +85,62 @@
     </div>
   </div>
 
+  <!-- Filtros y Búsqueda -->
+  <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+    <!-- Buscador por texto -->
+    <div class="relative flex-1">
+      <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">🔍</span>
+      <input
+        type="text"
+        [value]="busqueda()"
+        (input)="busqueda.set($any($event.target).value)"
+        placeholder="Buscar por nombre, RUT o correo electrónico..."
+        aria-label="Buscar usuario"
+        class="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-300 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none" />
+    </div>
+
+    <!-- Filtro por Rol -->
+    <div class="flex items-center gap-2">
+      <label class="text-xs font-semibold text-slate-600 whitespace-nowrap">Rol:</label>
+      <select
+        [value]="filtroRol()"
+        (change)="filtroRol.set($any($event.target).value)"
+        aria-label="Filtrar por rol"
+        class="py-2 px-3 text-xs rounded-xl border border-slate-300 bg-white font-medium focus:border-emerald-600 focus:outline-none">
+        <option value="TODOS">Todos los roles</option>
+        <option value="ADMINISTRADOR">Administrador</option>
+        <option value="AGRONOMO">Agrónomo</option>
+        <option value="BODEGUERO">Bodeguero</option>
+        <option value="GERENTE">Gerente</option>
+      </select>
+    </div>
+
+    <!-- Filtro por Estado -->
+    <div class="flex items-center gap-2">
+      <label class="text-xs font-semibold text-slate-600 whitespace-nowrap">Estado:</label>
+      <select
+        [value]="filtroEstado()"
+        (change)="filtroEstado.set($any($event.target).value)"
+        aria-label="Filtrar por estado"
+        class="py-2 px-3 text-xs rounded-xl border border-slate-300 bg-white font-medium focus:border-emerald-600 focus:outline-none">
+        <option value="TODOS">Todos</option>
+        <option value="ACTIVO">Activos</option>
+        <option value="INACTIVO">Inactivos</option>
+      </select>
+    </div>
+  </div>
+
   <!-- Tabla principal con listado de colaboradores -->
   <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
     <div class="p-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/60">
       <div class="font-bold text-sm text-slate-800 flex items-center gap-2">
         <span>Listado Oficial de Cuentas Santa Laura Ltda.</span>
         <span *ngIf="authService.cargandoUsuarios()" class="text-xs text-slate-500 animate-pulse font-normal">
-          (Consultando Supabase...)
+          (Consultando backend...)
         </span>
       </div>
       <div class="text-xs text-slate-500">
-        {{ authService.usuarios().length }} colaboradores registrados en el sistema.
+        Mostrando {{ usuariosFiltrados().length }} de {{ authService.usuarios().length }} colaboradores.
       </div>
     </div>
 
@@ -85,7 +150,7 @@
       <p class="text-xs text-slate-600 font-medium">Cargando nómina de colaboradores desde la API...</p>
     </div>
 
-    <!-- Estado vacío si no hay usuarios registrados -->
+    <!-- Estado vacío si no hay usuarios registrados en el sistema -->
     <div
       *ngIf="!authService.cargandoUsuarios() && authService.usuarios().length === 0"
       class="p-8 text-center bg-white">
@@ -98,9 +163,22 @@
       </p>
     </div>
 
+    <!-- Estado vacío tras filtro -->
+    <div
+      *ngIf="!authService.cargandoUsuarios() && authService.usuarios().length > 0 && usuariosFiltrados().length === 0"
+      class="p-8 text-center bg-white">
+      <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto text-2xl mb-3">
+        🔍
+      </div>
+      <h4 class="font-bold text-slate-800 text-sm">No se encontraron usuarios</h4>
+      <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+        No hay colaboradores que coincidan con el término de búsqueda o filtros seleccionados.
+      </p>
+    </div>
+
     <!-- Tabla con usuarios reales -->
     <div
-      *ngIf="!authService.cargandoUsuarios() && authService.usuarios().length > 0"
+      *ngIf="!authService.cargandoUsuarios() && usuariosFiltrados().length > 0"
       class="overflow-x-auto">
       <table class="w-full text-left text-sm text-slate-700">
         <thead class="bg-slate-100 text-xs uppercase text-slate-600 tracking-wider">
@@ -114,7 +192,7 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100 font-medium">
-          <tr *ngFor="let u of authService.usuarios()" class="hover:bg-slate-50 transition-colors">
+          <tr *ngFor="let u of usuariosFiltrados()" class="hover:bg-slate-50 transition-colors">
             <td class="p-3 sm:p-4">
               <div class="flex items-center gap-2.5">
                 <div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-xs">
@@ -142,24 +220,37 @@
               </span>
             </td>
             <td class="p-3 sm:p-4 text-center">
-              <div class="flex items-center justify-center gap-1.5">
+              <div class="flex items-center justify-center gap-1.5 flex-wrap">
+                <!-- Botón para Editar Usuario -->
+                <button
+                  type="button"
+                  (click)="abrirModalEditar(u)"
+                  title="Editar datos del usuario"
+                  class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors border border-slate-300 touch-target inline-flex items-center gap-1">
+                  <span>✏️</span>
+                  <span>Editar</span>
+                </button>
+
                 <!-- Botón para abrir modal de reseteo de clave -->
                 <button
                   type="button"
                   (click)="abrirModalPassword(u)"
                   title="Cambiar Contraseña"
-                  class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors border border-slate-300 touch-target">
-                  🔑 Clave
+                  class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors border border-slate-300 touch-target inline-flex items-center gap-1">
+                  <span>🔑</span>
+                  <span>Clave</span>
                 </button>
 
                 <!-- Botón para alternar cuenta entre activa o desactivada -->
                 <button
                   type="button"
                   (click)="alternarEstado(u)"
+                  [disabled]="actualizandoEstado() === u.id_usuario"
                   [title]="u.activo ? 'Desactivar Cuenta' : 'Activar Cuenta'"
                   [class]="u.activo ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-300' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-300'"
-                  class="px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors border touch-target">
-                  {{ u.activo ? 'Desactivar' : 'Habilitar' }}
+                  class="px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors border touch-target inline-flex items-center gap-1 disabled:opacity-50">
+                  <span *ngIf="actualizandoEstado() === u.id_usuario" class="animate-spin text-[10px]">🔄</span>
+                  <span>{{ u.activo ? 'Desactivar' : 'Habilitar' }}</span>
                 </button>
               </div>
             </td>
@@ -172,22 +263,34 @@
   <!-- Ventana modal para registro de nuevo usuario -->
   <div
     *ngIf="modalCrearAbierto()"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="tituloModalCrear"
     class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
     <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
       <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+        <h3 id="tituloModalCrear" class="text-base font-bold text-slate-800 flex items-center gap-2">
           <span>👤</span>
-          <span>Crear Nuevo Usuario en Supabase</span>
+          <span>Crear Nuevo Usuario en el Sistema</span>
         </h3>
-        <button (click)="cerrarModalCrear()" class="text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
+        <button
+          type="button"
+          (click)="cerrarModalCrear()"
+          aria-label="Cerrar ventana"
+          class="text-slate-400 hover:text-slate-700 font-bold text-lg px-2">✕</button>
       </div>
 
-      <!-- Alerta de Error DENTRO del modal (Muestra rechazo por duplicado 409) -->
+      <!-- Alerta de Error DENTRO del modal (Muestra rechazo por duplicado 409 o validación) -->
       <div
         *ngIf="mensajeError()"
+        role="alert"
         class="p-3.5 bg-rose-50 border border-rose-300 text-rose-800 text-xs rounded-xl flex items-center justify-between mb-4">
         <span class="font-bold">⚠️ {{ mensajeError() }}</span>
-        <button type="button" (click)="mensajeError.set(null)" class="text-rose-600 font-bold hover:text-rose-900">✕</button>
+        <button
+          type="button"
+          (click)="mensajeError.set(null)"
+          aria-label="Cerrar error"
+          class="text-rose-600 font-bold hover:text-rose-900 px-1">✕</button>
       </div>
 
       <form [formGroup]="crearUsuarioForm" (ngSubmit)="onSubmitCrearUsuario()" class="space-y-4">
@@ -264,7 +367,7 @@
           </div>
         </div>
 
-        <!-- Campo: Contraseña Inicial -->
+        <!-- Campo: Contraseña Inicial (Sin prellenar) -->
         <div>
           <label class="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">
             Contraseña Inicial *
@@ -273,6 +376,7 @@
             type="password"
             formControlName="password"
             placeholder="Mínimo 6 caracteres"
+            autocomplete="new-password"
             [class.border-rose-400]="crearUsuarioForm.get('password')?.touched && crearUsuarioForm.get('password')?.invalid"
             class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none" />
           <div *ngIf="crearUsuarioForm.get('password')?.touched && crearUsuarioForm.get('password')?.invalid" class="text-[11px] text-rose-600 mt-1">
@@ -295,7 +399,135 @@
             [disabled]="crearUsuarioForm.invalid || guardandoUsuario()"
             class="inline-flex items-center gap-2 px-5 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-semibold text-sm rounded-xl shadow-xs transition-colors">
             <span *ngIf="guardandoUsuario()" class="inline-block animate-spin">🔄</span>
-            <span>{{ guardandoUsuario() ? 'Guardando en Supabase...' : 'Guardar Usuario' }}</span>
+            <span>{{ guardandoUsuario() ? 'Guardando...' : 'Guardar Usuario' }}</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Ventana modal para EDICIÓN de usuario existente -->
+  <div
+    *ngIf="modalEditarAbierto() && usuarioSeleccionado()"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="tituloModalEditar"
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <h3 id="tituloModalEditar" class="text-base font-bold text-slate-800 flex items-center gap-2">
+          <span>✏️</span>
+          <span>Editar Usuario #{{ usuarioSeleccionado()?.id_usuario }}</span>
+        </h3>
+        <button
+          type="button"
+          (click)="cerrarModalEditar()"
+          aria-label="Cerrar ventana"
+          class="text-slate-400 hover:text-slate-700 font-bold text-lg px-2">✕</button>
+      </div>
+
+      <!-- Alerta de Error DENTRO del modal de edición -->
+      <div
+        *ngIf="mensajeError()"
+        role="alert"
+        class="p-3.5 bg-rose-50 border border-rose-300 text-rose-800 text-xs rounded-xl flex items-center justify-between mb-4">
+        <span class="font-bold">⚠️ {{ mensajeError() }}</span>
+        <button
+          type="button"
+          (click)="mensajeError.set(null)"
+          aria-label="Cerrar error"
+          class="text-rose-600 font-bold hover:text-rose-900 px-1">✕</button>
+      </div>
+
+      <form [formGroup]="editarUsuarioForm" (ngSubmit)="onSubmitEditarUsuario()" class="space-y-4">
+        <!-- Campo: Nombre Completo -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">
+            Nombre Completo *
+          </label>
+          <input
+            type="text"
+            formControlName="nombre_completo"
+            [class.border-rose-400]="editarUsuarioForm.get('nombre_completo')?.touched && editarUsuarioForm.get('nombre_completo')?.invalid"
+            class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none" />
+          <div *ngIf="editarUsuarioForm.get('nombre_completo')?.touched && editarUsuarioForm.get('nombre_completo')?.invalid" class="text-[11px] text-rose-600 mt-1">
+            <span *ngIf="editarUsuarioForm.get('nombre_completo')?.errors?.['required']">El nombre es obligatorio.</span>
+            <span *ngIf="editarUsuarioForm.get('nombre_completo')?.errors?.['minlength']">Mínimo 3 caracteres.</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <!-- Campo: RUT (Solo lectura) -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">
+              RUT (Identificador)
+            </label>
+            <input
+              type="text"
+              [value]="usuarioSeleccionado()?.rut"
+              disabled
+              class="w-full p-2.5 text-sm font-mono rounded-xl border border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed" />
+          </div>
+
+          <!-- Campo: Rol -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">
+              Rol Asignado *
+            </label>
+            <select
+              formControlName="rol"
+              class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:border-emerald-600 focus:outline-none bg-white">
+              <option value="AGRONOMO">AGRÓNOMO (Campo)</option>
+              <option value="BODEGUERO">BODEGUERO (Insumos)</option>
+              <option value="GERENTE">GERENTE (Costos/KPI)</option>
+              <option value="ADMINISTRADOR">ADMINISTRADOR (Total)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Campo: Correo Electrónico -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">
+            Correo Electrónico *
+          </label>
+          <input
+            type="email"
+            formControlName="email"
+            [class.border-rose-400]="editarUsuarioForm.get('email')?.touched && editarUsuarioForm.get('email')?.invalid"
+            class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none" />
+          <div *ngIf="editarUsuarioForm.get('email')?.touched && editarUsuarioForm.get('email')?.invalid" class="text-[11px] text-rose-600 mt-1">
+            <span *ngIf="editarUsuarioForm.get('email')?.errors?.['required']">El correo es obligatorio.</span>
+            <span *ngIf="editarUsuarioForm.get('email')?.errors?.['email']">Ingrese un correo válido.</span>
+          </div>
+        </div>
+
+        <!-- Campo: Estado Activo -->
+        <div class="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+          <input
+            type="checkbox"
+            id="checkboxActivo"
+            formControlName="activo"
+            class="w-4 h-4 text-emerald-600 rounded-sm focus:ring-emerald-500 border-slate-300" />
+          <label for="checkboxActivo" class="text-xs font-bold text-slate-700 cursor-pointer">
+            Cuenta Habilitada (Permite acceso al sistema)
+          </label>
+        </div>
+
+        <!-- Acciones del Modal -->
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+          <button
+            type="button"
+            (click)="cerrarModalEditar()"
+            [disabled]="guardandoEdicion()"
+            class="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800">
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            [disabled]="editarUsuarioForm.invalid || guardandoEdicion()"
+            class="inline-flex items-center gap-2 px-5 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-semibold text-sm rounded-xl shadow-xs transition-colors">
+            <span *ngIf="guardandoEdicion()" class="inline-block animate-spin">🔄</span>
+            <span>{{ guardandoEdicion() ? 'Actualizando...' : 'Guardar Cambios' }}</span>
           </button>
         </div>
       </form>
@@ -305,14 +537,34 @@
   <!-- Ventana modal para cambiar o restablecer contraseña -->
   <div
     *ngIf="modalPasswordAbierto() && usuarioSeleccionado()"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="tituloModalPassword"
     class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
     <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
       <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+        <h3 id="tituloModalPassword" class="text-base font-bold text-slate-800 flex items-center gap-2">
           <span>🔑</span>
           <span>Cambiar Contraseña</span>
         </h3>
-        <button (click)="cerrarModalPassword()" class="text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
+        <button
+          type="button"
+          (click)="cerrarModalPassword()"
+          aria-label="Cerrar ventana"
+          class="text-slate-400 hover:text-slate-700 font-bold text-lg px-2">✕</button>
+      </div>
+
+      <!-- Alerta de Error DENTRO del modal de password -->
+      <div
+        *ngIf="mensajeError()"
+        role="alert"
+        class="p-3.5 bg-rose-50 border border-rose-300 text-rose-800 text-xs rounded-xl flex items-center justify-between mb-4">
+        <span class="font-bold">⚠️ {{ mensajeError() }}</span>
+        <button
+          type="button"
+          (click)="mensajeError.set(null)"
+          aria-label="Cerrar error"
+          class="text-rose-600 font-bold hover:text-rose-900 px-1">✕</button>
       </div>
 
       <p class="text-xs text-slate-600 mb-4">
@@ -329,6 +581,7 @@
             type="password"
             formControlName="nuevaPassword"
             placeholder="Mínimo 6 caracteres"
+            autocomplete="new-password"
             class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:border-emerald-600 focus:outline-none" />
           <div *ngIf="passwordForm.get('nuevaPassword')?.touched && passwordForm.get('nuevaPassword')?.invalid" class="text-[11px] text-rose-600 mt-1">
             La contraseña debe tener al menos 6 caracteres.
@@ -343,6 +596,7 @@
             type="password"
             formControlName="confirmarPassword"
             placeholder="Repita la contraseña"
+            autocomplete="new-password"
             class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:border-emerald-600 focus:outline-none" />
           <div *ngIf="passwordMismatch()" class="text-[11px] text-rose-600 mt-1">
             Las contraseñas ingresadas no coinciden.
@@ -353,14 +607,16 @@
           <button
             type="button"
             (click)="cerrarModalPassword()"
+            [disabled]="guardandoPassword()"
             class="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800">
             Cancelar
           </button>
           <button
             type="submit"
-            [disabled]="passwordForm.invalid || passwordMismatch()"
-            class="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-semibold text-sm rounded-xl shadow-xs transition-colors">
-            Actualizar Clave
+            [disabled]="passwordForm.invalid || passwordMismatch() || guardandoPassword()"
+            class="inline-flex items-center gap-2 px-5 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-semibold text-sm rounded-xl shadow-xs transition-colors">
+            <span *ngIf="guardandoPassword()" class="inline-block animate-spin">🔄</span>
+            <span>{{ guardandoPassword() ? 'Actualizando...' : 'Actualizar Clave' }}</span>
           </button>
         </div>
       </form>

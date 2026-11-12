@@ -5,17 +5,17 @@ import { Observable, of, tap, catchError, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { LoginRequest, LoginResponse, RolUsuario, Usuario } from '../models/auth.models';
 import { AUTH_ENDPOINTS } from '../constants/auth.endpoints';
-import { RegistroUsuarioDto } from '../models/dtos';
+import { RegistroUsuarioDto, ActualizarUsuarioDto } from '../models/dtos';
 
-// Claves de almacenamiento local para persistencia de sesión
-const TOKEN_KEY = 'predia_access_token';
-const USER_KEY = 'predia_usuario_sesion';
-const API_URL_KEY = 'predia_api_base_url';
+// Claves de almacenamiento de sesión de pestaña (SessionStorage)
+const TOKEN_KEY = 'predia_tab_token';
+const USER_KEY = 'predia_tab_user';
 
 /**
  * Servicio Central de Autenticación y Control de Accesos (RBAC).
  * Gestiona el ciclo de vida de la sesión mediante Angular Signals,
- * el token de autenticación JWT y el listado real de usuarios sincronizado con Supabase.
+ * el token de autenticación JWT almacenado en sessionStorage (memoria de pestaña)
+ * y el listado oficial de usuarios sincronizado con Supabase vía NestJS.
  */
 @Injectable({
   providedIn: 'root'
@@ -24,20 +24,14 @@ export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
 
-  // Señal con la dirección base del servidor backend (configurable en tiempo de ejecución)
-  readonly baseUrl = signal<string>(
-    localStorage.getItem(API_URL_KEY) || environment.apiUrl
-  );
+  // Dirección base oficial del backend (fijada desde el entorno, sin dependencia de LocalStorage)
+  readonly baseUrl = signal<string>(environment.apiUrl);
 
-  // Señal con el token de acceso JWT del usuario autenticado
-  readonly token = signal<string | null>(
-    localStorage.getItem(TOKEN_KEY)
-  );
+  // Señal con el token de acceso JWT del usuario autenticado (almacenado exclusivamente en sessionStorage)
+  readonly token = signal<string | null>(this.recuperarTokenInicial());
 
   // Señal con la información del colaborador actualmente logueado
-  readonly currentUser = signal<Usuario | null>(
-    this.recuperarUsuarioInicial()
-  );
+  readonly currentUser = signal<Usuario | null>(this.recuperarUsuarioInicial());
 
   // Señal reactiva con la lista de usuarios administrables (cargada exclusivamente vía API)
   readonly usuarios = signal<Usuario[]>([]);
@@ -63,39 +57,42 @@ export class AuthService {
   readonly canAccessWeather = computed(() => this.isAdmin() || this.isAgronomo() || this.isGerente());
 
   constructor() {
-    // Purgar de LocalStorage cualquier lista obsoleta o datos mock anteriores
+    // Purgar de forma estricta cualquier residuo previo en localStorage
     if (typeof localStorage !== 'undefined') {
-      localStorage.removeItem('predia_usuarios_lista');
-      localStorage.removeItem('predia_usuarios_list');
+      try {
+        localStorage.removeItem('predia_access_token');
+        localStorage.removeItem('predia_usuario_sesion');
+        localStorage.removeItem('predia_api_base_url');
+        localStorage.removeItem('predia_usuarios_lista');
+        localStorage.removeItem('predia_usuarios_list');
+      } catch {
+        // Ignorar excepciones en navegadores con sandbox restringido
+      }
     }
 
-    // Si hay token o sesión, consulta los usuarios reales desde la API
+    // Si hay token en la pestaña, consulta inmediatamente la lista oficial desde el backend
     if (this.token()) {
-      this.cargarUsuarios().subscribe();
+      this.cargarUsuarios().subscribe({ error: () => {} });
     }
   }
 
+  private recuperarTokenInicial(): string | null {
+    if (typeof sessionStorage === 'undefined') return null;
+    return sessionStorage.getItem(TOKEN_KEY);
+  }
+
   /**
-   * Recupera el usuario guardado en el navegador o crea un usuario inicial por defecto
+   * Recupera el usuario guardado en la pestaña o retorna null (sin usuarios mock por defecto)
    */
   private recuperarUsuarioInicial(): Usuario | null {
-    const raw = localStorage.getItem(USER_KEY);
-    if (!raw) {
-      const inicial: Usuario = {
-        id_usuario: 1,
-        nombre_completo: 'Administrador General',
-        rut: '11.111.111-1',
-        email: 'admin@predia.cl',
-        rol: 'ADMINISTRADOR',
-        activo: true
-      };
-      return inicial;
-    }
+    if (typeof sessionStorage === 'undefined') return null;
+    const raw = sessionStorage.getItem(USER_KEY);
+    if (!raw) return null;
     try {
       const parsed = JSON.parse(raw);
       return this.normalizarUsuario(parsed);
     } catch {
-      localStorage.removeItem(USER_KEY);
+      sessionStorage.removeItem(USER_KEY);
       return null;
     }
   }
@@ -105,33 +102,32 @@ export class AuthService {
    */
   private normalizarUsuario(raw: any): Usuario {
     return {
-      id_usuario: raw.id_usuario ?? raw.idUsuario ?? 1,
-      nombre_completo: raw.nombre_completo ?? raw.nombreCompleto ?? 'Usuario PredIA',
-      rut: raw.rut ?? '11.111.111-1',
-      email: raw.email ?? 'usuario@predia.cl',
-      rol: raw.rol ?? 'AGRONOMO',
-      activo: raw.activo ?? true
+      id_usuario: raw.id_usuario ?? raw.idUsuario ?? 0,
+      nombre_completo: raw.nombre_completo ?? raw.nombreCompleto ?? 'Usuario',
+      rut: raw.rut ?? '',
+      email: raw.email ?? '',
+      rol: (raw.rol as RolUsuario) ?? 'AGRONOMO',
+      activo: Boolean(raw.activo !== undefined ? raw.activo : true)
     };
   }
 
   /**
-   * Actualiza la URL del servidor API
-   */
-  setBaseUrl(url: string): void {
-    const sanitized = url.trim().replace(/\/+$/, '');
-    this.baseUrl.set(sanitized);
-    localStorage.setItem(API_URL_KEY, sanitized);
-  }
-
-  /**
-   * Retorna el token JWT activo o un token sustituto para funcionamiento local
+   * Retorna el token JWT activo o null si no hay sesión
    */
   getToken(): string | null {
-    return this.token() || 'demo_token_jwt_predia_2026';
+    return this.token();
   }
 
   /**
-   * Consulta la lista real de usuarios registrados en Supabase PostgreSQL a través del backend NestJS
+   * Permite actualizar en memoria la dirección base si el entorno lo requiere
+   */
+  setBaseUrl(url: string): void {
+    const sanitized = url.replace(/\/+$/, '');
+    this.baseUrl.set(sanitized);
+  }
+
+  /**
+   * Carga la nómina real de colaboradores desde la base de datos de Supabase vía NestJS
    */
   cargarUsuarios(): Observable<Usuario[]> {
     this.cargandoUsuarios.set(true);
@@ -139,44 +135,44 @@ export class AuthService {
     console.log(`📤 [GET ${AUTH_ENDPOINTS.USUARIOS}] Consultando usuarios en el servidor...`);
 
     return this.http.get<any[]>(url).pipe(
-      map((listaRaw) => (Array.isArray(listaRaw) ? listaRaw.map(this.normalizarUsuario) : [])),
+      map((listaRaw) => (Array.isArray(listaRaw) ? listaRaw.map(this.normalizarUsuario.bind(this)) : [])),
       tap((usuarios) => {
-        if (usuarios.length > 0) {
-          this.usuarios.set(usuarios);
-        }
+        this.usuarios.set(usuarios);
         this.cargandoUsuarios.set(false);
-        console.log(`📥 [GET ${AUTH_ENDPOINTS.USUARIOS}] ${usuarios.length} usuarios recibidos de Supabase/API:`, usuarios);
+        console.log(`📥 [GET ${AUTH_ENDPOINTS.USUARIOS}] ${usuarios.length} usuarios recibidos del backend:`, usuarios);
       }),
       catchError((err) => {
         this.cargandoUsuarios.set(false);
-        console.warn(`⚠️ [GET ${AUTH_ENDPOINTS.USUARIOS}] No fue posible obtener usuarios del backend:`, err.status, err.message);
+        console.warn(`⚠️ [GET ${AUTH_ENDPOINTS.USUARIOS}] Error al consultar usuarios:`, err.status, err.message);
         return of(this.usuarios());
       })
     );
   }
 
   /**
-   * Ejecuta la autenticación contra el backend mediante petición HTTP POST
+   * Ejecuta la autenticación real contra el endpoint /auth/login del backend
    */
   login(credenciales: LoginRequest): Observable<LoginResponse> {
     const url = `${this.baseUrl()}${AUTH_ENDPOINTS.LOGIN}`;
     return this.http.post<LoginResponse>(url, credenciales).pipe(
       tap((res) => {
         const normalizado = this.normalizarUsuario(res.usuario);
-        localStorage.setItem(TOKEN_KEY, res.accessToken);
-        localStorage.setItem(USER_KEY, JSON.stringify(normalizado));
+        if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.setItem(TOKEN_KEY, res.accessToken);
+          sessionStorage.setItem(USER_KEY, JSON.stringify(normalizado));
+        }
         this.token.set(res.accessToken);
         this.currentUser.set(normalizado);
         // Cargar usuarios inmediatamente tras autenticarse con éxito
-        this.cargarUsuarios().subscribe();
+        this.cargarUsuarios().subscribe({ error: () => {} });
       })
     );
   }
 
   /**
    * Registra un nuevo usuario en la base de datos de Supabase vía NestJS.
-   * Valida la respuesta HTTP: SOLO si la API responde 201 Created se guarda el usuario.
-   * Si la API responde 409 Conflict o error, NO se guarda en localStorage y se informa el error.
+   * Valida la respuesta HTTP: SOLO si la API responde 201 Created se añade a la lista.
+   * Si la API responde 409 Conflict o error, NO se añade y se informa el error.
    */
   crearUsuario(dto: {
     nombre_completo: string;
@@ -185,33 +181,21 @@ export class AuthService {
     password?: string;
     rol: RolUsuario;
   }): Observable<{ exito: boolean; mensaje: string; usuario?: Usuario }> {
-    const registroPayload: RegistroUsuarioDto = {
+    const payload: RegistroUsuarioDto = {
       nombreCompleto: dto.nombre_completo.trim(),
       rut: dto.rut.trim(),
       email: dto.email.trim().toLowerCase(),
-      password: dto.password || 'PredIA2026!',
+      password: dto.password || '',
       rol: dto.rol
     };
 
     const url = `${this.baseUrl()}${AUTH_ENDPOINTS.REGISTRO}`;
-    console.log(`📤 [POST ${AUTH_ENDPOINTS.REGISTRO}] Enviando registro de usuario a Supabase:`, {
-      nombreCompleto: registroPayload.nombreCompleto,
-      rut: registroPayload.rut,
-      email: registroPayload.email,
-      rol: registroPayload.rol
-    });
+    console.log(`📤 [POST ${AUTH_ENDPOINTS.REGISTRO}] Enviando payload de registro a la API:`, payload);
 
-    return this.http.post<any>(url, registroPayload).pipe(
+    return this.http.post<any>(url, payload).pipe(
       map((res) => {
-        console.log(`📥 [POST ${AUTH_ENDPOINTS.REGISTRO}] Usuario creado con éxito en Supabase:`, res);
-        const nuevoRaw = res?.usuario ?? {
-          id_usuario: this.usuarios().length + 1,
-          nombre_completo: registroPayload.nombreCompleto,
-          rut: registroPayload.rut,
-          email: registroPayload.email,
-          rol: registroPayload.rol,
-          activo: true
-        };
+        console.log(`📥 [POST ${AUTH_ENDPOINTS.REGISTRO}] Respuesta exitosa del servidor:`, res);
+        const nuevoRaw = res?.usuario || res;
         const nuevo = this.normalizarUsuario(nuevoRaw);
 
         // Agrega a la señal en memoria SOLO tras confirmación positiva de la base de datos
@@ -242,7 +226,6 @@ export class AuthService {
           mensaje = 'El correo electrónico o RUT ya se encuentra registrado en el sistema.';
         }
 
-        // CRÍTICO: NO se modifica la señal de usuarios y NO se persiste nada en localStorage
         return of({
           exito: false,
           mensaje
@@ -252,68 +235,96 @@ export class AuthService {
   }
 
   /**
-   * Actualiza la contraseña de un usuario en el sistema
+   * Conecta con el endpoint de edición de usuario.
+   * Si el backend aún no implementa PATCH /auth/usuarios/:id, informa transparentemente.
    */
-  cambiarPassword(idUsuario: number, nuevaPassword: string): { exito: boolean; mensaje: string } {
-    const u = this.usuarios().find((user) => user.id_usuario === idUsuario);
-    if (!u) return { exito: false, mensaje: 'Usuario no encontrado.' };
+  actualizarUsuario(idUsuario: number, dto: ActualizarUsuarioDto): Observable<{ exito: boolean; mensaje: string; usuario?: Usuario }> {
+    const url = `${this.baseUrl()}${AUTH_ENDPOINTS.USUARIO_POR_ID(idUsuario)}`;
+    console.log(`📤 [PATCH ${AUTH_ENDPOINTS.USUARIO_POR_ID(idUsuario)}] Actualizando datos de usuario #${idUsuario}:`, dto);
 
+    return this.http.patch<any>(url, dto).pipe(
+      map((res) => {
+        console.log(`📥 [PATCH ${AUTH_ENDPOINTS.USUARIO_POR_ID(idUsuario)}] Respuesta del servidor:`, res);
+        const actualizado = this.normalizarUsuario(res?.usuario || res);
+        this.usuarios.update((lista) =>
+          lista.map((u) => (u.id_usuario === idUsuario ? { ...u, ...actualizado } : u))
+        );
+        return {
+          exito: true,
+          mensaje: res?.mensaje || `Usuario ${actualizado.nombre_completo} actualizado exitosamente.`,
+          usuario: actualizado
+        };
+      }),
+      catchError((err) => {
+        console.warn(`⚠️ [PATCH ${AUTH_ENDPOINTS.USUARIO_POR_ID(idUsuario)}] Error o endpoint no disponible:`, err.status);
+        let mensaje = 'Error al actualizar el usuario en el servidor.';
+        if (err.status === 404) {
+          mensaje = `⚠️ El endpoint 'PATCH /api/auth/usuarios/${idUsuario}' aún no está implementado en el backend NestJS. La modificación no fue guardada.`;
+        } else if (err.error?.message) {
+          mensaje = Array.isArray(err.error.message) ? err.error.message.join(', ') : err.error.message;
+        }
+        return of({ exito: false, mensaje });
+      })
+    );
+  }
+
+  /**
+   * Conecta con el endpoint para conmutar estado activo/inactivo del usuario.
+   */
+  conmutarEstadoUsuario(idUsuario: number, nuevoEstado: boolean): Observable<{ exito: boolean; mensaje: string }> {
+    const url = `${this.baseUrl()}${AUTH_ENDPOINTS.CONMUTAR_ESTADO(idUsuario)}`;
+    console.log(`📤 [PATCH ${AUTH_ENDPOINTS.CONMUTAR_ESTADO(idUsuario)}] Cambiando estado activo=${nuevoEstado}`);
+
+    return this.http.patch<any>(url, { activo: nuevoEstado }).pipe(
+      map((res) => {
+        this.usuarios.update((lista) =>
+          lista.map((u) => (u.id_usuario === idUsuario ? { ...u, activo: nuevoEstado } : u))
+        );
+        return {
+          exito: true,
+          mensaje: res?.mensaje || `Estado del usuario #${idUsuario} actualizado a ${nuevoEstado ? 'Activo' : 'Inactivo'}.`
+        };
+      }),
+      catchError((err) => {
+        console.warn(`⚠️ [PATCH ${AUTH_ENDPOINTS.CONMUTAR_ESTADO(idUsuario)}] Error o endpoint no disponible:`, err.status);
+        let mensaje = 'Error al cambiar estado del usuario en el servidor.';
+        if (err.status === 404) {
+          mensaje = `⚠️ El endpoint 'PATCH /api/auth/usuarios/${idUsuario}/estado' aún no está implementado en el backend. El estado no fue modificado.`;
+        } else if (err.error?.message) {
+          mensaje = Array.isArray(err.error.message) ? err.error.message.join(', ') : err.error.message;
+        }
+        return of({ exito: false, mensaje });
+      })
+    );
+  }
+
+  /**
+   * Conecta con el endpoint para actualizar la contraseña de un usuario en el sistema.
+   */
+  cambiarPassword(idUsuario: number, nuevaPassword: string): Observable<{ exito: boolean; mensaje: string }> {
     if (!nuevaPassword || nuevaPassword.length < 6) {
-      return { exito: false, mensaje: 'La contraseña debe contener al menos 6 caracteres.' };
+      return of({ exito: false, mensaje: 'La contraseña debe contener al menos 6 caracteres.' });
     }
 
-    return {
-      exito: true,
-      mensaje: `Contraseña de ${u.nombre_completo} actualizada con éxito.`
-    };
-  }
+    const url = `${this.baseUrl()}${AUTH_ENDPOINTS.CAMBIAR_PASSWORD(idUsuario)}`;
+    console.log(`📤 [PATCH ${AUTH_ENDPOINTS.CAMBIAR_PASSWORD(idUsuario)}] Solicitando cambio de clave`);
 
-  /**
-   * Conmuta el estado activo o inactivo de la cuenta del usuario indicado
-   */
-  conmutarEstadoUsuario(idUsuario: number): void {
-    const nuevaLista = this.usuarios().map((u) => {
-      if (u.id_usuario === idUsuario) {
-        return { ...u, activo: !u.activo };
-      }
-      return u;
-    });
-    this.usuarios.set(nuevaLista);
-  }
-
-  /**
-   * Permite alternar la sesión activa entre los diferentes roles del sistema
-   */
-  switchDemoRole(nuevoRol: RolUsuario): void {
-    const usuarioElegido = this.usuarios().find((u) => u.rol === nuevoRol) || {
-      id_usuario: 1,
-      nombre_completo: `Usuario ${nuevoRol}`,
-      rut: '11.111.111-1',
-      email: `${nuevoRol.toLowerCase()}@predia.cl`,
-      rol: nuevoRol,
-      activo: true
-    };
-
-    const demoToken = `jwt_mock_${nuevoRol.toLowerCase()}_${Date.now()}`;
-    localStorage.setItem(TOKEN_KEY, demoToken);
-    localStorage.setItem(USER_KEY, JSON.stringify(usuarioElegido));
-    this.token.set(demoToken);
-    this.currentUser.set(usuarioElegido);
-
-    // Redirige al módulo correspondiente según los permisos del rol
-    switch (nuevoRol) {
-      case 'ADMINISTRADOR':
-        this.router.navigate(['/admin/usuarios']);
-        break;
-      case 'AGRONOMO':
-        this.router.navigate(['/produccion/ciclos']);
-        break;
-      case 'BODEGUERO':
-      case 'GERENTE':
-      default:
-        this.router.navigate(['/produccion/ciclos']);
-        break;
-    }
+    return this.http.patch<any>(url, { nuevaPassword }).pipe(
+      map((res) => ({
+        exito: true,
+        mensaje: res?.mensaje || 'Contraseña actualizada con éxito en el servidor.'
+      })),
+      catchError((err) => {
+        console.warn(`⚠️ [PATCH ${AUTH_ENDPOINTS.CAMBIAR_PASSWORD(idUsuario)}] Error o endpoint no disponible:`, err.status);
+        let mensaje = 'Error al actualizar la contraseña en el servidor.';
+        if (err.status === 404) {
+          mensaje = `⚠️ El endpoint 'PATCH /api/auth/usuarios/${idUsuario}/password' aún no está implementado en el backend. La clave no fue cambiada.`;
+        } else if (err.error?.message) {
+          mensaje = Array.isArray(err.error.message) ? err.error.message.join(', ') : err.error.message;
+        }
+        return of({ exito: false, mensaje });
+      })
+    );
   }
 
   /**
@@ -325,13 +336,16 @@ export class AuthService {
   }
 
   /**
-   * Cierra la sesión activa, elimina los tokens del almacenamiento local y redirige al login
+   * Cierra la sesión activa, elimina los tokens de la memoria de sesión y redirige al login
    */
   logout(): void {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(USER_KEY);
+    }
     this.token.set(null);
     this.currentUser.set(null);
+    this.usuarios.set([]);
     this.router.navigate(['/login']);
   }
 }

@@ -1,6 +1,14 @@
 import { AbstractControl, ValidationErrors } from '@angular/forms';
 
 /**
+ * Limpia puntos, guiones y espacios de un RUT chileno
+ */
+export function limpiarRut(rut: string): string {
+  if (!rut || typeof rut !== 'string') return '';
+  return rut.replace(/[\.\-\s]/g, '').toUpperCase();
+}
+
+/**
  * Validador oficial de RUT chileno basado en el algoritmo Módulo 11.
  * Soporta formatos: 12.345.678-9, 12345678-9, 123456789, etc.
  */
@@ -8,7 +16,7 @@ export function validarRutChileno(rutCompleto: string): boolean {
   if (!rutCompleto || typeof rutCompleto !== 'string') return false;
 
   // Limpiar puntos, guiones y espacios
-  const limpio = rutCompleto.replace(/[\.\-\s]/g, '').toUpperCase();
+  const limpio = limpiarRut(rutCompleto);
   if (limpio.length < 7 || limpio.length > 9) return false;
 
   const cuerpo = limpio.slice(0, -1);

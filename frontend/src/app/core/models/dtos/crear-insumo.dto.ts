@@ -13,3 +13,4 @@ export interface CrearInsumoDto {
   costoUnitarioInicial?: number;
   esMaterialVegetal?: boolean;
 }
+

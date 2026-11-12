@@ -25,7 +25,18 @@ export const routes: Routes = [
     component: ShellComponent,
     canActivate: [authGuard],
     children: [
-      // Mantenedor de usuarios exclusivo para Administrador
+      // Dashboard principal
+      {
+        path: 'dashboard',
+        loadComponent: () =>
+          import('./features/dashboard/dashboard.component').then((m) => m.DashboardComponent),
+        canActivate: [roleGuard],
+        data: { roles: ['ADMINISTRADOR', 'AGRONOMO', 'GERENTE', 'BODEGUERO'] }
+      },
+
+      // ==========================================
+      // ADMINISTRACIÓN (Solo Administrador)
+      // ==========================================
       {
         path: 'admin/usuarios',
         loadComponent: () =>
@@ -33,8 +44,17 @@ export const routes: Routes = [
         canActivate: [roleGuard],
         data: { roles: ['ADMINISTRADOR'] }
       },
+      {
+        path: 'admin/catalogos',
+        loadComponent: () =>
+          import('./features/admin-catalogos/catalogos.component').then((m) => m.CatalogosComponent),
+        canActivate: [roleGuard],
+        data: { roles: ['ADMINISTRADOR'] }
+      },
 
-      // Ciclos de cultivo e invernaderos (HU01)
+      // ==========================================
+      // MÓDULO PRODUCCIÓN & TERRENO (HU01 - HU03)
+      // ==========================================
       {
         path: 'produccion/ciclos',
         loadComponent: () =>
@@ -42,8 +62,6 @@ export const routes: Routes = [
         canActivate: [roleGuard],
         data: { roles: ['ADMINISTRADOR', 'AGRONOMO', 'GERENTE', 'BODEGUERO'] }
       },
-
-      // Checklist de inspección y supervisión física de naves en terreno
       {
         path: 'produccion/checklist',
         loadComponent: () =>
@@ -56,8 +74,6 @@ export const routes: Routes = [
         redirectTo: 'produccion/checklist',
         pathMatch: 'full'
       },
-
-      // Registro de labores agrícolas en terreno (HU02)
       {
         path: 'produccion/labores',
         loadComponent: () =>
@@ -65,8 +81,6 @@ export const routes: Routes = [
         canActivate: [roleGuard],
         data: { roles: ['ADMINISTRADOR', 'AGRONOMO'] }
       },
-
-      // Pesaje y recepción de cosecha al pie de nave (HU03)
       {
         path: 'produccion/cosechas',
         loadComponent: () =>
@@ -76,7 +90,7 @@ export const routes: Routes = [
       },
 
       // ==========================================
-      // FASE 3: MÓDULO BODEGA E INSUMOS (HU04, HU05)
+      // MÓDULO BODEGA E INSUMOS (HU04, HU05)
       // ==========================================
       {
         path: 'bodega/kardex',
@@ -92,16 +106,68 @@ export const routes: Routes = [
         canActivate: [roleGuard],
         data: { roles: ['ADMINISTRADOR', 'BODEGUERO', 'AGRONOMO', 'GERENTE'] }
       },
+
+      // ==========================================
+      // MÓDULO COSTOS & MANO DE OBRA (HU06, HU07, HU09)
+      // ==========================================
+      {
+        path: 'costos/asistencia',
+        loadComponent: () =>
+          import('./features/costos/asistencia-jornales.component').then((m) => m.AsistenciaJornalesComponent),
+        canActivate: [roleGuard],
+        data: { roles: ['ADMINISTRADOR', 'GERENTE', 'AGRONOMO'] }
+      },
+      {
+        path: 'costos/indirectos',
+        loadComponent: () =>
+          import('./features/costos/costos-indirectos.component').then((m) => m.CostosIndirectosComponent),
+        canActivate: [roleGuard],
+        data: { roles: ['ADMINISTRADOR', 'GERENTE'] }
+      },
+      {
+        path: 'costos/consolidado',
+        loadComponent: () =>
+          import('./features/costos/consolidado-costo.component').then((m) => m.ConsolidadoCostoComponent),
+        canActivate: [roleGuard],
+        data: { roles: ['ADMINISTRADOR', 'GERENTE'] }
+      },
+
+      // ==========================================
+      // MÓDULO COMERCIAL: VENTAS & CLIENTES (HU08, HU10)
+      // ==========================================
+      {
+        path: 'ventas',
+        loadComponent: () =>
+          import('./features/ventas/ventas.component').then((m) => m.VentasComponent),
+        canActivate: [roleGuard],
+        data: { roles: ['ADMINISTRADOR', 'GERENTE'] }
+      },
+
+      // ==========================================
+      // MÓDULO AGROCLIMA & HELADAS (HU11, HU12)
+      // ==========================================
+      {
+        path: 'clima',
+        loadComponent: () =>
+          import('./features/clima/clima.component').then((m) => m.ClimaComponent),
+        canActivate: [roleGuard],
+        data: { roles: ['ADMINISTRADOR', 'AGRONOMO', 'GERENTE', 'BODEGUERO'] }
+      },
+
+      // Redirecciones de conveniencia
+      {
+        path: 'produccion',
+        redirectTo: 'produccion/ciclos',
+        pathMatch: 'full'
+      },
       {
         path: 'bodega',
         redirectTo: 'bodega/kardex',
         pathMatch: 'full'
       },
-
-      // Redirecciones de conveniencia dentro del módulo de producción
       {
-        path: 'produccion',
-        redirectTo: 'produccion/ciclos',
+        path: 'costos',
+        redirectTo: 'costos/consolidado',
         pathMatch: 'full'
       },
       {
@@ -111,7 +177,7 @@ export const routes: Routes = [
       },
       {
         path: '',
-        redirectTo: 'produccion/ciclos',
+        redirectTo: 'dashboard',
         pathMatch: 'full'
       }
     ]

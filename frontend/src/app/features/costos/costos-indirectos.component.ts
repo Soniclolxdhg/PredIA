@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ErpDataService } from '../../core/services/erp-data.service';
@@ -13,8 +13,11 @@ import { ErpDataService } from '../../core/services/erp-data.service';
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div class="flex items-center gap-2">
-            <span class="text-2xl">💡</span>
+            <span class="text-2xl" aria-hidden="true">💡</span>
             <h2 class="text-xl font-bold text-slate-800">Imputación de Costos Indirectos (HU07)</h2>
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+              Prototipo
+            </span>
           </div>
           <p class="text-xs sm:text-sm text-slate-500 mt-1">
             Gastos generales de energía/bombeo, agua y mantención con criterio de prorrateo por m² o equitativo.
@@ -30,10 +33,21 @@ import { ErpDataService } from '../../core/services/erp-data.service';
         </button>
       </div>
 
+      <!-- Banner de Estado Prototipo -->
+      <div class="p-4 bg-amber-50 border border-amber-300 rounded-2xl text-xs sm:text-sm text-amber-900 shadow-xs flex items-start gap-3">
+        <span class="text-xl">⚠️</span>
+        <div class="space-y-1">
+          <div class="font-bold">Módulo Demostrativo / En Integración</div>
+          <p class="text-xs text-amber-800">
+            Los endpoints para registro de costos indirectos (<code class="font-mono bg-amber-100 px-1 py-0.5 rounded">/api/costos/indirectos</code>) están pendientes de implementación en el backend NestJS. Los cálculos son simulados en memoria y no persisten en la base de datos.
+          </p>
+        </div>
+      </div>
+
       <!-- Alerta de Éxito -->
       <div *ngIf="mensajeExito()" class="p-4 bg-emerald-50 border border-emerald-300 text-emerald-800 text-sm rounded-xl flex items-center justify-between">
         <span class="font-bold">✓ {{ mensajeExito() }}</span>
-        <button (click)="mensajeExito.set(null)" class="text-emerald-700 font-bold">✕</button>
+        <button (click)="mensajeExito.set(null)" class="text-emerald-700 font-bold px-2 py-1">✕</button>
       </div>
 
       <!-- Tabla de Costos Indirectos Imputados -->
@@ -197,6 +211,11 @@ export class CostosIndirectosComponent {
     comprobante_factura: ['', [Validators.required]],
     criterio_distribucion: ['SUPERFICIE_M2', [Validators.required]]
   });
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    this.cerrarModal();
+  }
 
   get totalIndirectos(): number {
     return this.erpService.costosIndirectos().reduce((acc, c) => acc + c.monto_total_prorrateado, 0);

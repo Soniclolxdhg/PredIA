@@ -14,3 +14,4 @@ export interface RegistrarMovimientoDto {
   documentoReferencia?: string;
   fechaMovimiento?: string;
 }
+

@@ -29,6 +29,17 @@ import { ErpDataService } from '../../core/services/erp-data.service';
         </div>
       </div>
 
+      <!-- Banner de Estado Prototipo -->
+      <div class="p-4 bg-amber-50 border border-amber-300 rounded-2xl text-xs sm:text-sm text-amber-900 shadow-xs flex items-start gap-3">
+        <span class="text-xl">⚠️</span>
+        <div class="space-y-1">
+          <div class="font-bold">Módulo Demostrativo / Motor de Costeo Estimativo</div>
+          <p class="text-xs text-amber-800">
+            El consolidado computa en memoria las imputaciones devengadas de los ciclos productivos. Los reportes contables consolidados definitivos se activarán al desplegar los endpoints de balance en el backend NestJS.
+          </p>
+        </div>
+      </div>
+
       <!-- 4 Métricas de Desglose de Costos -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <!-- Mano de Obra -->

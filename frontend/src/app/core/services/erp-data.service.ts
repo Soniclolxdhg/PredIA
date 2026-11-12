@@ -544,6 +544,32 @@ export class ErpDataService {
   }
 
   /**
+   * HU06: Registro de asistencia de mano de obra
+   */
+  registrarAsistencia(asistencia: Omit<AsistenciaJornal, 'id_asistencia' | 'monto_devengado'>): void {
+    const devengado = asistencia.horas_trabajadas * asistencia.valor_hora_aplicado;
+    const nueva: AsistenciaJornal = {
+      ...asistencia,
+      id_asistencia: this.asistencias().length + 1,
+      monto_devengado: devengado
+    };
+
+    this.imputarCostoACiclo(asistencia.id_ciclo, devengado);
+    this.asistencias.update((lista) => [nueva, ...lista]);
+  }
+
+  /**
+   * HU08: Registro de cliente comprador
+   */
+  registrarCliente(cliente: Omit<Cliente, 'id_cliente'>): void {
+    const nuevo: Cliente = {
+      ...cliente,
+      id_cliente: this.clientes().length + 1
+    };
+    this.clientes.update((lista) => [nuevo, ...lista]);
+  }
+
+  /**
    * HU07: Prorrateo de costos indirectos
    */
   registrarCostoIndirecto(costo: Omit<CostoIndirecto, 'id_costo_indirecto'>): void {
@@ -602,6 +628,12 @@ export class ErpDataService {
     return { exito: true, mensaje: `Nota de venta ${nuevaVenta.numero_nota_venta} generada exitosamente.` };
   }
 
+  generarNotaVenta(
+    venta: Omit<Venta, 'id_venta' | 'numero_nota_venta' | 'margen_bruto_operativo' | 'costo_unitario_ciclo_ref'>
+  ): { exito: boolean; mensaje: string } {
+    return this.registrarVenta(venta);
+  }
+
   /**
    * Registra una nueva inspección física de nave en terreno (Tablet / Checklist)
    */
@@ -614,23 +646,15 @@ export class ErpDataService {
   }
 
   private getLaboresDefault(): LaborAgricola[] {
-    return [
-      { id_labor: 1, id_ciclo: 1, id_usuario_responsable: 2, nombre_responsable: 'Macarena Soto', tipo_labor: 'SIEMBRA', fecha_ejecucion: '2026-08-15', horas_dedicadas: 16, observaciones_tecnicas: 'Siembra en sustrato inerte fibra de coco.' },
-      { id_labor: 2, id_ciclo: 1, id_usuario_responsable: 2, nombre_responsable: 'Macarena Soto', tipo_labor: 'RIEGO', fecha_ejecucion: '2026-09-02', horas_dedicadas: 8, observaciones_tecnicas: 'Riego por goteo con pulso matutino.' }
-    ];
+    return [];
   }
 
   private getCosechasDefault(): Cosecha[] {
-    return [
-      { id_cosecha: 1, id_ciclo: 1, id_usuario_pesaje: 2, fecha_cosecha: '2026-10-25', kilos_netos: 5200, calidad_grado: 'PRIMERA', kilos_disponibles_venta: 1200 }
-    ];
+    return [];
   }
 
   private getInsumosDefault(): Insumo[] {
-    return [
-      { id_insumo: 1, codigo_insumo: 'SEM-TOM-01', nombre: 'Semilla Tomate Larga Vida Híbrido', categoria: 'SEMILLA', unidad_medida: 'UNIDADES', stock_actual: 5000, stock_minimo_alerta: 1000, costo_unitario_promedio: 120, es_material_vegetal: true },
-      { id_insumo: 2, codigo_insumo: 'SEM-PIM-01', nombre: 'Semilla Pimiento Cuadrado Rojo', categoria: 'SEMILLA', unidad_medida: 'UNIDADES', stock_actual: 2000, stock_minimo_alerta: 500, costo_unitario_promedio: 150, es_material_vegetal: true }
-    ];
+    return [];
   }
 
   private getMovimientosDefault(): MovimientoBodega[] {
@@ -646,9 +670,7 @@ export class ErpDataService {
   }
 
   private getClientesDefault(): Cliente[] {
-    return [
-      { id_cliente: 1, rut_cliente: '76.123.456-7', razon_social: 'Distribuidora Agrícola Lo Valledor SpA', contacto_nombre: 'Hernán Silva', telefono: '+56 9 8888 7777', email: 'compras@lovalledor-dist.cl', direccion: 'Av. Cerrillos 4500, Santiago' }
-    ];
+    return [];
   }
 
   private getVentasDefault(): Venta[] {

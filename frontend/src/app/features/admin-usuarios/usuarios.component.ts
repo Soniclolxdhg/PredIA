@@ -1,15 +1,21 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, computed, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../../core/services/auth.service';
 import { RolUsuario, Usuario } from '../../core/models/auth.models';
+import { ActualizarUsuarioDto } from '../../core/models/dtos/actualizar-usuario.dto';
 import { rutChilenoValidator, formatearRutChileno } from '../../core/validators/rut.validator';
 
 /**
  * Componente del Mantenedor de Usuarios del Sistema.
  * Permite al Administrador gestionar las cuentas de usuario, asignar roles RBAC,
- * actualizar o restablecer contraseñas y habilitar o inhabilitar accesos,
- * sincronizado en tiempo real con Supabase a través del backend NestJS.
+ * editar datos, actualizar contraseñas y habilitar o inhabilitar accesos,
+ * sincronizado exclusivamente con el backend NestJS y Supabase PostgreSQL.
+ *
+ * Cumple estrictamente con las reglas de QA:
+ * - No simula persistencia si el backend responde con error o 404.
+ * - Formularios inician con contraseñas vacías (sin valores por defecto).
+ * - Cierre accesible con tecla Escape y retroalimentación honesta.
  */
 @Component({
   selector: 'app-admin-usuarios',
@@ -22,19 +28,28 @@ export class UsuariosComponent implements OnInit {
   readonly authService = inject(AuthService);
   private readonly fb = inject(FormBuilder);
 
-  // Señales reactivas para mensajes de retroalimentación al usuario
+  // Señales reactivas para mensajes de retroalimentación
   readonly mensajeExito = signal<string | null>(null);
   readonly mensajeError = signal<string | null>(null);
 
-  // Señal de estado mientras se realiza la petición de creación
+  // Estados de carga de operaciones
   readonly guardandoUsuario = signal<boolean>(false);
+  readonly guardandoEdicion = signal<boolean>(false);
+  readonly guardandoPassword = signal<boolean>(false);
+  readonly actualizandoEstado = signal<number | null>(null);
 
-  // Señales para el control de apertura y cierre de ventanas modales
+  // Señales de filtros y búsqueda
+  readonly busqueda = signal<string>('');
+  readonly filtroRol = signal<string>('TODOS');
+  readonly filtroEstado = signal<string>('TODOS');
+
+  // Control de apertura y cierre de ventanas modales
   readonly modalCrearAbierto = signal(false);
+  readonly modalEditarAbierto = signal(false);
   readonly modalPasswordAbierto = signal(false);
   readonly usuarioSeleccionado = signal<Usuario | null>(null);
 
-  // Formulario reactivo para la creación de un nuevo usuario con validaciones estrictas
+  // Formulario reactivo para la creación de usuario (sin password prellenada)
   readonly crearUsuarioForm: FormGroup = this.fb.group({
     nombre_completo: [
       '',
@@ -46,8 +61,23 @@ export class UsuariosComponent implements OnInit {
     ],
     rut: ['', [Validators.required, rutChilenoValidator]],
     email: ['', [Validators.required, Validators.email]],
-    password: ['PredIA2026!', [Validators.required, Validators.minLength(6)]],
+    password: ['', [Validators.required, Validators.minLength(6)]],
     rol: ['AGRONOMO' as RolUsuario, [Validators.required]]
+  });
+
+  // Formulario reactivo para la edición de usuario existente
+  readonly editarUsuarioForm: FormGroup = this.fb.group({
+    nombre_completo: [
+      '',
+      [
+        Validators.required,
+        Validators.minLength(3),
+        Validators.pattern(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)
+      ]
+    ],
+    email: ['', [Validators.required, Validators.email]],
+    rol: ['AGRONOMO' as RolUsuario, [Validators.required]],
+    activo: [true, [Validators.required]]
   });
 
   // Formulario reactivo para la actualización y confirmación de contraseña
@@ -56,8 +86,41 @@ export class UsuariosComponent implements OnInit {
     confirmarPassword: ['', [Validators.required]]
   });
 
+  // Lista filtrada reactivamente
+  readonly usuariosFiltrados = computed(() => {
+    const todos = this.authService.usuarios();
+    const q = this.busqueda().trim().toLowerCase();
+    const rol = this.filtroRol();
+    const estado = this.filtroEstado();
+
+    return todos.filter((u) => {
+      const coincideTexto =
+        !q ||
+        u.nombre_completo.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q) ||
+        u.rut.toLowerCase().includes(q);
+
+      const coincideRol = rol === 'TODOS' || u.rol === rol;
+      const coincideEstado =
+        estado === 'TODOS' ||
+        (estado === 'ACTIVO' && u.activo) ||
+        (estado === 'INACTIVO' && !u.activo);
+
+      return coincideTexto && coincideRol && coincideEstado;
+    });
+  });
+
+  /**
+   * Listener global de tecla Escape para accesibilidad en ventanas modales
+   */
+  @HostListener('document:keydown.escape')
+  onEscapePressed(): void {
+    if (this.modalCrearAbierto()) this.cerrarModalCrear();
+    if (this.modalEditarAbierto()) this.cerrarModalEditar();
+    if (this.modalPasswordAbierto()) this.cerrarModalPassword();
+  }
+
   ngOnInit(): void {
-    // Al cargar la vista de administración, consulta los colaboradores reales de Supabase
     this.sincronizarUsuarios();
   }
 
@@ -69,7 +132,7 @@ export class UsuariosComponent implements OnInit {
   }
 
   /**
-   * Aplica formateo visual automático al RUT chileno al desenfocar el campo (ej: 213405020 -> 21.340.502-0)
+   * Aplica formateo visual automático al RUT chileno al desenfocar el campo
    */
   onRutBlur(): void {
     const control = this.crearUsuarioForm.get('rut');
@@ -79,23 +142,14 @@ export class UsuariosComponent implements OnInit {
     }
   }
 
-  /**
-   * Cuenta la cantidad de usuarios que tienen el flag 'activo' en verdadero
-   */
   totalActivos(): number {
     return this.authService.usuarios().filter((u) => u.activo).length;
   }
 
-  /**
-   * Retorna el número de usuarios asociados a un rol específico
-   */
   totalPorRol(rol: RolUsuario): number {
     return this.authService.usuarios().filter((u) => u.rol === rol).length;
   }
 
-  /**
-   * Genera el monograma de dos iniciales (ej: 'RV') para el avatar visual del colaborador
-   */
   getIniciales(nombre: string): string {
     if (!nombre) return 'U';
     const partes = nombre.trim().split(' ');
@@ -103,9 +157,6 @@ export class UsuariosComponent implements OnInit {
     return (partes[0][0] + partes[1][0]).toUpperCase();
   }
 
-  /**
-   * Devuelve las clases CSS de Tailwind correspondientes a la insignia visual de cada rol
-   */
   getClaseBadgeRol(rol: RolUsuario): string {
     switch (rol) {
       case 'ADMINISTRADOR':
@@ -121,31 +172,24 @@ export class UsuariosComponent implements OnInit {
     }
   }
 
-  /**
-   * Abre la ventana modal para crear un nuevo usuario y resetea los campos a sus valores iniciales
-   */
+  // --- MODAL CREACIÓN ---
+
   abrirModalCrear(): void {
     this.crearUsuarioForm.reset({
       nombre_completo: '',
       rut: '',
       email: '',
-      password: 'PredIA2026!',
+      password: '',
       rol: 'AGRONOMO'
     });
     this.mensajeError.set(null);
     this.modalCrearAbierto.set(true);
   }
 
-  /**
-   * Cierra la ventana modal de creación de usuario
-   */
   cerrarModalCrear(): void {
     this.modalCrearAbierto.set(false);
   }
 
-  /**
-   * Valida y procesa el envío del formulario para dar de alta al nuevo usuario en Supabase
-   */
   onSubmitCrearUsuario(): void {
     if (this.crearUsuarioForm.invalid) {
       this.crearUsuarioForm.markAllAsTouched();
@@ -153,7 +197,7 @@ export class UsuariosComponent implements OnInit {
     }
 
     const payload = this.crearUsuarioForm.value;
-    console.log('📤 [POST Botón Guardar Usuario] Enviando datos de usuario a la API:', {
+    console.log('📤 [POST Guardar Usuario] Enviando datos a la API:', {
       nombre_completo: payload.nombre_completo,
       rut: payload.rut,
       email: payload.email,
@@ -172,6 +216,7 @@ export class UsuariosComponent implements OnInit {
           this.mensajeExito.set(res.mensaje);
           this.mensajeError.set(null);
           this.cerrarModalCrear();
+          this.sincronizarUsuarios();
         } else {
           // Si el backend responde 409 Conflict o error, se muestra el mensaje y el modal permanece abierto
           this.mensajeError.set(res.mensaje);
@@ -185,66 +230,143 @@ export class UsuariosComponent implements OnInit {
     });
   }
 
-  /**
-   * Abre la ventana modal para modificar la contraseña del usuario recibido por parámetro
-   */
+  // --- MODAL EDICIÓN ---
+
+  abrirModalEditar(usuario: Usuario): void {
+    this.usuarioSeleccionado.set(usuario);
+    this.editarUsuarioForm.reset({
+      nombre_completo: usuario.nombre_completo,
+      email: usuario.email,
+      rol: usuario.rol,
+      activo: usuario.activo
+    });
+    this.mensajeError.set(null);
+    this.modalEditarAbierto.set(true);
+  }
+
+  cerrarModalEditar(): void {
+    this.modalEditarAbierto.set(false);
+    this.usuarioSeleccionado.set(null);
+  }
+
+  onSubmitEditarUsuario(): void {
+    const user = this.usuarioSeleccionado();
+    if (!user || this.editarUsuarioForm.invalid) {
+      this.editarUsuarioForm.markAllAsTouched();
+      return;
+    }
+
+    const formVal = this.editarUsuarioForm.value;
+    const dto: ActualizarUsuarioDto = {
+      nombreCompleto: formVal.nombre_completo.trim(),
+      email: formVal.email.trim().toLowerCase(),
+      rol: formVal.rol,
+      activo: Boolean(formVal.activo)
+    };
+
+    console.log('📤 [PATCH Editar Usuario] Solicitando actualización para:', { id: user.id_usuario, dto });
+    this.guardandoEdicion.set(true);
+    this.mensajeError.set(null);
+
+    this.authService.actualizarUsuario(user.id_usuario, dto).subscribe({
+      next: (res) => {
+        this.guardandoEdicion.set(false);
+        if (res.exito) {
+          this.mensajeExito.set(res.mensaje);
+          this.cerrarModalEditar();
+          this.sincronizarUsuarios();
+        } else {
+          this.mensajeError.set(res.mensaje);
+        }
+      },
+      error: (err) => {
+        this.guardandoEdicion.set(false);
+        console.error('❌ [PATCH Editar Usuario] Error:', err);
+        this.mensajeError.set('Error al comunicarse con el servidor.');
+      }
+    });
+  }
+
+  // --- MODAL PASSWORD ---
+
   abrirModalPassword(usuario: Usuario): void {
     this.usuarioSeleccionado.set(usuario);
     this.passwordForm.reset({
       nuevaPassword: '',
       confirmarPassword: ''
     });
+    this.mensajeError.set(null);
     this.modalPasswordAbierto.set(true);
   }
 
-  /**
-   * Cierra la ventana modal de cambio de contraseña
-   */
   cerrarModalPassword(): void {
     this.usuarioSeleccionado.set(null);
     this.modalPasswordAbierto.set(false);
   }
 
-  /**
-   * Verifica si la nueva contraseña y su campo de confirmación son diferentes
-   */
   passwordMismatch(): boolean {
     const p1 = this.passwordForm.get('nuevaPassword')?.value;
     const p2 = this.passwordForm.get('confirmarPassword')?.value;
     return !!p1 && !!p2 && p1 !== p2;
   }
 
-  /**
-   * Procesa la actualización de la contraseña en el servicio AuthService
-   */
   onSubmitPassword(): void {
     const user = this.usuarioSeleccionado();
     if (!user || this.passwordForm.invalid || this.passwordMismatch()) return;
 
     const nueva = this.passwordForm.get('nuevaPassword')?.value;
-    console.log('📤 [POST Botón Actualizar Clave] Cambiando contraseña para:', {
+    console.log('📤 [PATCH Cambiar Clave] Solicitando cambio para:', {
       id_usuario: user.id_usuario,
       email: user.email
     });
 
-    const res = this.authService.cambiarPassword(user.id_usuario, nueva);
-    console.log('📥 [POST Actualizar Clave] Resultado:', res);
+    this.guardandoPassword.set(true);
+    this.mensajeError.set(null);
 
-    if (res.exito) {
-      this.mensajeExito.set(res.mensaje);
-      this.cerrarModalPassword();
-    } else {
-      this.mensajeError.set(res.mensaje);
-    }
+    this.authService.cambiarPassword(user.id_usuario, nueva).subscribe({
+      next: (res) => {
+        this.guardandoPassword.set(false);
+        console.log('📥 [PATCH Cambiar Clave] Resultado:', res);
+
+        if (res.exito) {
+          this.mensajeExito.set(res.mensaje);
+          this.cerrarModalPassword();
+        } else {
+          this.mensajeError.set(res.mensaje);
+        }
+      },
+      error: (err) => {
+        this.guardandoPassword.set(false);
+        console.error('❌ [PATCH Cambiar Clave] Error:', err);
+        this.mensajeError.set('Error de comunicación con el servidor.');
+      }
+    });
   }
 
-  /**
-   * Alterna el estado activo/inactivo del usuario seleccionado
-   */
+  // --- ALTERNAR ESTADO ---
+
   alternarEstado(usuario: Usuario): void {
-    console.log('📤 [POST Conmutar Estado Usuario] Usuario:', { id_usuario: usuario.id_usuario, activo: !usuario.activo });
-    this.authService.conmutarEstadoUsuario(usuario.id_usuario);
-    const estadoTxt = !usuario.activo ? 'activada' : 'desactivada';
-    this.mensajeExito.set(`Cuenta de ${usuario.nombre_completo} ha sido ${estadoTxt}.`);
+    const nuevoEstado = !usuario.activo;
+    console.log('📤 [PATCH Conmutar Estado Usuario] Usuario:', { id_usuario: usuario.id_usuario, activo: nuevoEstado });
+
+    this.actualizandoEstado.set(usuario.id_usuario);
+    this.mensajeError.set(null);
+
+    this.authService.conmutarEstadoUsuario(usuario.id_usuario, nuevoEstado).subscribe({
+      next: (res) => {
+        this.actualizandoEstado.set(null);
+        if (res.exito) {
+          this.mensajeExito.set(res.mensaje);
+          this.sincronizarUsuarios();
+        } else {
+          this.mensajeError.set(res.mensaje);
+        }
+      },
+      error: (err) => {
+        this.actualizandoEstado.set(null);
+        console.error('❌ [PATCH Conmutar Estado] Error:', err);
+        this.mensajeError.set('Error de comunicación con el servidor al alternar estado.');
+      }
+    });
   }
 }
