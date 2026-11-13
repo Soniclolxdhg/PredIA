@@ -19,6 +19,15 @@ export interface CatalogoVariedad {
   ciclosEnUso: number;
 }
 
+export interface CatalogoUnidadMedida {
+  id: string;
+  nombre: string;
+  simbolo: string;
+  tipo: 'MASA' | 'VOLUMEN' | 'UNIDAD' | 'EMPAQUE';
+  activo: boolean;
+  insumosEnUso: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -41,6 +50,17 @@ export class CatalogosService {
     { id: 'VAR-03', nombre: 'Hortalizas de Hoja Protegidas', especie: 'Lactuca sativa / Varias', codigoRef: 'SEM-HOR-01', activo: true }
   ]);
 
+  // Lista base de unidades de medida agronómicas
+  private readonly unidadesBase = signal<Array<Omit<CatalogoUnidadMedida, 'insumosEnUso'>>>([
+    { id: 'MED-01', nombre: 'Kilogramos', simbolo: 'Kg', tipo: 'MASA', activo: true },
+    { id: 'MED-02', nombre: 'Litros', simbolo: 'L', tipo: 'VOLUMEN', activo: true },
+    { id: 'MED-03', nombre: 'Gramos', simbolo: 'g', tipo: 'MASA', activo: true },
+    { id: 'MED-04', nombre: 'Mililitros', simbolo: 'mL', tipo: 'VOLUMEN', activo: true },
+    { id: 'MED-05', nombre: 'Unidades', simbolo: 'UNIDADES', tipo: 'UNIDAD', activo: true },
+    { id: 'MED-06', nombre: 'Sacos / Bolsas', simbolo: 'SACO', tipo: 'EMPAQUE', activo: true },
+    { id: 'MED-07', nombre: 'Bandejas', simbolo: 'BANDEJA', tipo: 'EMPAQUE', activo: true }
+  ]);
+
   // Estructuras computadas integrando el conteo de naves en uso en tiempo real
   readonly estructuras = computed<CatalogoEstructura[]>(() => {
     const naves = this.erpService.naves();
@@ -56,6 +76,17 @@ export class CatalogosService {
     return this.variedadesBase().map((v) => ({
       ...v,
       ciclosEnUso: ciclos.filter((c) => c.variedad.toLowerCase().includes(v.nombre.toLowerCase())).length
+    }));
+  });
+
+  // Unidades de medida computadas con conteo de insumos que la utilizan
+  readonly unidadesMedida = computed<CatalogoUnidadMedida[]>(() => {
+    const insumos = this.erpService.insumos();
+    return this.unidadesBase().map((u) => ({
+      ...u,
+      insumosEnUso: insumos.filter(
+        (i) => i.unidad_medida?.toLowerCase() === u.simbolo.toLowerCase() || i.unidad_medida?.toLowerCase() === u.nombre.toLowerCase()
+      ).length
     }));
   });
 
@@ -117,4 +148,34 @@ export class CatalogosService {
       mensaje: "⚠️ El endpoint 'PATCH /api/catalogos/variedades/:id' aún no está implementado en el backend NestJS."
     });
   }
+
+  /**
+   * Intenta registrar una nueva unidad de medida en el catálogo.
+   */
+  crearUnidadMedida(nombre: string, simbolo: string, tipo: 'MASA' | 'VOLUMEN' | 'UNIDAD' | 'EMPAQUE'): Observable<{ exito: boolean; mensaje: string }> {
+    console.warn('⚠️ [CatalogosService] Endpoint POST /api/catalogos/unidades pendiente de backend.');
+    return of({
+      exito: false,
+      mensaje: "⚠️ El endpoint 'POST /api/catalogos/unidades' aún no está implementado en el backend NestJS. No se simuló persistencia."
+    });
+  }
+
+  /**
+   * Intenta desactivar una unidad de medida del catálogo.
+   */
+  desactivarUnidadMedida(id: string): Observable<{ exito: boolean; mensaje: string }> {
+    const u = this.unidadesMedida().find((item) => item.id === id);
+    if (u && u.insumosEnUso > 0) {
+      return of({
+        exito: false,
+        mensaje: `No es posible eliminar o desactivar la unidad '${u.nombre}': se encuentra en uso por ${u.insumosEnUso} insumo(s) de bodega.`
+      });
+    }
+
+    return of({
+      exito: false,
+      mensaje: "⚠️ El endpoint 'PATCH /api/catalogos/unidades/:id' aún no está implementado en el backend NestJS."
+    });
+  }
 }
+

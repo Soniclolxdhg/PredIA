@@ -15,7 +15,7 @@
         </span>
       </div>
       <p class="text-xs sm:text-sm text-slate-500 mt-1">
-        Gestión de infraestructura de naves y aperturas de ciclo productivo en base de datos real.
+        Gestión de infraestructura de naves, aperturas de ciclo y control de cierres formales en Supabase.
       </p>
     </div>
 
@@ -67,7 +67,7 @@
     </div>
     <div class="flex items-center gap-2 self-start sm:self-auto shrink-0">
       <span class="text-xs font-semibold bg-white border border-emerald-300 text-emerald-900 px-3 py-1.5 rounded-xl shadow-2xs">
-        Nave 1: Tomate • Nave 2: Pimiento
+        Ciclos Activos Simultáneos: <strong>{{ ciclosActivos().length }}</strong>
       </span>
     </div>
   </div>
@@ -99,26 +99,28 @@
     <!-- Cargando naves -->
     <div *ngIf="erpService.cargandoNaves()" class="p-8 text-center bg-white rounded-2xl border border-slate-200">
       <span class="inline-block animate-spin text-2xl mb-2">🔄</span>
-      <p class="text-xs text-slate-600 font-medium">Cargando naves desde Supabase...</p>
+      <p class="text-xs text-slate-600 font-medium">Consultando tabla 'naves' en Supabase...</p>
     </div>
 
-    <!-- Estado si no hay naves en Supabase -->
+    <!-- Estado vacío de naves -->
     <div
       *ngIf="!erpService.cargandoNaves() && erpService.naves().length === 0"
-      class="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center shadow-xs">
-      <span class="text-3xl">🏡</span>
-      <h4 class="font-bold text-amber-900 mt-2 text-base">La base de datos de Supabase no tiene naves inicializadas</h4>
-      <p class="text-xs text-amber-700 max-w-lg mx-auto mt-1 mb-4">
-        Para aperturar ciclos de cultivo en Santa Laura Ltda., se requiere registrar naves en la tabla <code class="font-mono bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-semibold">naves</code> de Supabase. Puedes sembrar las 4 naves base oficiales o registrar una nueva nave manualmente.
+      class="p-8 text-center bg-white rounded-2xl border border-slate-200">
+      <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto text-2xl mb-3">
+        🏡
+      </div>
+      <h4 class="font-bold text-slate-800 text-sm">No hay naves registradas en Supabase</h4>
+      <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+        Inicializa las 4 naves base de Santa Laura Ltda. o registra una nave de forma individual.
       </p>
-      <div class="flex flex-wrap items-center justify-center gap-3">
+      <div class="mt-4 flex flex-wrap justify-center gap-3">
         <button
           type="button"
           (click)="sembrarNaves()"
-          [disabled]="sembrando() || erpService.cargandoNaves()"
+          [disabled]="sembrando()"
           class="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition-colors touch-target">
           <span [class.animate-spin]="sembrando()">🌱</span>
-          <span>{{ sembrando() ? 'Inicializando en Supabase...' : 'Sembrar 4 Naves Base de Santa Laura Ltda.' }}</span>
+          <span>{{ sembrando() ? 'Inicializando en Supabase...' : 'Sembrar 4 Naves Base' }}</span>
         </button>
         <button
           type="button"
@@ -130,25 +132,46 @@
       </div>
     </div>
 
-    <!-- Grilla de naves existentes en Supabase -->
+    <!-- Grilla de naves existentes en Supabase con Edición y Baja -->
     <div
       *ngIf="!erpService.cargandoNaves() && erpService.naves().length > 0"
       class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <div
         *ngFor="let nave of erpService.naves()"
-        class="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs hover:shadow-md transition-shadow">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-            {{ nave.codigo_nave }}
-          </span>
-          <span [class]="getClaseEstadoNave(nave.estado)" class="text-[11px] font-bold px-2 py-0.5 rounded-full border">
-            {{ nave.estado }}
-          </span>
+        class="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+              {{ nave.codigo_nave }}
+            </span>
+            <span [class]="getClaseEstadoNave(nave.estado)" class="text-[11px] font-bold px-2 py-0.5 rounded-full border">
+              {{ nave.estado }}
+            </span>
+          </div>
+          <h4 class="font-bold text-slate-900 text-sm mb-1">{{ nave.nombre }}</h4>
+          <div class="text-xs text-slate-500 space-y-1">
+            <div>Superficie: <strong class="text-slate-700">{{ nave.superficie_m2 | number }} m²</strong></div>
+            <div>Estructura: <span class="text-slate-600">{{ nave.tipo_estructura }}</span></div>
+          </div>
         </div>
-        <h4 class="font-bold text-slate-900 text-sm mb-1">{{ nave.nombre }}</h4>
-        <div class="text-xs text-slate-500 space-y-1">
-          <div>Superficie: <strong class="text-slate-700">{{ nave.superficie_m2 | number }} m²</strong></div>
-          <div>Estructura: <span class="text-slate-600">{{ nave.tipo_estructura }}</span></div>
+
+        <!-- Acciones en cada Nave: Editar y Baja -->
+        <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-end gap-1.5">
+          <button
+            type="button"
+            (click)="abrirModalEditarNave(nave)"
+            title="Editar datos de nave"
+            class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-colors">
+            ✏️ Editar
+          </button>
+          <button
+            *ngIf="nave.estado !== 'MANTENCION'"
+            type="button"
+            (click)="darDeBajaNave(nave)"
+            title="Pasar nave a mantención / dar de baja"
+            class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition-colors">
+            ⚠️ Baja
+          </button>
         </div>
       </div>
     </div>
@@ -156,9 +179,13 @@
 
   <!-- Sección: Listado histórico y ciclos actualmente activos -->
   <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-    <div class="p-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
-      <h3 class="font-bold text-slate-800 text-sm">Historial y Ciclos Activos de la Temporada</h3>
-      <span class="text-xs text-slate-500">{{ erpService.ciclos().length }} ciclos en Supabase</span>
+    <div class="p-4 border-b border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div>
+        <h3 class="font-bold text-slate-800 text-sm">Historial y Ciclos Activos de la Temporada</h3>
+        <span class="text-xs text-slate-500">
+          {{ erpService.ciclos().length }} ciclos en Supabase ({{ ciclosActivos().length }} en cultivo simultáneo)
+        </span>
+      </div>
     </div>
 
     <!-- Indicador de carga de ciclos -->
@@ -167,7 +194,7 @@
       <p class="text-xs text-slate-600 font-medium">Consultando tabla 'ciclos_cultivo' en Supabase...</p>
     </div>
 
-    <!-- Estado vacío real (cuando la tabla de Supabase está vacía) -->
+    <!-- Estado vacío real -->
     <div
       *ngIf="!erpService.cargandoCiclos() && erpService.ciclos().length === 0"
       class="p-8 text-center bg-white">
@@ -176,7 +203,7 @@
       </div>
       <h4 class="font-bold text-slate-800 text-sm">No hay ciclos de cultivo registrados en la base de datos de Supabase</h4>
       <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-        Actualmente la tabla <code class="font-mono bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-semibold">ciclos_cultivo</code> no contiene registros. Haz clic en "Aperturar Ciclo" para registrar el primer ciclo productivo en la base de datos real.
+        Haz clic en "Aperturar Ciclo" para registrar el primer ciclo productivo en la base de datos real.
       </p>
       <button
         type="button"
@@ -202,42 +229,55 @@
             <th class="p-3">Costo Total</th>
             <th class="p-3">Costo $/Kg</th>
             <th class="p-3">Estado</th>
+            <th class="p-3 text-center">Acciones</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
           <tr *ngFor="let ciclo of erpService.ciclos()" class="hover:bg-slate-50/80 transition-colors">
             <td class="p-3 font-semibold text-slate-800">
-              #{{ ciclo.id_ciclo }} • <span class="text-xs text-slate-500">{{ ciclo.temporada }}</span>
+              #{{ ciclo.id_ciclo }} • <span class="text-xs text-slate-500 font-mono">{{ ciclo.temporada }}</span>
             </td>
             <td class="p-3">
               <span class="font-medium text-slate-700">{{ getNaveNombre(ciclo.id_nave) }}</span>
             </td>
             <td class="p-3">
               <div class="font-bold text-emerald-900">{{ ciclo.variedad }}</div>
-              <span *ngIf="ciclo.variedad.includes('Tomate')" class="inline-block text-[10px] font-mono bg-rose-50 text-rose-700 border border-rose-200 px-1.5 py-0.5 rounded font-bold mt-0.5">
-                Especialidad • SEM-TOM-01
-              </span>
-              <span *ngIf="ciclo.variedad.includes('Pimiento')" class="inline-block text-[10px] font-mono bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded font-bold mt-0.5">
-                Complementaria
-              </span>
             </td>
-            <td class="p-3 text-slate-600 text-xs">
-              {{ ciclo.fecha_inicio }} → {{ ciclo.fecha_termino_estimada }}
+            <td class="p-3 text-slate-600">
+              <div>{{ ciclo.fecha_inicio | date:'dd/MM/yyyy' }}</div>
+              <div class="text-[11px] text-slate-400">
+                Termino: {{ (ciclo.fecha_cierre_real || ciclo.fecha_termino_estimada) | date:'dd/MM/yyyy' }}
+              </div>
             </td>
-            <td class="p-3 font-semibold text-slate-800">
-              {{ ciclo.total_kg_cosechados | number }} Kg
+            <td class="p-3 font-mono font-bold text-slate-700">
+              {{ ciclo.total_kg_cosechados | number:'1.2-2' }} Kg
             </td>
             <td class="p-3 font-mono text-slate-700">
-              ${{ ciclo.costo_total_acumulado | number }}
+              \${{ ciclo.costo_total_acumulado | number:'1.0-0' }}
             </td>
-            <td class="p-3 font-mono font-bold text-emerald-700">
-              ${{ ciclo.costo_unitario_kg | number:'1.2-2' }}
+            <td class="p-3 font-mono font-bold text-emerald-800">
+              \${{ ciclo.costo_unitario_kg | number:'1.2-2' }}/Kg
             </td>
             <td class="p-3">
               <span
                 [class]="ciclo.estado === 'ACTIVO' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-slate-100 text-slate-700 border-slate-300'"
-                class="px-2 py-0.5 rounded-full text-xs font-bold border">
+                class="px-2.5 py-0.5 rounded-full text-xs font-bold border inline-flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full" [class]="ciclo.estado === 'ACTIVO' ? 'bg-emerald-600' : 'bg-slate-400'"></span>
                 {{ ciclo.estado }}
+              </span>
+            </td>
+            <td class="p-3 text-center">
+              <button
+                *ngIf="ciclo.estado === 'ACTIVO'"
+                type="button"
+                (click)="abrirModalCerrarCiclo(ciclo)"
+                title="Cerrar formalmente este ciclo agrícola"
+                class="px-3 py-1.5 text-xs font-bold rounded-xl border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-800 transition-colors inline-flex items-center gap-1 shadow-2xs">
+                <span>🛑</span>
+                <span>Cerrar Ciclo</span>
+              </button>
+              <span *ngIf="ciclo.estado !== 'ACTIVO'" class="text-xs text-slate-400 italic">
+                Finalizado
               </span>
             </td>
           </tr>
@@ -246,7 +286,7 @@
     </div>
   </div>
 
-  <!-- MODAL 1: REGISTRAR NUEVA NAVE EN SUPABASE -->
+  <!-- MODAL 1: CREAR NUEVA NAVE -->
   <div
     *ngIf="modalNaveVisible()"
     role="dialog"
@@ -257,7 +297,7 @@
       <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
         <h3 id="tituloModalNave" class="font-bold text-slate-900 text-base flex items-center gap-2">
           <span>🏡</span>
-          <span>Registrar Nueva Nave en el Sistema</span>
+          <span>Registrar Nueva Nave en Supabase</span>
         </h3>
         <button
           type="button"
@@ -267,57 +307,44 @@
       </div>
 
       <form [formGroup]="naveForm" (ngSubmit)="onSubmitNave()" class="space-y-4">
-        <!-- Código de Nave (Solo lectura) -->
         <div>
-          <div class="flex items-center justify-between mb-1">
-            <label class="block text-xs font-bold text-slate-700">Código de Nave (Asignado)</label>
-            <span class="text-[10px] text-slate-400 font-mono">Solo lectura</span>
-          </div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Código de Nave *</label>
           <input
             type="text"
             formControlName="codigo_nave"
-            readonly
-            class="w-full p-2.5 text-sm uppercase font-mono rounded-xl border border-slate-200 bg-slate-100 text-slate-600 cursor-not-allowed select-none"
+            class="w-full p-2.5 text-sm rounded-xl border border-slate-300 font-mono bg-slate-50 focus:outline-none"
           />
-          <p class="text-[11px] text-slate-400 mt-1">El código correlativo es sugerido automáticamente por el sistema.</p>
         </div>
 
-        <!-- Nombre Descriptivo -->
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Nombre Descriptivo *</label>
           <input
             type="text"
             formControlName="nombre"
-            placeholder="ej. Nave 1 - Tomate Larga Vida"
+            placeholder="ej. Invernadero Sector Norte"
             class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
           />
         </div>
 
-        <!-- Superficie en m² -->
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Superficie (m²) *</label>
           <input
             type="number"
             formControlName="superficie_m2"
-            placeholder="ej. 2500"
             min="10"
             class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
           />
         </div>
 
-        <!-- Tipo de Estructura -->
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Tipo de Estructura *</label>
           <select formControlName="tipo_estructura" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none">
-            <option value="Multitúnel Metal">Multitúnel Metal</option>
-            <option value="Túnel Simple">Túnel Simple</option>
-            <option value="Invernadero Climatizado">Invernadero Climatizado</option>
-            <option value="Sombreadero Malla Raschel">Sombreadero Malla Raschel</option>
-            <option value="Capilla Tradicional">Capilla Tradicional</option>
+            <option *ngFor="let est of catalogosService.estructuras()" [value]="est.nombre">
+              {{ est.nombre }}
+            </option>
           </select>
         </div>
 
-        <!-- Acciones -->
         <div class="pt-3 flex gap-3 justify-end border-t border-slate-100">
           <button
             type="button"
@@ -338,7 +365,84 @@
     </div>
   </div>
 
-  <!-- MODAL 2: APERTURA DE NUEVO CICLO -->
+  <!-- MODAL 2: EDITAR NAVE EXISTENTE -->
+  <div
+    *ngIf="modalEditarNaveVisible() && naveSeleccionada()"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="tituloModalEditarNave"
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <h3 id="tituloModalEditarNave" class="font-bold text-slate-900 text-base flex items-center gap-2">
+          <span>✏️</span>
+          <span>Editar Nave: {{ naveSeleccionada()?.codigo_nave }}</span>
+        </h3>
+        <button
+          type="button"
+          (click)="cerrarModalEditarNave()"
+          class="text-slate-400 hover:text-slate-700 font-bold text-lg px-2">✕</button>
+      </div>
+
+      <form [formGroup]="naveEditarForm" (ngSubmit)="onSubmitEditarNave()" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Nombre Descriptivo *</label>
+          <input
+            type="text"
+            formControlName="nombre"
+            class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Superficie (m²) *</label>
+          <input
+            type="number"
+            formControlName="superficie_m2"
+            min="10"
+            class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Tipo de Estructura *</label>
+          <select formControlName="tipo_estructura" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none">
+            <option *ngFor="let est of catalogosService.estructuras()" [value]="est.nombre">
+              {{ est.nombre }}
+            </option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Estado Operativo *</label>
+          <select formControlName="estado" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none">
+            <option value="DISPONIBLE">DISPONIBLE (Lista para cultivo)</option>
+            <option value="EN_CULTIVO">EN_CULTIVO (Ciclo activo)</option>
+            <option value="MANTENCION">MANTENCIÓN (Inactiva / Reparación)</option>
+          </select>
+        </div>
+
+        <div class="pt-3 flex gap-3 justify-end border-t border-slate-100">
+          <button
+            type="button"
+            (click)="cerrarModalEditarNave()"
+            [disabled]="guardandoEdicionNave()"
+            class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl font-medium">
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            [disabled]="naveEditarForm.invalid || guardandoEdicionNave()"
+            class="inline-flex items-center gap-2 px-5 py-2 text-sm bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-semibold rounded-xl shadow-xs transition-colors">
+            <span *ngIf="guardandoEdicionNave()" class="inline-block animate-spin">🔄</span>
+            <span>{{ guardandoEdicionNave() ? 'Actualizando...' : 'Actualizar Nave' }}</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 3: APERTURA DE NUEVO CICLO (SIN TEXTO LIBRE) -->
   <div
     *ngIf="modalCicloVisible()"
     role="dialog"
@@ -359,7 +463,7 @@
       </div>
 
       <form [formGroup]="cicloForm" (ngSubmit)="onSubmitCiclo()" class="space-y-4">
-        <!-- Selección de invernadero destino descriptivo -->
+        <!-- Nave destino -->
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Invernadero / Nave Destino *</label>
           <select formControlName="id_nave" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none">
@@ -368,54 +472,30 @@
               {{ n.codigo_nave }} - {{ n.nombre }} • {{ n.tipo_estructura }} ({{ n.superficie_m2 | number }} m²) • Estado: {{ n.estado }}
             </option>
           </select>
-          <p class="text-[11px] text-slate-500 mt-1">
-            * Regla de negocio: No se permite aperturar si la nave ya tiene un ciclo ACTIVO en Supabase.
-          </p>
         </div>
 
-        <!-- Temporada y variedad vegetal -->
+        <!-- Temporada y variedad estructuradas (Sin texto libre) -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-bold text-slate-700 mb-1">Temporada *</label>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Temporada Oficial *</label>
             <select formControlName="temporada" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none">
-              <option value="PRIMAVERA_2026">Primavera 2026</option>
-              <option value="OTONO_2026">Otoño 2026</option>
-              <option value="VERANO_2027">Verano 2027</option>
+              <option *ngFor="let temp of temporadasDisponibles" [value]="temp">
+                {{ temp }}
+              </option>
             </select>
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-slate-700 mb-1">Variedad Agrícola *</label>
-            <div class="flex flex-wrap gap-1 mb-1.5">
-              <button
-                type="button"
-                (click)="seleccionarVariedadPredefinida('Tomate Larga Vida')"
-                class="text-[10px] px-2 py-0.5 rounded bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold border border-emerald-300 transition-colors">
-                🍅 Tomate (SEM-TOM-01)
-              </button>
-              <button
-                type="button"
-                (click)="seleccionarVariedadPredefinida('Pimiento Cuadrado Rojo')"
-                class="text-[10px] px-2 py-0.5 rounded bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold border border-amber-300 transition-colors">
-                🫑 Pimiento
-              </button>
-              <button
-                type="button"
-                (click)="seleccionarVariedadPredefinida('Hortalizas de Hoja Protegidas')"
-                class="text-[10px] px-2 py-0.5 rounded bg-teal-100 hover:bg-teal-200 text-teal-800 font-bold border border-teal-300 transition-colors">
-                🥬 Hortalizas
-              </button>
-            </div>
-            <input
-              type="text"
-              formControlName="variedad"
-              placeholder="ej. Tomate Larga Vida"
-              class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-            />
+            <label class="block text-xs font-bold text-slate-700 mb-1">Variedad Agrícola Oficial *</label>
+            <select formControlName="variedad" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none">
+              <option *ngFor="let v of catalogosService.variedades()" [value]="v.nombre">
+                {{ v.nombre }} ({{ v.codigoRef }})
+              </option>
+            </select>
           </div>
         </div>
 
-        <!-- Fechas de inicio y estimación de cierre -->
+        <!-- Fechas -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Fecha de Inicio *</label>
@@ -441,7 +521,7 @@
           ⚠️ La fecha de término estimada debe ser posterior a la fecha de inicio.
         </div>
 
-        <!-- Acciones del formulario -->
+        <!-- Acciones -->
         <div class="pt-3 flex gap-3 justify-end border-t border-slate-100">
           <button
             type="button"
@@ -461,5 +541,80 @@
       </form>
     </div>
   </div>
-</div>
 
+  <!-- MODAL 4: CIERRE ANTICIPADO DE CICLO CON MOTIVO OBLIGATORIO -->
+  <div
+    *ngIf="modalCerrarCicloVisible() && cicloSeleccionadoCierre()"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="tituloModalCerrarCiclo"
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <h3 id="tituloModalCerrarCiclo" class="font-bold text-slate-900 text-base flex items-center gap-2">
+          <span>🛑</span>
+          <span>Cerrar Ciclo #{{ cicloSeleccionadoCierre()?.id_ciclo }}</span>
+        </h3>
+        <button
+          type="button"
+          (click)="cerrarModalCerrarCiclo()"
+          class="text-slate-400 hover:text-slate-700 font-bold text-lg px-2">✕</button>
+      </div>
+
+      <div class="mb-4 p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 space-y-1">
+        <div><strong>Cultivo:</strong> {{ cicloSeleccionadoCierre()?.variedad }}</div>
+        <div><strong>Nave:</strong> {{ getNaveNombre(cicloSeleccionadoCierre()?.id_nave || 0) }}</div>
+        <div><strong>Inicio:</strong> {{ cicloSeleccionadoCierre()?.fecha_inicio | date:'dd/MM/yyyy' }}</div>
+        <p class="text-[11px] text-amber-800 mt-1">
+          Al confirmar, el estado pasará a <strong>FINALIZADO</strong> y la nave será liberada a <strong>DISPONIBLE</strong>.
+        </p>
+      </div>
+
+      <form [formGroup]="cerrarCicloForm" (ngSubmit)="onSubmitCerrarCiclo()" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Fecha de Cierre Real *</label>
+          <input
+            type="date"
+            formControlName="fecha_cierre_real"
+            class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Motivo del Cierre *</label>
+          <select formControlName="motivo_cierre" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none">
+            <option *ngFor="let m of motivosCierre" [value]="m.valor">
+              {{ m.etiqueta }}
+            </option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Observaciones / Justificación</label>
+          <textarea
+            formControlName="observaciones_cierre"
+            rows="3"
+            placeholder="Detalles agronómicos, incidencia de factores climáticos o rendimiento..."
+            class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none"></textarea>
+        </div>
+
+        <div class="pt-3 flex gap-3 justify-end border-t border-slate-100">
+          <button
+            type="button"
+            (click)="cerrarModalCerrarCiclo()"
+            [disabled]="guardandoCierreCiclo()"
+            class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl font-medium">
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            [disabled]="cerrarCicloForm.invalid || guardandoCierreCiclo()"
+            class="inline-flex items-center gap-2 px-5 py-2 text-sm bg-rose-700 hover:bg-rose-800 disabled:opacity-50 text-white font-semibold rounded-xl shadow-xs transition-colors">
+            <span *ngIf="guardandoCierreCiclo()" class="inline-block animate-spin">🔄</span>
+            <span>{{ guardandoCierreCiclo() ? 'Cerrando ciclo...' : 'Confirmar Cierre' }}</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

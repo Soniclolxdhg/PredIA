@@ -42,6 +42,7 @@ export class UsuariosComponent implements OnInit {
   readonly busqueda = signal<string>('');
   readonly filtroRol = signal<string>('TODOS');
   readonly filtroEstado = signal<string>('TODOS');
+  readonly mostrarInactivos = signal<boolean>(false);
 
   // Control de apertura y cierre de ventanas modales
   readonly modalCrearAbierto = signal(false);
@@ -92,6 +93,7 @@ export class UsuariosComponent implements OnInit {
     const q = this.busqueda().trim().toLowerCase();
     const rol = this.filtroRol();
     const estado = this.filtroEstado();
+    const verInactivos = this.mostrarInactivos();
 
     return todos.filter((u) => {
       const coincideTexto =
@@ -101,10 +103,15 @@ export class UsuariosComponent implements OnInit {
         u.rut.toLowerCase().includes(q);
 
       const coincideRol = rol === 'TODOS' || u.rol === rol;
-      const coincideEstado =
-        estado === 'TODOS' ||
-        (estado === 'ACTIVO' && u.activo) ||
-        (estado === 'INACTIVO' && !u.activo);
+
+      let coincideEstado = true;
+      if (estado === 'ACTIVO') {
+        coincideEstado = u.activo;
+      } else if (estado === 'INACTIVO') {
+        coincideEstado = !u.activo;
+      } else {
+        coincideEstado = verInactivos ? true : u.activo;
+      }
 
       return coincideTexto && coincideRol && coincideEstado;
     });
@@ -167,6 +174,8 @@ export class UsuariosComponent implements OnInit {
         return 'bg-amber-100 text-amber-800 border-amber-200';
       case 'GERENTE':
         return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'TRABAJADOR':
+        return 'bg-cyan-100 text-cyan-800 border-cyan-200';
       default:
         return 'bg-slate-100 text-slate-800 border-slate-200';
     }
@@ -196,7 +205,15 @@ export class UsuariosComponent implements OnInit {
       return;
     }
 
-    const payload = this.crearUsuarioForm.value;
+    const raw = this.crearUsuarioForm.value;
+    const rolBackend = raw.rol === 'TRABAJADOR' ? 'AGRONOMO' : raw.rol;
+    const payload = {
+      nombre_completo: raw.nombre_completo,
+      rut: raw.rut,
+      email: raw.email,
+      password: raw.password,
+      rol: rolBackend
+    };
     console.log('📤 [POST Guardar Usuario] Enviando datos a la API:', {
       nombre_completo: payload.nombre_completo,
       rut: payload.rut,
@@ -257,10 +274,11 @@ export class UsuariosComponent implements OnInit {
     }
 
     const formVal = this.editarUsuarioForm.value;
+    const rolBackend = formVal.rol === 'TRABAJADOR' ? 'AGRONOMO' : formVal.rol;
     const dto: ActualizarUsuarioDto = {
       nombreCompleto: formVal.nombre_completo.trim(),
       email: formVal.email.trim().toLowerCase(),
-      rol: formVal.rol,
+      rol: rolBackend,
       activo: Boolean(formVal.activo)
     };
 

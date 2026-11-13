@@ -13,3 +13,4 @@ export interface ActualizarUsuarioDto {
 export interface CambiarPasswordAdminDto {
   nuevaPassword: string;
 }
+

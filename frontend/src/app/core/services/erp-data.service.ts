@@ -6,6 +6,7 @@ import { ProduccionApiService } from './produccion.service';
 import { InventarioApiService } from './inventario.service';
 import {
   CrearNaveDto,
+  ActualizarNaveDto,
   CrearCicloDto,
   CerrarCicloDto,
   CrearLaborDto,
@@ -243,6 +244,30 @@ export class ErpDataService {
   }
 
   /**
+   * Actualiza los datos de una Nave existente en Supabase vía PATCH.
+   */
+  actualizarNave(idNave: number, dto: ActualizarNaveDto): Observable<{ exito: boolean; mensaje: string; nave?: Nave }> {
+    return this.produccionApi.actualizarNave(idNave, dto).pipe(
+      map((actRaw) => {
+        const actualizada = this.normalizarNave(actRaw);
+        this.naves.update((lista) => lista.map((n) => (n.id_nave === idNave ? actualizada : n)));
+        return {
+          exito: true,
+          mensaje: `Nave ${actualizada.codigo_nave} actualizada exitosamente.`,
+          nave: actualizada
+        };
+      }),
+      catchError((err) => {
+        const msg = err.error?.message || 'Error al actualizar la nave en Supabase.';
+        return of({
+          exito: false,
+          mensaje: Array.isArray(msg) ? msg.join(', ') : msg
+        });
+      })
+    );
+  }
+
+  /**
    * Carga la lista real de ciclos de cultivo desde la base de datos de Supabase
    */
   cargarCiclos(): Observable<CicloCultivo[]> {
@@ -333,10 +358,11 @@ export class ErpDataService {
   /**
    * HU01: Cierre formal de ciclo de cultivo (PATCH /produccion/ciclos/:idCiclo/cerrar)
    */
-  cerrarCicloCultivo(idCiclo: number, fechaCierreReal?: string): Observable<{ exito: boolean; mensaje: string }> {
+  cerrarCicloCultivo(idCiclo: number, fechaCierreReal?: string, motivoCierre?: string, observaciones?: string): Observable<{ exito: boolean; mensaje: string }> {
     const payload: CerrarCicloDto = {
       fechaCierreReal: fechaCierreReal || new Date().toISOString().split('T')[0]
     };
+    console.log(`📤 [PATCH /produccion/ciclos/${idCiclo}/cerrar] Cierre con motivo '${motivoCierre || 'FIN_NORMAL'}':`, { payload, observaciones });
 
     return this.produccionApi.cerrarCiclo(idCiclo, payload).pipe(
       map(() => {

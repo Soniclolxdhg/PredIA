@@ -9,7 +9,7 @@ import { CrearLaborDto } from '../../core/models/dtos';
 /**
  * Componente para el Registro de Labores Agrícolas en Terreno (HU02).
  * Permite registrar faenas en los invernaderos (riego, fertilización, fitosanitarios, siembra y cosecha),
- * asociar el responsable, imputar costos por horas dedicadas y descontar insumos de bodega de forma automática.
+ * asignar el trabajador/operario responsable de la ejecución y descontar insumos de bodega de forma automática.
  */
 @Component({
   selector: 'app-registro-labores',
@@ -26,6 +26,16 @@ export class RegistroLaboresComponent {
   // Mensaje de éxito tras registrar la faena
   readonly mensajeExito = signal<string | null>(null);
 
+  // Nómina de trabajadores/operarios de campo para asignación
+  readonly trabajadoresDisponibles: string[] = [
+    'Carlos Mendoza (Operario de Campo)',
+    'Juan Pérez (Operario de Riego y Fertirriego)',
+    'Manuel Morales (Encargado Fitosanitario)',
+    'Rosa Gallardo (Cuadrilla de Cosecha)',
+    'Héctor Valenzuela (Técnico de Estructuras)',
+    'Yamil Briceño (Agrónomo de Campo)'
+  ];
+
   // Listado de tipos de labores agronómicas contempladas en el sistema
   readonly tiposLabor: TipoLabor[] = [
     'SIEMBRA',
@@ -38,6 +48,7 @@ export class RegistroLaboresComponent {
   // Formulario reactivo para la captura de faenas
   readonly laborForm: FormGroup = this.fb.group({
     id_ciclo: ['', [Validators.required]],
+    trabajador_ejecutor: ['Carlos Mendoza (Operario de Campo)', [Validators.required]],
     tipo_labor: ['RIEGO', [Validators.required]],
     fecha_ejecucion: [new Date().toISOString().split('T')[0], [Validators.required]],
     horas_dedicadas: [4, [Validators.required, Validators.min(0.5)]],
@@ -75,14 +86,18 @@ export class RegistroLaboresComponent {
     const val = this.laborForm.value;
     const currentUser = this.authService.currentUser();
     const idCiclo = Number(val.id_ciclo);
+    const trabajador = val.trabajador_ejecutor || 'Operario de Campo';
+
+    // Se incorpora la asignación del trabajador en observaciones para trazabilidad
+    const obsFinal = `[Ejecutor: ${trabajador}] ${val.observaciones_tecnicas || ''}`.trim();
 
     // DTO Oficial para backend NestJS (HU02)
     const dto: CrearLaborDto = {
       idCiclo: idCiclo,
       tipoLabor: val.tipo_labor,
       fechaEjecucion: val.fecha_ejecucion,
-      horasDedicadas: Number(val.horas_dedicadas),
-      observacionesTecnicas: val.observaciones_tecnicas ? val.observaciones_tecnicas.trim() : undefined
+      horasDedicadas: Number(val.horas_dedicadas || 4),
+      observacionesTecnicas: obsFinal
     };
 
     console.log('📤 [POST Botón Registrar Labor en Terreno (HU02)] Enviando CrearLaborDto:', dto);
@@ -102,15 +117,15 @@ export class RegistroLaboresComponent {
       id_ciclo: idCiclo,
       tipo_labor: val.tipo_labor,
       fecha_ejecucion: val.fecha_ejecucion,
-      horas_dedicadas: Number(val.horas_dedicadas),
+      horas_dedicadas: Number(val.horas_dedicadas || 4),
       id_usuario_responsable: currentUser?.id_usuario || 2,
-      nombre_responsable: currentUser?.nombre_completo || 'Agrónomo',
-      observaciones_tecnicas: val.observaciones_tecnicas,
+      nombre_responsable: trabajador,
+      observaciones_tecnicas: obsFinal,
       id_insumo_utilizado: val.id_insumo_utilizado ? Number(val.id_insumo_utilizado) : undefined,
       cantidad_insumo_utilizado: val.cantidad_insumo_utilizado ? Number(val.cantidad_insumo_utilizado) : undefined
     });
 
-    this.mensajeExito.set(`Labor de ${val.tipo_labor} registrada exitosamente.`);
+    this.mensajeExito.set(`Labor de ${val.tipo_labor} ejecutada por ${trabajador} registrada exitosamente.`);
     this.laborForm.patchValue({
       id_insumo_utilizado: '',
       cantidad_insumo_utilizado: null,

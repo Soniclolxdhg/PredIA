@@ -56,6 +56,21 @@
         </div>
       </div>
 
+      <!-- Trabajador / Operario Ejecutor -->
+      <div>
+        <label class="block text-xs font-bold text-slate-800 uppercase tracking-wide mb-1.5">
+          Trabajador / Operario Ejecutor *
+        </label>
+        <select
+          formControlName="trabajador_ejecutor"
+          class="w-full p-3 text-sm rounded-xl border-2 border-slate-300 bg-white font-medium focus:border-emerald-600 focus:outline-none touch-target">
+          <option *ngFor="let t of trabajadoresDisponibles" [value]="t">
+            {{ t }}
+          </option>
+        </select>
+        <span class="text-[11px] text-slate-500 mt-1 block">Operario asignado a la ejecución física de la labor en el invernadero.</span>
+      </div>
+
       <!-- Fecha de ejecución y duración de la faena -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>

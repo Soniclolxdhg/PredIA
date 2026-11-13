@@ -5,13 +5,14 @@ import { ErpDataService } from '../../core/services/erp-data.service';
 import { AuthService } from '../../core/services/auth.service';
 import { InventarioApiService } from '../../core/services/inventario.service';
 import { TipoMovimiento, CategoriaInsumo } from '../../core/models/enum.types';
-import { Insumo } from '../../core/models/erp.models';
+import { Insumo, MovimientoBodega } from '../../core/models/erp.models';
 import { CrearInsumoDto, RegistrarMovimientoDto } from '../../core/models/dtos';
 
 /**
  * Controlador de Kardex de Inventario y Control de Mermas (HU04).
  * Conecta directamente con la API REST oficial de NestJS y Supabase,
- * gestiona insumos, movimientos, cálculo de PMP y ajuste de merma biológica.
+ * gestiona insumos, folios autoincrementables, cálculo de PMP, cantidades decimales,
+ * filtros multicriterio en historial y ajuste de merma biológica.
  */
 @Component({
   selector: 'app-kardex-inventario',
@@ -32,18 +33,25 @@ export class KardexInventarioComponent implements OnInit {
   readonly modalInsumoVisible = signal<boolean>(false);
   readonly soloCriticos = signal<boolean>(false);
 
+  // Filtros del historial de bodega
+  readonly filtroInsumoMov = signal<string>('TODOS');
+  readonly filtroTipoMov = signal<string>('TODOS');
+  readonly filtroFechaDesde = signal<string>('');
+  readonly filtroFechaHasta = signal<string>('');
+  readonly busquedaMov = signal<string>('');
+
   // Mensajes y alertas
   readonly mensajeExito = signal<string | null>(null);
   readonly mensajeError = signal<string | null>(null);
   readonly modalError = signal<string | null>(null);
   readonly modalInsumoError = signal<string | null>(null);
 
-  // Formulario: Registrar Movimiento Kardex
+  // Formulario: Registrar Movimiento Kardex con soporte de decimales (step=0.01)
   readonly movForm: FormGroup = this.fb.group({
     id_insumo: ['', [Validators.required]],
     tipo_movimiento: ['ENTRADA_COMPRA', [Validators.required]],
     fecha_movimiento: [new Date().toISOString().split('T')[0], [Validators.required]],
-    cantidad_nominal: [1000, [Validators.required, Validators.min(0.1)]],
+    cantidad_nominal: [100.0, [Validators.required, Validators.min(0.01)]],
     porcentaje_merma: [0, [Validators.required, Validators.min(0), Validators.max(100)]],
     costo_unitario_compra: [50, [Validators.required, Validators.min(0)]],
     documento_referencia: ['']
@@ -61,7 +69,7 @@ export class KardexInventarioComponent implements OnInit {
     esMaterialVegetal: [true]
   });
 
-  // Señales computadas
+  // Señales computadas de insumos
   readonly totalCriticos = computed(() =>
     this.erpService.insumos().filter((i) => i.es_stock_critico || i.stock_actual <= i.stock_minimo_alerta).length
   );
@@ -72,6 +80,38 @@ export class KardexInventarioComponent implements OnInit {
       return lista.filter((i) => i.es_stock_critico || i.stock_actual <= i.stock_minimo_alerta);
     }
     return lista;
+  });
+
+  // Historial de movimientos filtrado interactivamente
+  readonly movimientosFiltrados = computed<MovimientoBodega[]>(() => {
+    const lista = this.erpService.movimientosBodega();
+    const insumoId = this.filtroInsumoMov();
+    const tipo = this.filtroTipoMov();
+    const desde = this.filtroFechaDesde();
+    const hasta = this.filtroFechaHasta();
+    const q = this.busquedaMov().trim().toLowerCase();
+
+    return lista.filter((m) => {
+      const coincideInsumo = insumoId === 'TODOS' || String(m.id_insumo) === insumoId;
+      const coincideTipo = tipo === 'TODOS' || m.tipo_movimiento === tipo;
+
+      let coincideFecha = true;
+      if (desde && m.fecha_movimiento) {
+        coincideFecha = coincideFecha && new Date(m.fecha_movimiento) >= new Date(desde);
+      }
+      if (hasta && m.fecha_movimiento) {
+        coincideFecha = coincideFecha && new Date(m.fecha_movimiento) <= new Date(hasta + 'T23:59:59');
+      }
+
+      let coincideTexto = true;
+      if (q) {
+        const doc = (m.documento_referencia || '').toLowerCase();
+        const insName = this.getNombreInsumo(m.id_insumo).toLowerCase();
+        coincideTexto = doc.includes(q) || insName.includes(q);
+      }
+
+      return coincideInsumo && coincideTipo && coincideFecha && coincideTexto;
+    });
   });
 
   ngOnInit(): void {
@@ -112,7 +152,7 @@ export class KardexInventarioComponent implements OnInit {
     return ins ? ins.nombre : `Insumo #${idInsumo}`;
   }
 
-  getClaseTipoMov(tipo: TipoMovimiento): string {
+  getClaseBadge(tipo: TipoMovimiento): string {
     switch (tipo) {
       case 'ENTRADA_COMPRA':
         return 'bg-emerald-50 text-emerald-800 border-emerald-200';
@@ -129,8 +169,37 @@ export class KardexInventarioComponent implements OnInit {
     return Math.round(nom * (1 - merma / 100) * 100) / 100;
   }
 
+  /**
+   * Genera de forma automática y secuencial el folio para Kardex o Mermas
+   */
+  generarFolioSugerido(tipo: TipoMovimiento = 'ENTRADA_COMPRA'): string {
+    const movs = this.erpService.movimientosBodega();
+    const year = new Date().getFullYear();
+    if (tipo === 'AJUSTE_MERMA') {
+      const totalMermas = movs.filter((m) => m.tipo_movimiento === 'AJUSTE_MERMA').length + 1;
+      return `#MER-${year}-${String(totalMermas).padStart(4, '0')}`;
+    }
+    const totalReg = movs.filter((m) => m.tipo_movimiento !== 'AJUSTE_MERMA').length + 1;
+    return `#MOV-${year}-${String(totalReg).padStart(4, '0')}`;
+  }
+
+  onTipoMovimientoChange(nuevoTipo: TipoMovimiento): void {
+    const actualDoc = this.movForm.get('documento_referencia')?.value || '';
+    if (!actualDoc || actualDoc.startsWith('#MOV-') || actualDoc.startsWith('#MER-')) {
+      this.movForm.patchValue({ documento_referencia: this.generarFolioSugerido(nuevoTipo) });
+    }
+  }
+
   abrirModalMovimiento(): void {
     this.modalError.set(null);
+    const tipo = (this.movForm.get('tipo_movimiento')?.value as TipoMovimiento) || 'ENTRADA_COMPRA';
+    const folio = this.generarFolioSugerido(tipo);
+    this.movForm.patchValue({
+      documento_referencia: folio,
+      cantidad_nominal: 100.0,
+      porcentaje_merma: 0,
+      costo_unitario_compra: 50
+    });
     this.modalMovimientoVisible.set(true);
   }
 
@@ -165,6 +234,8 @@ export class KardexInventarioComponent implements OnInit {
       documentoReferencia: val.documento_referencia || undefined,
       fechaMovimiento: val.fecha_movimiento || undefined
     };
+
+    console.log('📤 [POST Registrar Movimiento Kardex] Enviando DTO:', dto);
 
     this.inventarioApi.registrarMovimiento(dto).subscribe({
       next: (res) => {
@@ -202,6 +273,8 @@ export class KardexInventarioComponent implements OnInit {
       costoUnitarioInicial: Number(val.costoUnitarioInicial || 0),
       esMaterialVegetal: Boolean(val.esMaterialVegetal)
     };
+
+    console.log('📤 [POST Crear Insumo] Enviando DTO:', dto);
 
     this.inventarioApi.crearInsumo(dto).subscribe({
       next: (nuevo) => {

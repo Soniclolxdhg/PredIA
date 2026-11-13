@@ -112,6 +112,7 @@
         <option value="AGRONOMO">Agrónomo</option>
         <option value="BODEGUERO">Bodeguero</option>
         <option value="GERENTE">Gerente</option>
+        <option value="TRABAJADOR">Trabajador / Operario</option>
       </select>
     </div>
 
@@ -127,6 +128,18 @@
         <option value="ACTIVO">Activos</option>
         <option value="INACTIVO">Inactivos</option>
       </select>
+    </div>
+
+    <!-- Casilla para ver usuarios desactivados -->
+    <div class="flex items-center gap-2 px-2 py-1 bg-slate-50 rounded-xl border border-slate-200">
+      <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          [checked]="mostrarInactivos()"
+          (change)="mostrarInactivos.set($any($event.target).checked)"
+          class="rounded-sm border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" />
+        <span>Ver desactivados</span>
+      </label>
     </div>
   </div>
 
@@ -200,7 +213,6 @@
                 </div>
                 <div>
                   <div class="font-semibold text-slate-900">{{ u.nombre_completo }}</div>
-                  <div class="text-[11px] text-slate-400">ID: #{{ u.id_usuario }}</div>
                 </div>
               </div>
             </td>
@@ -343,6 +355,7 @@
               formControlName="rol"
               class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:border-emerald-600 focus:outline-none bg-white">
               <option value="AGRONOMO">AGRÓNOMO (Campo)</option>
+              <option value="TRABAJADOR">TRABAJADOR (Operario de Campo)</option>
               <option value="BODEGUERO">BODEGUERO (Insumos)</option>
               <option value="GERENTE">GERENTE (Costos/KPI)</option>
               <option value="ADMINISTRADOR">ADMINISTRADOR (Total)</option>
@@ -478,6 +491,7 @@
               formControlName="rol"
               class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:border-emerald-600 focus:outline-none bg-white">
               <option value="AGRONOMO">AGRÓNOMO (Campo)</option>
+              <option value="TRABAJADOR">TRABAJADOR (Operario de Campo)</option>
               <option value="BODEGUERO">BODEGUERO (Insumos)</option>
               <option value="GERENTE">GERENTE (Costos/KPI)</option>
               <option value="ADMINISTRADOR">ADMINISTRADOR (Total)</option>

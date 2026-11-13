@@ -143,9 +143,73 @@
 
   <!-- Historial de Movimientos Kardex con Merma -->
   <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-    <div class="p-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
-      <h3 class="font-bold text-slate-800 text-sm">Historial de Movimientos de Bodega (Kardex)</h3>
-      <span class="text-xs text-slate-500">{{ erpService.movimientosBodega().length }} movimientos registrados</span>
+    <div class="p-4 border-b border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div>
+        <h3 class="font-bold text-slate-800 text-sm">Historial de Movimientos de Bodega (Kardex)</h3>
+        <span class="text-xs text-slate-500">
+          {{ movimientosFiltrados().length }} de {{ erpService.movimientosBodega().length }} movimientos mostrados
+        </span>
+      </div>
+    </div>
+
+    <!-- Barra de Filtros del Historial Kardex -->
+    <div class="p-3 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div class="flex flex-wrap items-center gap-2">
+        <!-- Filtro por Insumo -->
+        <div class="flex items-center gap-1.5">
+          <span class="font-bold text-slate-600">Insumo:</span>
+          <select
+            [value]="filtroInsumoMov()"
+            (change)="filtroInsumoMov.set($any($event.target).value)"
+            class="py-1 px-2.5 rounded-lg border border-slate-300 bg-white font-medium focus:border-emerald-600 focus:outline-none">
+            <option value="TODOS">Todos los insumos</option>
+            <option *ngFor="let ins of erpService.insumos()" [value]="ins.id_insumo">
+              {{ ins.codigo_insumo }} - {{ ins.nombre }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Filtro por Tipo Movimiento -->
+        <div class="flex items-center gap-1.5">
+          <span class="font-bold text-slate-600">Tipo:</span>
+          <select
+            [value]="filtroTipoMov()"
+            (change)="filtroTipoMov.set($any($event.target).value)"
+            class="py-1 px-2.5 rounded-lg border border-slate-300 bg-white font-medium focus:border-emerald-600 focus:outline-none">
+            <option value="TODOS">Todos</option>
+            <option value="ENTRADA_COMPRA">Entrada por Compra</option>
+            <option value="SALIDA_LABOR">Salida a Campo</option>
+            <option value="AJUSTE_MERMA">Ajuste por Merma</option>
+          </select>
+        </div>
+
+        <!-- Rango de Fechas -->
+        <div class="flex items-center gap-1">
+          <span class="font-bold text-slate-600">Desde:</span>
+          <input
+            type="date"
+            [value]="filtroFechaDesde()"
+            (input)="filtroFechaDesde.set($any($event.target).value)"
+            class="py-1 px-2 rounded-lg border border-slate-300 bg-white" />
+          <span class="font-bold text-slate-600">Hasta:</span>
+          <input
+            type="date"
+            [value]="filtroFechaHasta()"
+            (input)="filtroFechaHasta.set($any($event.target).value)"
+            class="py-1 px-2 rounded-lg border border-slate-300 bg-white" />
+        </div>
+      </div>
+
+      <!-- Buscador de folio / glosa -->
+      <div class="relative w-full sm:w-56">
+        <input
+          type="text"
+          [value]="busquedaMov()"
+          (input)="busquedaMov.set($any($event.target).value)"
+          placeholder="Buscar por folio o ref..."
+          class="w-full pl-7 pr-3 py-1 rounded-lg border border-slate-300 bg-white focus:border-emerald-600 focus:outline-none" />
+        <span class="absolute left-2 top-1 text-slate-400">🔍</span>
+      </div>
     </div>
 
     <div *ngIf="cargando()" class="p-8 text-center text-slate-500">
@@ -153,11 +217,11 @@
       <p class="text-xs font-medium">Consultando registros Kardex...</p>
     </div>
 
-    <div *ngIf="!cargando() && erpService.movimientosBodega().length === 0" class="p-8 text-center text-slate-400">
-      <p class="text-sm">No existen movimientos registrados en el Kardex actualmente.</p>
+    <div *ngIf="!cargando() && movimientosFiltrados().length === 0" class="p-8 text-center text-slate-400">
+      <p class="text-sm">No existen movimientos que coincidan con los filtros seleccionados.</p>
     </div>
 
-    <div *ngIf="!cargando() && erpService.movimientosBodega().length > 0" class="overflow-x-auto">
+    <div *ngIf="!cargando() && movimientosFiltrados().length > 0" class="overflow-x-auto">
       <table class="w-full text-left border-collapse text-xs sm:text-sm">
         <thead>
           <tr class="bg-slate-100 border-b border-slate-200 text-slate-600 font-semibold text-xs uppercase">
@@ -173,22 +237,22 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
-          <tr *ngFor="let m of erpService.movimientosBodega()" class="hover:bg-slate-50">
-            <td class="p-3 text-slate-600 font-mono text-xs">{{ m.fecha_movimiento }}</td>
+          <tr *ngFor="let m of movimientosFiltrados()" class="hover:bg-slate-50">
+            <td class="p-3 text-slate-600 font-mono text-xs">{{ m.fecha_movimiento | date:'dd/MM/yyyy' }}</td>
             <td class="p-3 font-semibold text-slate-800">{{ getNombreInsumo(m.id_insumo) }}</td>
             <td class="p-3">
-              <span [class]="getClaseTipoMov(m.tipo_movimiento)" class="px-2 py-0.5 rounded-full text-[11px] font-bold border">
+              <span [class]="getClaseBadge(m.tipo_movimiento)" class="px-2 py-0.5 rounded-full text-[11px] font-bold border">
                 {{ m.tipo_movimiento }}
               </span>
             </td>
-            <td class="p-3 font-mono">{{ m.cantidad_nominal | number }}</td>
+            <td class="p-3 font-mono font-semibold">{{ m.cantidad_nominal | number:'1.2-2' }}</td>
             <td class="p-3 font-mono font-bold" [class.text-rose-600]="m.porcentaje_merma > 0">
               {{ m.porcentaje_merma }}%
             </td>
-            <td class="p-3 font-mono font-bold text-emerald-800">{{ m.cantidad_neta | number }}</td>
-            <td class="p-3 font-mono text-slate-600">\${{ m.costo_unitario_compra | number }}</td>
-            <td class="p-3 font-mono font-bold text-slate-900">\${{ m.monto_total_movimiento | number }}</td>
-            <td class="p-3 text-slate-500 text-xs">{{ m.documento_referencia || '-' }}</td>
+            <td class="p-3 font-mono font-bold text-emerald-800">{{ m.cantidad_neta | number:'1.2-2' }}</td>
+            <td class="p-3 font-mono text-slate-600">\${{ m.costo_unitario_compra | number:'1.2-2' }}</td>
+            <td class="p-3 font-mono font-bold text-slate-900">\${{ m.monto_total_movimiento | number:'1.0-0' }}</td>
+            <td class="p-3 text-slate-600 text-xs font-mono font-bold">{{ m.documento_referencia || '-' }}</td>
           </tr>
         </tbody>
       </table>
@@ -226,7 +290,10 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Tipo de Movimiento *</label>
-            <select formControlName="tipo_movimiento" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none">
+            <select
+              formControlName="tipo_movimiento"
+              (change)="onTipoMovimientoChange($any($event.target).value)"
+              class="w-full p-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none">
               <option value="ENTRADA_COMPRA">Entrada por Compra</option>
               <option value="SALIDA_LABOR">Salida a Labor de Campo</option>
               <option value="AJUSTE_MERMA">Ajuste por Merma Biológica</option>
@@ -245,11 +312,11 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <label class="block text-xs font-bold text-slate-700 mb-1">Cant. Nominal *</label>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Cant. Nominal (Decimal) *</label>
             <input
               type="number"
-              min="0.1"
-              step="0.1"
+              min="0.01"
+              step="0.01"
               formControlName="cantidad_nominal"
               class="w-full p-2.5 text-sm rounded-xl border border-slate-300 font-mono font-bold focus:ring-2 focus:ring-emerald-600 focus:outline-none"
             />
@@ -272,6 +339,7 @@
             <input
               type="number"
               min="0"
+              step="0.01"
               formControlName="costo_unitario_compra"
               class="w-full p-2.5 text-sm rounded-xl border border-slate-300 font-mono focus:ring-2 focus:ring-emerald-600 focus:outline-none"
             />
@@ -282,17 +350,17 @@
         <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs flex justify-between items-center">
           <span class="text-slate-600">Fórmula de Merma Aplicada:</span>
           <span class="font-bold text-emerald-800 font-mono">
-            Cant. Neta: {{ calcularCantidadNetaPrevia() | number }}
+            Cant. Neta: {{ calcularCantidadNetaPrevia() | number:'1.2-2' }}
           </span>
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Documento / Guía de Despacho</label>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Folio / Documento de Referencia (Autogenerado) *</label>
           <input
             type="text"
             formControlName="documento_referencia"
-            placeholder="ej. Factura N° 4589 - Semillas Chile"
-            class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+            placeholder="ej. #MOV-2026-0001"
+            class="w-full p-2.5 text-sm rounded-xl border border-slate-300 font-mono font-bold text-slate-800 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
           />
         </div>
 

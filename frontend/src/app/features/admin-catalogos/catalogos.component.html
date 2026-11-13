@@ -5,33 +5,51 @@
       <div class="flex items-center gap-2">
         <span class="text-2xl" aria-hidden="true">📑</span>
         <h1 class="text-xl font-bold text-slate-800">Catálogos Maestros de Operación</h1>
-        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
-          Solo Administrador
+        <span
+          [class]="esAdmin() ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-slate-100 text-slate-600 border-slate-200'"
+          class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border">
+          {{ esAdmin() ? 'Edición Habilitada (Administrador)' : 'Modo Solo Lectura' }}
         </span>
       </div>
       <p class="text-xs sm:text-sm text-slate-500 mt-1">
-        Mantenedores de tipos de estructura para naves y variedades agrícolas en producción protegida.
+        Mantenedores de tipos de estructura para naves, variedades agrícolas y unidades de medida agronómicas.
       </p>
     </div>
 
     <div>
-      <button
-        *ngIf="pestanaActiva() === 'ESTRUCTURAS'"
-        type="button"
-        (click)="abrirModalEstructura()"
-        class="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm rounded-xl shadow-xs transition-colors touch-target">
-        <span>➕</span>
-        <span>Nueva Estructura</span>
-      </button>
+      <div *ngIf="!esAdmin()" class="text-xs text-slate-500 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 font-medium flex items-center gap-1.5">
+        <span>🔒</span>
+        <span>Edición restringida exclusivamente a Administradores</span>
+      </div>
 
-      <button
-        *ngIf="pestanaActiva() === 'VARIEDADES'"
-        type="button"
-        (click)="abrirModalVariedad()"
-        class="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm rounded-xl shadow-xs transition-colors touch-target">
-        <span>➕</span>
-        <span>Nueva Variedad</span>
-      </button>
+      <div *ngIf="esAdmin()" class="flex items-center gap-2">
+        <button
+          *ngIf="pestanaActiva() === 'ESTRUCTURAS'"
+          type="button"
+          (click)="abrirModalEstructura()"
+          class="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm rounded-xl shadow-xs transition-colors touch-target">
+          <span>➕</span>
+          <span>Nueva Estructura</span>
+        </button>
+
+        <button
+          *ngIf="pestanaActiva() === 'VARIEDADES'"
+          type="button"
+          (click)="abrirModalVariedad()"
+          class="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm rounded-xl shadow-xs transition-colors touch-target">
+          <span>➕</span>
+          <span>Nueva Variedad</span>
+        </button>
+
+        <button
+          *ngIf="pestanaActiva() === 'UNIDADES_MEDIDA'"
+          type="button"
+          (click)="abrirModalUnidad()"
+          class="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm rounded-xl shadow-xs transition-colors touch-target">
+          <span>➕</span>
+          <span>Nueva Unidad</span>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -41,8 +59,8 @@
     <div class="space-y-1">
       <div class="font-bold">Contrato de Integración y Trazabilidad Histórica</div>
       <p class="text-xs text-amber-800">
-        Los catálogos están calculados e integrados a partir de los datos activos de Naves y Ciclos en la API.
-        Los endpoints específicos de persistencia independiente (<code class="font-mono bg-amber-100 px-1 py-0.5 rounded">/api/catalogos/estructuras</code> y <code class="font-mono bg-amber-100 px-1 py-0.5 rounded">/api/catalogos/variedades</code>) están identificados y documentados para el equipo de backend. No se simulan guardados ficticios.
+        Los catálogos están calculados e integrados a partir de los datos activos de Naves, Ciclos e Insumos en la API.
+        Los endpoints específicos de persistencia independiente (<code class="font-mono bg-amber-100 px-1 py-0.5 rounded">/api/catalogos/...</code>) están documentados para el backend. No se simulan guardados ficticios.
       </p>
     </div>
   </div>
@@ -59,14 +77,14 @@
   </div>
 
   <!-- Pestañas de Selección -->
-  <div class="flex items-center gap-2 border-b border-slate-200">
+  <div class="flex flex-wrap items-center gap-2 border-b border-slate-200">
     <button
       type="button"
       (click)="cambiarPestana('ESTRUCTURAS')"
       [class]="pestanaActiva() === 'ESTRUCTURAS' ? 'border-emerald-600 text-emerald-800 bg-emerald-50/50' : 'border-transparent text-slate-500 hover:text-slate-800'"
       class="px-4 py-2.5 font-bold text-sm border-b-2 rounded-t-xl transition-colors flex items-center gap-2">
       <span>🏗️</span>
-      <span>Tipos de Estructura de Nave ({{ catalogosService.estructuras().length }})</span>
+      <span>Tipos de Estructura ({{ catalogosService.estructuras().length }})</span>
     </button>
     <button
       type="button"
@@ -75,6 +93,14 @@
       class="px-4 py-2.5 font-bold text-sm border-b-2 rounded-t-xl transition-colors flex items-center gap-2">
       <span>🌱</span>
       <span>Variedades Agrícolas ({{ catalogosService.variedades().length }})</span>
+    </button>
+    <button
+      type="button"
+      (click)="cambiarPestana('UNIDADES_MEDIDA')"
+      [class]="pestanaActiva() === 'UNIDADES_MEDIDA' ? 'border-emerald-600 text-emerald-800 bg-emerald-50/50' : 'border-transparent text-slate-500 hover:text-slate-800'"
+      class="px-4 py-2.5 font-bold text-sm border-b-2 rounded-t-xl transition-colors flex items-center gap-2">
+      <span>⚖️</span>
+      <span>Unidades de Medida ({{ catalogosService.unidadesMedida().length }})</span>
     </button>
   </div>
 
@@ -85,7 +111,7 @@
       type="text"
       [value]="busqueda()"
       (input)="busqueda.set($any($event.target).value)"
-      placeholder="Buscar en el catálogo actual por nombre o código..."
+      placeholder="Buscar en el catálogo actual por nombre, símbolo o código..."
       class="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:border-emerald-600 focus:outline-none" />
   </div>
 
@@ -119,11 +145,13 @@
           </td>
           <td class="p-3 sm:p-4 text-center">
             <button
+              *ngIf="esAdmin()"
               type="button"
               (click)="desactivarEstructura(e)"
               class="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700">
               Desactivar
             </button>
+            <span *ngIf="!esAdmin()" class="text-xs text-slate-400 italic">Solo Lectura</span>
           </td>
         </tr>
       </tbody>
@@ -156,11 +184,62 @@
           </td>
           <td class="p-3 sm:p-4 text-center">
             <button
+              *ngIf="esAdmin()"
               type="button"
               (click)="desactivarVariedad(v)"
               class="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700">
               Desactivar
             </button>
+            <span *ngIf="!esAdmin()" class="text-xs text-slate-400 italic">Solo Lectura</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- TABLA 3: UNIDADES DE MEDIDA -->
+  <div *ngIf="pestanaActiva() === 'UNIDADES_MEDIDA'" class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+    <table class="w-full text-left text-sm text-slate-700">
+      <thead class="bg-slate-100 text-xs uppercase text-slate-600 tracking-wider">
+        <tr>
+          <th class="p-3 sm:p-4">Código</th>
+          <th class="p-3 sm:p-4">Nombre de Unidad</th>
+          <th class="p-3 sm:p-4">Símbolo / Abreviatura</th>
+          <th class="p-3 sm:p-4">Magnitud / Tipo</th>
+          <th class="p-3 sm:p-4 text-center">Insumos en Uso</th>
+          <th class="p-3 sm:p-4">Estado</th>
+          <th class="p-3 sm:p-4 text-center">Acciones</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100 font-medium">
+        <tr *ngFor="let u of unidadesFiltradas()" class="hover:bg-slate-50 transition-colors">
+          <td class="p-3 sm:p-4 font-mono text-xs text-slate-500 font-bold">{{ u.id }}</td>
+          <td class="p-3 sm:p-4 font-bold text-slate-900">{{ u.nombre }}</td>
+          <td class="p-3 sm:p-4 font-mono font-bold text-emerald-800">{{ u.simbolo }}</td>
+          <td class="p-3 sm:p-4">
+            <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 font-mono">
+              {{ u.tipo }}
+            </span>
+          </td>
+          <td class="p-3 sm:p-4 text-center">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-800 border border-blue-200">
+              {{ u.insumosEnUso }} insumo(s)
+            </span>
+          </td>
+          <td class="p-3 sm:p-4">
+            <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+              Activo
+            </span>
+          </td>
+          <td class="p-3 sm:p-4 text-center">
+            <button
+              *ngIf="esAdmin()"
+              type="button"
+              (click)="desactivarUnidadMedida(u)"
+              class="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700">
+              Desactivar
+            </button>
+            <span *ngIf="!esAdmin()" class="text-xs text-slate-400 italic">Solo Lectura</span>
           </td>
         </tr>
       </tbody>
@@ -246,6 +325,55 @@
         <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
           <button type="button" (click)="cerrarModalVariedad()" class="px-4 py-2 text-sm font-semibold text-slate-600">Cancelar</button>
           <button type="submit" [disabled]="variedadForm.invalid" class="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-semibold text-sm rounded-xl">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Unidad de Medida -->
+  <div
+    *ngIf="modalUnidadAbierto()"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="tituloModalUnidad"
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <h3 id="tituloModalUnidad" class="font-bold text-slate-800 text-base">⚖️ Registrar Unidad de Medida</h3>
+        <button (click)="cerrarModalUnidad()" class="text-slate-400 hover:text-slate-700 font-bold text-lg px-2">✕</button>
+      </div>
+
+      <form [formGroup]="unidadMedidaForm" (ngSubmit)="onSubmitUnidad()" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Nombre Completo de la Unidad *</label>
+          <input
+            type="text"
+            formControlName="nombre"
+            placeholder="ej. Toneladas Métricas"
+            class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:border-emerald-600 focus:outline-none" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Símbolo / Abreviatura Oficial *</label>
+          <input
+            type="text"
+            formControlName="simbolo"
+            placeholder="ej. TON"
+            class="w-full p-2.5 text-sm font-mono rounded-xl border border-slate-300 focus:border-emerald-600 focus:outline-none" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Magnitud / Tipo *</label>
+          <select
+            formControlName="tipo"
+            class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:border-emerald-600 focus:outline-none bg-white">
+            <option value="MASA">MASA (Kg, Gramos, Toneladas)</option>
+            <option value="VOLUMEN">VOLUMEN (Litros, Mililitros, m3)</option>
+            <option value="UNIDAD">UNIDAD (Conteo unitario)</option>
+            <option value="EMPAQUE">EMPAQUE (Sacos, Bolsas, Bandejas, Cajas)</option>
+          </select>
+        </div>
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" (click)="cerrarModalUnidad()" class="px-4 py-2 text-sm font-semibold text-slate-600">Cancelar</button>
+          <button type="submit" [disabled]="unidadMedidaForm.invalid" class="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-semibold text-sm rounded-xl">Guardar</button>
         </div>
       </form>
     </div>

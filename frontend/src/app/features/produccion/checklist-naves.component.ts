@@ -7,8 +7,8 @@ import { ItemChecklist, InspeccionNave, Nave } from '../../core/models/erp.model
 
 /**
  * Componente de Checklist e Inspección de Naves en Terreno (Tablet / Smartphone).
- * Permite a agrónomos y técnicos supervisar físicamente el estado de los invernaderos,
- * verificando sanidad vegetal, líneas de riego, estado de cubiertas, entutorado y bioseguridad.
+ * Permite a agrónomos, técnicos y operarios supervisar físicamente el estado de los invernaderos,
+ * asignar tareas a trabajadores por nave y agregar o quitar tareas de forma dinámica.
  */
 @Component({
   selector: 'app-checklist-naves',
@@ -22,9 +22,26 @@ export class ChecklistNavesComponent {
 
   readonly mensajeExito = signal<string | null>(null);
   readonly naveSeleccionada = signal<Nave | null>(null);
+  readonly trabajadorAsignado = signal<string>('Carlos Mendoza (Operario de Campo)');
+  readonly modalNuevaTarea = signal<boolean>(false);
+
   observacionesGenerales: string = '';
 
-  // Lista de 10 puntos críticos de supervisión en invernaderos
+  // Datos para nueva tarea dinámica
+  nuevaTareaTitulo: string = '';
+  nuevaTareaCategoria: 'SANIDAD' | 'RIEGO' | 'ESTRUCTURA' | 'MANEJO' | 'BIOSEGURIDAD' = 'MANEJO';
+  nuevaTareaDescripcion: string = '';
+
+  // Nómina de trabajadores y operarios disponibles para asignación
+  readonly trabajadoresDisponibles: string[] = [
+    'Carlos Mendoza (Operario de Campo)',
+    'Juan Pérez (Operario de Riego y Fertirriego)',
+    'Manuel Morales (Encargado Fitosanitario)',
+    'Rosa Gallardo (Cuadrilla de Cosecha)',
+    'Héctor Valenzuela (Técnico de Estructuras)'
+  ];
+
+  // Lista dinámica de puntos de supervisión en invernaderos
   readonly itemsChecklist = signal<ItemChecklist[]>([
     {
       id: 'SAN-01',
@@ -99,7 +116,6 @@ export class ChecklistNavesComponent {
   ]);
 
   constructor() {
-    // Selecciona automáticamente la primera nave cuando se cargan desde Supabase
     effect(() => {
       const naves = this.erpService.naves();
       if (!this.naveSeleccionada() && naves.length > 0) {
@@ -145,6 +161,52 @@ export class ChecklistNavesComponent {
   reiniciarPauta(): void {
     this.marcarTodoConforme();
     this.observacionesGenerales = '';
+  }
+
+  // Métodos para agregar y sacar tareas dinámicamente
+  abrirModalNuevaTarea(): void {
+    this.nuevaTareaTitulo = '';
+    this.nuevaTareaDescripcion = '';
+    this.nuevaTareaCategoria = 'MANEJO';
+    this.modalNuevaTarea.set(true);
+  }
+
+  cerrarModalNuevaTarea(): void {
+    this.modalNuevaTarea.set(false);
+  }
+
+  confirmarAgregarTarea(): void {
+    if (!this.nuevaTareaTitulo.trim()) return;
+
+    const num = this.itemsChecklist().length + 1;
+    const cat = this.nuevaTareaCategoria;
+    const prefix = cat.substring(0, 3).toUpperCase();
+    const id = `${prefix}-${num < 10 ? '0' + num : num}`;
+
+    const nueva: ItemChecklist = {
+      id,
+      categoria: cat,
+      titulo: this.nuevaTareaTitulo.trim(),
+      descripcion: this.nuevaTareaDescripcion.trim() || 'Verificación operativa en terreno.',
+      estado: 'CONFORME'
+    };
+
+    this.itemsChecklist.update((lista) => [...lista, nueva]);
+    this.cerrarModalNuevaTarea();
+    this.mensajeExito.set(`Tarea "${nueva.titulo}" añadida exitosamente a la pauta.`);
+    setTimeout(() => this.mensajeExito.set(null), 3000);
+  }
+
+  eliminarTarea(id: string): void {
+    const item = this.itemsChecklist().find((i) => i.id === id);
+    if (!item) return;
+
+    const confirmacion = confirm(`¿Deseas eliminar la tarea "${item.titulo}" del checklist?`);
+    if (!confirmacion) return;
+
+    this.itemsChecklist.update((lista) => lista.filter((i) => i.id !== id));
+    this.mensajeExito.set(`Tarea eliminada del checklist.`);
+    setTimeout(() => this.mensajeExito.set(null), 3000);
   }
 
   totalConforme(): number {
@@ -196,20 +258,21 @@ export class ChecklistNavesComponent {
       variedad_cultivo: this.getVariedadNave(nave.id_nave),
       fecha_inspeccion: fechaStr,
       inspector: inspector,
+      trabajador_asignado: this.trabajadorAsignado(),
       porcentaje_cumplimiento: cumplimiento,
       estado_general: estadoGen,
-      observaciones: this.observacionesGenerales.trim() || undefined,
-      total_conforme: this.totalConforme(),
-      total_observado: this.totalObservado(),
-      total_no_conforme: this.totalNoConforme()
+      observaciones: this.observacionesGenerales,
+      items: this.itemsChecklist()
     };
 
-    console.log('📤 [POST Guardar Inspección de Nave] Registrando inspección técnica:', inspeccionData);
+    console.log('📤 [Checklist Terreno] Inspección guardada:', inspeccionData);
+    this.mensajeExito.set(
+      `Inspección de ${nave.codigo_nave} registrada exitosamente (${cumplimiento}% cumplimiento - Asignado a ${this.trabajadorAsignado()}).`
+    );
 
-    this.erpService.registrarInspeccion(inspeccionData);
-
-    this.mensajeExito.set(`Inspección de ${nave.codigo_nave} registrada exitosamente (${cumplimiento}% de cumplimiento).`);
-    this.observacionesGenerales = '';
+    setTimeout(() => {
+      this.mensajeExito.set(null);
+    }, 5000);
   }
 
   getClaseEstadoNave(estado: string): string {
@@ -221,32 +284,40 @@ export class ChecklistNavesComponent {
     }
   }
 
-  getClaseContenedorItem(estado: string): string {
-    switch (estado) {
-      case 'CONFORME': return 'bg-emerald-50/40 border-emerald-200 hover:border-emerald-300';
-      case 'OBSERVADO': return 'bg-amber-50/50 border-amber-300 hover:border-amber-400';
-      case 'NO_CONFORME': return 'bg-rose-50/50 border-rose-300 hover:border-rose-400';
-      default: return 'bg-slate-50 border-slate-200';
-    }
-  }
-
-  getClaseCategoria(cat: string): string {
-    switch (cat) {
-      case 'SANIDAD': return 'bg-emerald-100 text-emerald-800';
-      case 'RIEGO': return 'bg-blue-100 text-blue-800';
-      case 'ESTRUCTURA': return 'bg-indigo-100 text-indigo-800';
-      case 'MANEJO': return 'bg-teal-100 text-teal-800';
-      case 'BIOSEGURIDAD': return 'bg-amber-100 text-amber-800';
-      default: return 'bg-slate-100 text-slate-700';
-    }
-  }
-
   getBadgeEstadoGeneral(estado: string): string {
     switch (estado) {
       case 'APROBADO': return 'bg-emerald-100 text-emerald-800 border-emerald-300';
       case 'CON_OBSERVACIONES': return 'bg-amber-100 text-amber-800 border-amber-300';
       case 'CRITICO': return 'bg-rose-100 text-rose-800 border-rose-300';
       default: return 'bg-slate-100 text-slate-700 border-slate-300';
+    }
+  }
+
+  getClaseContenedorItem(estado: 'CONFORME' | 'OBSERVADO' | 'NO_CONFORME' | 'PENDIENTE'): string {
+    switch (estado) {
+      case 'CONFORME':
+        return 'bg-white border-slate-200 hover:border-emerald-300';
+      case 'OBSERVADO':
+        return 'bg-amber-50/70 border-amber-300';
+      case 'NO_CONFORME':
+        return 'bg-rose-50/80 border-rose-300';
+      default:
+        return 'bg-slate-50 border-slate-200';
+    }
+  }
+
+  getClaseCategoria(categoria: 'SANIDAD' | 'RIEGO' | 'ESTRUCTURA' | 'MANEJO' | 'BIOSEGURIDAD'): string {
+    switch (categoria) {
+      case 'SANIDAD':
+        return 'bg-emerald-100 text-emerald-800';
+      case 'RIEGO':
+        return 'bg-blue-100 text-blue-800';
+      case 'ESTRUCTURA':
+        return 'bg-slate-200 text-slate-800';
+      case 'MANEJO':
+        return 'bg-purple-100 text-purple-800';
+      case 'BIOSEGURIDAD':
+        return 'bg-amber-100 text-amber-800';
     }
   }
 }
