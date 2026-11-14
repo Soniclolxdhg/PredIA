@@ -98,6 +98,12 @@ export class InventarioApiService {
     );
   }
 
+  eliminarInsumo(id: number): Observable<any> {
+    const url = `${this.baseUrl}${INVENTARIO_ENDPOINTS.INSUMO_POR_ID(id)}`;
+    console.log(`📤 [DELETE ${INVENTARIO_ENDPOINTS.INSUMO_POR_ID(id)}] Eliminando insumo #${id}`);
+    return this.http.delete<any>(url);
+  }
+
   // ==========================================
   // 2. KARDEX & MOVIMIENTOS (HU04)
   // ==========================================
@@ -192,7 +198,8 @@ export class InventarioApiService {
       stock_minimo_alerta: stockMinimo,
       costo_unitario_promedio: Number(raw.costoUnitarioPromedio ?? raw.costo_unitario_promedio ?? 0),
       es_material_vegetal: Boolean(raw.esMaterialVegetal ?? raw.es_material_vegetal ?? false),
-      es_stock_critico: esCritico
+      es_stock_critico: esCritico,
+      activo: raw.activo !== false
     };
   }
 

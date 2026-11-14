@@ -72,7 +72,7 @@ export class AlertasStockComponent implements OnInit {
       id_alerta: 1000 + (ins.id_insumo || idx),
       id_insumo: ins.id_insumo,
       tipo_alerta: 'STOCK_MINIMO',
-      mensaje: `Stock Crítico: "${ins.nombre}" (${ins.codigo_insumo}) cuenta con solo ${ins.stock_actual} ${ins.unidad_medida} en bodega (Mínimo de seguridad: ${ins.stock_minimo_alerta} ${ins.unidad_medida}).`,
+      mensaje: `Stock Crítico: "${ins.nombre}" (${ins.codigo_insumo}) cuenta con solo ${ins.stock_actual} ${ins.unidad_medida.toLowerCase()} en bodega (Stock mínimo: ${ins.stock_minimo_alerta} ${ins.unidad_medida.toLowerCase()}).`,
       estado: 'ABIERTA',
       fecha_emision: new Date().toISOString()
     }));

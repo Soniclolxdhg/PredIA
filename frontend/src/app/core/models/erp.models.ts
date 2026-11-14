@@ -65,6 +65,7 @@ export interface Insumo {
   costo_unitario_promedio: number;
   es_material_vegetal: boolean;
   es_stock_critico?: boolean;
+  activo?: boolean;
 }
 
 export interface AlertaStock {
@@ -111,7 +112,7 @@ export interface AsistenciaJornal {
   valor_hora_aplicado: number;
   monto_devengado: number;
   modalidad_pago: ModalidadPago;
-  estado_pago: 'PENDIENTE' | 'PAGADO';
+  estado_pago: 'PENDIENTE' | 'PAGADO' | 'CONCILIADO';
 }
 
 export interface CostoIndirecto {

@@ -68,6 +68,12 @@ export class ProduccionApiService {
     );
   }
 
+  eliminarNave(id: number): Observable<any> {
+    const url = `${this.baseUrl}${PRODUCCION_ENDPOINTS.NAVE_POR_ID(id)}`;
+    console.log(`📤 [DELETE ${PRODUCCION_ENDPOINTS.NAVE_POR_ID(id)}] Eliminando nave #${id}`);
+    return this.http.delete<any>(url);
+  }
+
   sembrarNavesBase(): Observable<any> {
     const url = `${this.baseUrl}${PRODUCCION_ENDPOINTS.SEMBRAR_NAVES}`;
     console.log(`📤 [POST ${PRODUCCION_ENDPOINTS.SEMBRAR_NAVES}] Solicitando inicialización de 4 naves base`);

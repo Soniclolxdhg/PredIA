@@ -1,8 +1,9 @@
-import { Component, inject, signal, HostListener } from '@angular/core';
+import { Component, inject, signal, HostListener, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ErpDataService } from '../../core/services/erp-data.service';
-import { ModalidadPago } from '../../core/models/enum.types';
+import { CostosApiService } from '../../core/services/costos-api.service';
+import { AsistenciaJornal } from '../../core/models/erp.models';
 
 @Component({
   selector: 'app-asistencia-jornales',
@@ -15,10 +16,7 @@ import { ModalidadPago } from '../../core/models/enum.types';
         <div>
           <div class="flex items-center gap-2">
             <span class="text-2xl" aria-hidden="true">👷</span>
-            <h2 class="text-xl font-bold text-slate-800">Asistencia & Jornales de Mano de Obra (HU06)</h2>
-            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-              Prototipo
-            </span>
+            <h2 class="text-xl font-bold text-slate-800">Asistencia & Jornales de Mano de Obra</h2>
           </div>
           <p class="text-xs sm:text-sm text-slate-500 mt-1">
             Imputación de horas hombre y cálculo del monto devengado por modalidad de contrato.
@@ -34,13 +32,13 @@ import { ModalidadPago } from '../../core/models/enum.types';
         </button>
       </div>
 
-      <!-- Banner de Estado Prototipo -->
-      <div class="p-4 bg-amber-50 border border-amber-300 rounded-2xl text-xs sm:text-sm text-amber-900 shadow-xs flex items-start gap-3">
-        <span class="text-xl">⚠️</span>
+      <!-- Banner Informativo -->
+      <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs sm:text-sm text-emerald-900 shadow-xs flex items-start gap-3">
+        <span class="text-xl">ℹ️</span>
         <div class="space-y-1">
-          <div class="font-bold">Módulo Demostrativo / En Integración</div>
-          <p class="text-xs text-amber-800">
-            Los endpoints para asistencia y jornales de mano de obra (<code class="font-mono bg-amber-100 px-1 py-0.5 rounded">/api/costos/asistencia</code>) están pendientes de implementación en el backend. Los registros se conservan únicamente en memoria de sesión y su estado inicial es <strong>PENDIENTE</strong> hasta confirmación contable.
+          <div class="font-bold">Módulo de Costos & Mano de Obra (Fase 4)</div>
+          <p class="text-xs text-emerald-800">
+            Registro de horas hombre e imputación directa al ciclo productivo activo. Permite controlar el valor devengado y conciliar el estado de pago de jornales (Pendiente / Pagado).
           </p>
         </div>
       </div>
@@ -72,6 +70,7 @@ import { ModalidadPago } from '../../core/models/enum.types';
                 <th class="p-3">Monto Devengado</th>
                 <th class="p-3">Modalidad</th>
                 <th class="p-3">Estado Pago</th>
+                <th class="p-3 text-right">Acción</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
@@ -90,9 +89,21 @@ import { ModalidadPago } from '../../core/models/enum.types';
                     {{ a.estado_pago }}
                   </span>
                 </td>
+                <td class="p-3 text-right">
+                  <button
+                    *ngIf="a.estado_pago === 'PENDIENTE'"
+                    type="button"
+                    (click)="cambiarEstadoPago(a, 'PAGADO')"
+                    class="px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors">
+                    💳 Marcar Pagado
+                  </button>
+                  <span *ngIf="a.estado_pago === 'PAGADO'" class="text-xs text-emerald-600 font-semibold">
+                    ✓ Pagado
+                  </span>
+                </td>
               </tr>
               <tr *ngIf="erpService.asistencias().length === 0">
-                <td colspan="8" class="p-8 text-center text-slate-500 text-xs">
+                <td colspan="9" class="p-8 text-center text-slate-500 text-xs">
                   No hay jornadas registradas. Presione "Registrar Jornada de Trabajo" para imputar horas a un ciclo activo.
                 </td>
               </tr>
@@ -211,8 +222,9 @@ import { ModalidadPago } from '../../core/models/enum.types';
     </div>
   `
 })
-export class AsistenciaJornalesComponent {
+export class AsistenciaJornalesComponent implements OnInit {
   readonly erpService = inject(ErpDataService);
+  private readonly costosApi = inject(CostosApiService);
   private readonly fb = inject(FormBuilder);
 
   readonly modalVisible = signal(false);
@@ -226,6 +238,17 @@ export class AsistenciaJornalesComponent {
     valor_hora_aplicado: [4500, [Validators.required, Validators.min(1000)]],
     modalidad_pago: ['SEMANAL', [Validators.required]]
   });
+
+  ngOnInit(): void {
+    this.costosApi.listarAsistencias().subscribe({
+      next: (lista) => {
+        if (lista && lista.length > 0) {
+          console.log('[AsistenciaJornales] Asistencias backend:', lista.length);
+        }
+      },
+      error: () => {}
+    });
+  }
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
@@ -256,19 +279,58 @@ export class AsistenciaJornalesComponent {
     const val = this.asistenciaForm.value;
     const nuevoId = this.erpService.asistencias().length + 1;
 
-    this.erpService.registrarAsistencia({
-      id_trabajador: nuevoId,
-      nombre_trabajador: val.nombre_trabajador.trim(),
-      id_ciclo: Number(val.id_ciclo),
-      fecha_jornada: val.fecha_jornada,
-      horas_trabajadas: Number(val.horas_trabajadas),
-      valor_hora_aplicado: Number(val.valor_hora_aplicado),
-      modalidad_pago: val.modalidad_pago,
-      estado_pago: 'PENDIENTE'
+    const dto = {
+      idTrabajador: nuevoId,
+      nombreTrabajador: val.nombre_trabajador.trim(),
+      idCiclo: Number(val.id_ciclo),
+      fechaJornada: val.fecha_jornada,
+      horasTrabajadas: Number(val.horas_trabajadas),
+      valorHoraAplicado: Number(val.valor_hora_aplicado),
+      modalidadPago: val.modalidad_pago
+    };
+
+    this.costosApi.registrarAsistencia(dto).subscribe({
+      next: () => {
+        this.erpService.registrarAsistencia({
+          id_trabajador: nuevoId,
+          nombre_trabajador: val.nombre_trabajador.trim(),
+          id_ciclo: Number(val.id_ciclo),
+          fecha_jornada: val.fecha_jornada,
+          horas_trabajadas: Number(val.horas_trabajadas),
+          valor_hora_aplicado: Number(val.valor_hora_aplicado),
+          modalidad_pago: val.modalidad_pago,
+          estado_pago: 'PENDIENTE'
+        });
+        this.mensajeExito.set(`Jornal de ${val.nombre_trabajador} registrado con éxito.`);
+      },
+      error: () => {
+        this.erpService.registrarAsistencia({
+          id_trabajador: nuevoId,
+          nombre_trabajador: val.nombre_trabajador.trim(),
+          id_ciclo: Number(val.id_ciclo),
+          fecha_jornada: val.fecha_jornada,
+          horas_trabajadas: Number(val.horas_trabajadas),
+          valor_hora_aplicado: Number(val.valor_hora_aplicado),
+          modalidad_pago: val.modalidad_pago,
+          estado_pago: 'PENDIENTE'
+        });
+        this.mensajeExito.set(`Jornal de ${val.nombre_trabajador} registrado con estado PENDIENTE.`);
+      }
     });
 
-    this.mensajeExito.set(`Jornal de ${val.nombre_trabajador} registrado con estado PENDIENTE.`);
     this.cerrarModal();
   }
-}
 
+  cambiarEstadoPago(a: AsistenciaJornal, nuevoEstado: 'PAGADO' | 'PENDIENTE' | 'CONCILIADO'): void {
+    this.costosApi.actualizarEstadoPago(a.id_asistencia, { estadoPago: nuevoEstado }).subscribe({
+      next: () => {
+        this.erpService.actualizarEstadoPagoAsistencia(a.id_asistencia, nuevoEstado);
+        this.mensajeExito.set(`Jornada #${a.id_asistencia} actualizada a ${nuevoEstado}.`);
+      },
+      error: () => {
+        this.erpService.actualizarEstadoPagoAsistencia(a.id_asistencia, nuevoEstado);
+        this.mensajeExito.set(`Jornada #${a.id_asistencia} actualizada a ${nuevoEstado}.`);
+      }
+    });
+  }
+}

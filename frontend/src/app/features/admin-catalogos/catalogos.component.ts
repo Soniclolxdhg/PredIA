@@ -41,7 +41,7 @@ export class CatalogosComponent {
   readonly variedadForm: FormGroup = this.fb.group({
     nombre: ['', [Validators.required, Validators.minLength(3)]],
     especie: ['', [Validators.required, Validators.minLength(3)]],
-    codigoRef: ['', [Validators.required, Validators.minLength(3)]]
+    codigoRef: ['']
   });
 
   readonly unidadMedidaForm: FormGroup = this.fb.group({

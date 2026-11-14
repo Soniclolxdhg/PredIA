@@ -19,7 +19,7 @@ import { ErpDataService } from '../../core/services/erp-data.service';
       <div class="bg-gradient-to-r from-emerald-800 via-emerald-700 to-green-900 text-white p-6 sm:p-8 rounded-3xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <span class="text-xs font-bold uppercase tracking-wider text-emerald-300 bg-white/10 px-2.5 py-1 rounded-full">
-            PredIA &bull; Santa Laura Ltda.
+            PredIA &bull; Gestión Agrícola
           </span>
           <h1 class="text-2xl font-black mt-2">
             Panel de Control General
@@ -115,7 +115,7 @@ import { ErpDataService } from '../../core/services/erp-data.service';
             class="p-4 rounded-2xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/30 transition-all flex items-start gap-3 group">
             <span class="text-2xl p-2 bg-emerald-100 rounded-xl group-hover:scale-105 transition-transform">🏡</span>
             <div>
-              <div class="font-bold text-slate-900 text-sm">Ciclos & Naves (HU01)</div>
+              <div class="font-bold text-slate-900 text-sm">Ciclos & Naves</div>
               <p class="text-xs text-slate-500 mt-0.5">Control de invernaderos, fechas de siembra y apertura de ciclo.</p>
             </div>
           </a>
@@ -126,7 +126,7 @@ import { ErpDataService } from '../../core/services/erp-data.service';
             class="p-4 rounded-2xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/30 transition-all flex items-start gap-3 group">
             <span class="text-2xl p-2 bg-emerald-100 rounded-xl group-hover:scale-105 transition-transform">📋</span>
             <div>
-              <div class="font-bold text-slate-900 text-sm">Checklist Naves (Tablet)</div>
+              <div class="font-bold text-slate-900 text-sm">Checklist Naves</div>
               <p class="text-xs text-slate-500 mt-0.5">Supervisión física de ventilación, sensores y mallas en terreno.</p>
             </div>
           </a>
@@ -137,7 +137,7 @@ import { ErpDataService } from '../../core/services/erp-data.service';
             class="p-4 rounded-2xl border border-slate-200 hover:border-amber-500 hover:bg-amber-50/30 transition-all flex items-start gap-3 group">
             <span class="text-2xl p-2 bg-amber-100 rounded-xl group-hover:scale-105 transition-transform">📦</span>
             <div>
-              <div class="font-bold text-slate-900 text-sm">Kardex & Mermas (HU04)</div>
+              <div class="font-bold text-slate-900 text-sm">Kardex & Mermas</div>
               <p class="text-xs text-slate-500 mt-0.5">Entradas, salidas y merma de semillas con costeo PMP.</p>
             </div>
           </a>
@@ -148,7 +148,7 @@ import { ErpDataService } from '../../core/services/erp-data.service';
             class="p-4 rounded-2xl border border-slate-200 hover:border-rose-500 hover:bg-rose-50/30 transition-all flex items-start gap-3 group">
             <span class="text-2xl p-2 bg-rose-100 rounded-xl group-hover:scale-105 transition-transform">🚨</span>
             <div>
-              <div class="font-bold text-slate-900 text-sm">Alertas de Stock (HU05)</div>
+              <div class="font-bold text-slate-900 text-sm">Alertas de Stock</div>
               <p class="text-xs text-slate-500 mt-0.5">Semáforo de reposición oportuna de insumos críticos.</p>
             </div>
           </a>

@@ -3,11 +3,11 @@
   <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
     <div>
       <div class="flex items-center gap-2">
-        <span class="text-2xl">📋</span>
-        <h2 class="text-xl font-bold text-slate-800">Kardex de Inventario & Mermas (HU04)</h2>
+        <span class="text-2xl">📦</span>
+        <h2 class="text-xl font-bold text-slate-800">Control de inventario en bodega</h2>
       </div>
       <p class="text-xs sm:text-sm text-slate-500 mt-1">
-        Gestión de insumos con control de saldo físico, PMP y ajuste de merma biológica en semillas/almácigos.
+        Gestión de insumos con control de saldo físico, PMP y ajuste de merma biológica en semillas y fertilizantes.
       </p>
     </div>
 
@@ -53,14 +53,42 @@
 
   <!-- Catálogo de Insumos y Saldo Físico PMP -->
   <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-    <div class="p-4 border-b border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div class="p-4 border-b border-slate-200 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-3">
       <div>
         <h3 class="font-bold text-slate-800 text-sm">Catálogo de Insumos & Saldo Físico</h3>
         <span class="text-xs text-slate-500">{{ insumosFiltrados().length }} insumos mostrados</span>
       </div>
 
-      <!-- Filtro Rápido Stock Bajo -->
-      <div class="flex items-center gap-2">
+      <!-- Barra de Filtros: Búsqueda, Categoría y Filtro Críticos -->
+      <div class="flex flex-wrap items-center gap-2.5">
+        <!-- Campo de búsqueda -->
+        <div class="relative w-full sm:w-48">
+          <input
+            type="text"
+            [value]="busquedaInsumo()"
+            (input)="busquedaInsumo.set($any($event.target).value)"
+            placeholder="Buscar por código o nombre..."
+            class="w-full pl-7 pr-3 py-1.5 text-xs rounded-xl border border-slate-300 bg-white focus:border-emerald-600 focus:outline-none" />
+          <span class="absolute left-2 top-1.5 text-slate-400 text-xs">🔍</span>
+        </div>
+
+        <!-- Filtro por Categoría -->
+        <div class="flex items-center gap-1.5">
+          <span class="text-xs font-bold text-slate-600">Categoría:</span>
+          <select
+            [value]="filtroCategoriaInsumo()"
+            (change)="filtroCategoriaInsumo.set($any($event.target).value)"
+            class="py-1.5 px-2.5 text-xs rounded-xl border border-slate-300 bg-white font-medium focus:border-emerald-600 focus:outline-none">
+            <option value="TODOS">Todas las categorías</option>
+            <option value="SEMILLA">Semillas</option>
+            <option value="ALMACIGO">Almácigos</option>
+            <option value="FERTILIZANTE">Fertilizantes</option>
+            <option value="DESINFECTANTE">Desinfectantes</option>
+            <option value="OTRO">Otros</option>
+          </select>
+        </div>
+
+        <!-- Filtro Rápido Stock Bajo -->
         <button
           type="button"
           (click)="alternarFiltroCriticos(false)"
@@ -102,6 +130,7 @@
             <th class="p-3">Stock Mínimo</th>
             <th class="p-3">Costo Unit. PMP</th>
             <th class="p-3">Estado</th>
+            <th class="p-3 text-center">Acciones</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
@@ -119,21 +148,54 @@
               class="p-3 font-mono font-bold"
               [class.text-rose-600]="ins.es_stock_critico || ins.stock_actual <= ins.stock_minimo_alerta"
               [class.text-slate-800]="!(ins.es_stock_critico || ins.stock_actual <= ins.stock_minimo_alerta)">
-              {{ ins.stock_actual | number }}
+              {{ formatDecimal(ins.stock_actual) }}
             </td>
-            <td class="p-3 font-mono text-slate-500">{{ ins.stock_minimo_alerta | number }}</td>
-            <td class="p-3 font-mono text-slate-700">\${{ ins.costo_unitario_promedio | number }}</td>
+            <td class="p-3 font-mono text-slate-500">{{ formatDecimal(ins.stock_minimo_alerta) }}</td>
+            <td class="p-3 font-mono text-slate-700">\${{ formatDecimal(ins.costo_unitario_promedio) }}</td>
             <td class="p-3">
-              <span
-                *ngIf="ins.es_stock_critico || ins.stock_actual <= ins.stock_minimo_alerta; else stockOk"
-                class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-300 inline-flex items-center gap-1">
-                <span>🚨</span> CRÍTICO
-              </span>
-              <ng-template #stockOk>
-                <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1">
-                  <span>✓</span> NORMAL
+              <div class="flex flex-col gap-1">
+                <span
+                  *ngIf="ins.es_stock_critico || ins.stock_actual <= ins.stock_minimo_alerta; else stockOk"
+                  class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300 inline-flex items-center gap-1 w-max">
+                  <span>🚨</span> CRÍTICO
                 </span>
-              </ng-template>
+                <ng-template #stockOk>
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1 w-max">
+                    <span>✓</span> NORMAL
+                  </span>
+                </ng-template>
+
+                <span
+                  [class]="ins.activo !== false ? 'text-emerald-700' : 'text-slate-400'"
+                  class="text-[10px] font-bold flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full" [class]="ins.activo !== false ? 'bg-emerald-600' : 'bg-slate-400'"></span>
+                  {{ ins.activo !== false ? 'Habilitado' : 'Desactivado' }}
+                </span>
+              </div>
+            </td>
+            <td class="p-3 text-center">
+              <div class="flex items-center justify-center gap-1.5 flex-wrap">
+                <!-- Botón Editar Insumo -->
+                <button
+                  type="button"
+                  (click)="abrirModalEditarInsumo(ins)"
+                  title="Editar insumo"
+                  class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-colors inline-flex items-center gap-1">
+                  <span>✏️</span>
+                  <span>Editar</span>
+                </button>
+
+                <!-- Botón Desactivar / Activar Insumo -->
+                <button
+                  type="button"
+                  (click)="alternarEstadoInsumo(ins)"
+                  [title]="ins.activo !== false ? 'Desactivar insumo' : 'Habilitar insumo'"
+                  [class]="ins.activo !== false ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-300' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300'"
+                  class="px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors inline-flex items-center gap-1">
+                  <span>{{ ins.activo !== false ? '⏸️' : '▶️' }}</span>
+                  <span>{{ ins.activo !== false ? 'Desactivar' : 'Activar' }}</span>
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -245,13 +307,13 @@
                 {{ m.tipo_movimiento }}
               </span>
             </td>
-            <td class="p-3 font-mono font-semibold">{{ m.cantidad_nominal | number:'1.2-2' }}</td>
+            <td class="p-3 font-mono font-semibold">{{ formatDecimal(m.cantidad_nominal) }}</td>
             <td class="p-3 font-mono font-bold" [class.text-rose-600]="m.porcentaje_merma > 0">
               {{ m.porcentaje_merma }}%
             </td>
-            <td class="p-3 font-mono font-bold text-emerald-800">{{ m.cantidad_neta | number:'1.2-2' }}</td>
-            <td class="p-3 font-mono text-slate-600">\${{ m.costo_unitario_compra | number:'1.2-2' }}</td>
-            <td class="p-3 font-mono font-bold text-slate-900">\${{ m.monto_total_movimiento | number:'1.0-0' }}</td>
+            <td class="p-3 font-mono font-bold text-emerald-800">{{ formatDecimal(m.cantidad_neta) }}</td>
+            <td class="p-3 font-mono text-slate-600">\${{ formatDecimal(m.costo_unitario_compra) }}</td>
+            <td class="p-3 font-mono font-bold text-slate-900">\${{ formatDecimal(m.monto_total_movimiento) }}</td>
             <td class="p-3 text-slate-600 text-xs font-mono font-bold">{{ m.documento_referencia || '-' }}</td>
           </tr>
         </tbody>
@@ -267,7 +329,7 @@
       <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
         <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
           <span>📦</span>
-          <span>Registrar Movimiento en Kardex (HU04)</span>
+          <span>Registrar Movimiento en Kardex</span>
         </h3>
         <button (click)="cerrarModalMovimiento()" class="text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
       </div>
@@ -280,9 +342,9 @@
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Insumo Receptor / Saliente *</label>
           <select formControlName="id_insumo" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none">
-            <option value="" disabled>Seleccione un insumo...</option>
+            <option value="" disabled selected>Seleccione un insumo...</option>
             <option *ngFor="let ins of erpService.insumos()" [value]="ins.id_insumo">
-              {{ ins.codigo_insumo }} - {{ ins.nombre }} (Stock: {{ ins.stock_actual }} {{ ins.unidad_medida }})
+              {{ ins.codigo_insumo }} - {{ ins.nombre }} (Stock: {{ formatDecimal(ins.stock_actual) }} {{ ins.unidad_medida }})
             </option>
           </select>
         </div>
@@ -292,7 +354,7 @@
             <label class="block text-xs font-bold text-slate-700 mb-1">Tipo de Movimiento *</label>
             <select
               formControlName="tipo_movimiento"
-              (change)="onTipoMovimientoChange($any($event.target).value)"
+              (change)="onTipoMovimientoChange()"
               class="w-full p-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none">
               <option value="ENTRADA_COMPRA">Entrada por Compra</option>
               <option value="SALIDA_LABOR">Salida a Labor de Campo</option>
@@ -318,6 +380,7 @@
               min="0.01"
               step="0.01"
               formControlName="cantidad_nominal"
+              placeholder="ej. 1,5 o 100,0"
               class="w-full p-2.5 text-sm rounded-xl border border-slate-300 font-mono font-bold focus:ring-2 focus:ring-emerald-600 focus:outline-none"
             />
           </div>
@@ -330,6 +393,7 @@
               max="100"
               step="0.5"
               formControlName="porcentaje_merma"
+              placeholder="ej. 0"
               class="w-full p-2.5 text-sm rounded-xl border border-slate-300 font-mono font-bold text-rose-600 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
             />
           </div>
@@ -341,6 +405,7 @@
               min="0"
               step="0.01"
               formControlName="costo_unitario_compra"
+              placeholder="ej. 50,0"
               class="w-full p-2.5 text-sm rounded-xl border border-slate-300 font-mono focus:ring-2 focus:ring-emerald-600 focus:outline-none"
             />
           </div>
@@ -350,12 +415,12 @@
         <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs flex justify-between items-center">
           <span class="text-slate-600">Fórmula de Merma Aplicada:</span>
           <span class="font-bold text-emerald-800 font-mono">
-            Cant. Neta: {{ calcularCantidadNetaPrevia() | number:'1.2-2' }}
+            Cant. Neta: {{ formatDecimal(calcularCantidadNetaPrevia()) }}
           </span>
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Folio / Documento de Referencia (Autogenerado) *</label>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Folio / Documento de Referencia *</label>
           <input
             type="text"
             formControlName="documento_referencia"
@@ -437,12 +502,11 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Unidad de Medida *</label>
-            <input
-              type="text"
-              formControlName="unidadMedida"
-              placeholder="UNIDADES, KG, LITROS"
-              class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-            />
+            <select formControlName="unidadMedida" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none">
+              <option *ngFor="let u of catalogosService.unidadesMedida()" [value]="u.simbolo">
+                {{ u.nombre }} ({{ u.simbolo }})
+              </option>
+            </select>
           </div>
 
           <div>
@@ -451,6 +515,7 @@
               type="number"
               min="0"
               formControlName="stockMinimoAlerta"
+              placeholder="ej. 1000"
               class="w-full p-2.5 text-sm rounded-xl border border-slate-300 font-mono focus:ring-2 focus:ring-emerald-600 focus:outline-none"
             />
           </div>
@@ -463,6 +528,7 @@
               type="number"
               min="0"
               formControlName="stockInicial"
+              placeholder="ej. 0"
               class="w-full p-2.5 text-sm rounded-xl border border-slate-300 font-mono focus:ring-2 focus:ring-emerald-600 focus:outline-none"
             />
           </div>
@@ -473,6 +539,7 @@
               type="number"
               min="0"
               formControlName="costoUnitarioInicial"
+              placeholder="ej. 104"
               class="w-full p-2.5 text-sm rounded-xl border border-slate-300 font-mono focus:ring-2 focus:ring-emerald-600 focus:outline-none"
             />
           </div>
@@ -508,5 +575,102 @@
       </form>
     </div>
   </div>
-</div>
 
+  <!-- Modal: Editar Insumo Existente -->
+  <div
+    *ngIf="modalEditarInsumoVisible() && insumoSeleccionado()"
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+          <span>✏️</span>
+          <span>Editar Insumo: {{ insumoSeleccionado()?.codigo_insumo }}</span>
+        </h3>
+        <button (click)="cerrarModalEditarInsumo()" class="text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
+      </div>
+
+      <form [formGroup]="editarInsumoForm" (ngSubmit)="onSubmitEditarInsumo()" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Nombre Descriptivo *</label>
+          <input
+            type="text"
+            formControlName="nombre"
+            class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+          />
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Categoría *</label>
+            <select formControlName="categoria" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none">
+              <option value="SEMILLA">Semilla</option>
+              <option value="ALMACIGO">Almácigo</option>
+              <option value="FERTILIZANTE">Fertilizante</option>
+              <option value="DESINFECTANTE">Desinfectante</option>
+              <option value="OTRO">Otro</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Unidad de Medida *</label>
+            <select formControlName="unidadMedida" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none">
+              <option *ngFor="let u of catalogosService.unidadesMedida()" [value]="u.simbolo">
+                {{ u.nombre }} ({{ u.simbolo }})
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Stock Mínimo (Alerta) *</label>
+            <input
+              type="number"
+              min="0"
+              formControlName="stockMinimoAlerta"
+              class="w-full p-2.5 text-sm rounded-xl border border-slate-300 font-mono focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Costo Unitario PMP ($) *</label>
+            <input
+              type="number"
+              min="0"
+              formControlName="costoUnitarioPromedio"
+              class="w-full p-2.5 text-sm rounded-xl border border-slate-300 font-mono focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <!-- Acciones del Modal con botón Eliminar a la izquierda -->
+        <div class="pt-3 flex items-center justify-between border-t border-slate-100">
+          <button
+            type="button"
+            (click)="eliminarInsumoDesdeModal()"
+            [disabled]="guardandoEdicionInsumo()"
+            class="px-3.5 py-2 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-300 rounded-xl transition-colors inline-flex items-center gap-1">
+            <span>🗑️</span>
+            <span>Eliminar Insumo</span>
+          </button>
+          <div class="flex gap-2">
+            <button
+              type="button"
+              (click)="cerrarModalEditarInsumo()"
+              [disabled]="guardandoEdicionInsumo()"
+              class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl font-medium">
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              [disabled]="editarInsumoForm.invalid || guardandoEdicionInsumo()"
+              class="px-5 py-2 text-sm bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-2">
+              <span *ngIf="guardandoEdicionInsumo()" class="animate-spin text-xs">🔄</span>
+              <span>Guardar Cambios</span>
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

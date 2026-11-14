@@ -78,7 +78,9 @@ export class UsuariosComponent implements OnInit {
     ],
     email: ['', [Validators.required, Validators.email]],
     rol: ['AGRONOMO' as RolUsuario, [Validators.required]],
-    activo: [true, [Validators.required]]
+    activo: [true, [Validators.required]],
+    nuevaPassword: ['', [Validators.minLength(6)]],
+    confirmarPassword: ['']
   });
 
   // Formulario reactivo para la actualización y confirmación de contraseña
@@ -176,6 +178,8 @@ export class UsuariosComponent implements OnInit {
         return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'TRABAJADOR':
         return 'bg-cyan-100 text-cyan-800 border-cyan-200';
+      case 'ADMINISTRATIVO':
+        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
       default:
         return 'bg-slate-100 text-slate-800 border-slate-200';
     }
@@ -206,7 +210,7 @@ export class UsuariosComponent implements OnInit {
     }
 
     const raw = this.crearUsuarioForm.value;
-    const rolBackend = raw.rol === 'TRABAJADOR' ? 'AGRONOMO' : raw.rol;
+    const rolBackend = raw.rol === 'TRABAJADOR' ? 'AGRONOMO' : (raw.rol === 'ADMINISTRATIVO' ? 'ADMINISTRADOR' : raw.rol);
     const payload = {
       nombre_completo: raw.nombre_completo,
       rut: raw.rut,
@@ -255,7 +259,9 @@ export class UsuariosComponent implements OnInit {
       nombre_completo: usuario.nombre_completo,
       email: usuario.email,
       rol: usuario.rol,
-      activo: usuario.activo
+      activo: usuario.activo,
+      nuevaPassword: '',
+      confirmarPassword: ''
     });
     this.mensajeError.set(null);
     this.modalEditarAbierto.set(true);
@@ -266,15 +272,21 @@ export class UsuariosComponent implements OnInit {
     this.usuarioSeleccionado.set(null);
   }
 
+  passwordMismatchEdicion(): boolean {
+    const p1 = this.editarUsuarioForm.get('nuevaPassword')?.value;
+    const p2 = this.editarUsuarioForm.get('confirmarPassword')?.value;
+    return !!p1 && p1 !== p2;
+  }
+
   onSubmitEditarUsuario(): void {
     const user = this.usuarioSeleccionado();
-    if (!user || this.editarUsuarioForm.invalid) {
+    if (!user || this.editarUsuarioForm.invalid || this.passwordMismatchEdicion()) {
       this.editarUsuarioForm.markAllAsTouched();
       return;
     }
 
     const formVal = this.editarUsuarioForm.value;
-    const rolBackend = formVal.rol === 'TRABAJADOR' ? 'AGRONOMO' : formVal.rol;
+    const rolBackend = formVal.rol === 'TRABAJADOR' ? 'AGRONOMO' : (formVal.rol === 'ADMINISTRATIVO' ? 'ADMINISTRADOR' : formVal.rol);
     const dto: ActualizarUsuarioDto = {
       nombreCompleto: formVal.nombre_completo.trim(),
       email: formVal.email.trim().toLowerCase(),
@@ -288,12 +300,30 @@ export class UsuariosComponent implements OnInit {
 
     this.authService.actualizarUsuario(user.id_usuario, dto).subscribe({
       next: (res) => {
-        this.guardandoEdicion.set(false);
         if (res.exito) {
-          this.mensajeExito.set(res.mensaje);
-          this.cerrarModalEditar();
-          this.sincronizarUsuarios();
+          if (formVal.nuevaPassword && formVal.nuevaPassword.trim().length >= 6) {
+            this.authService.cambiarPassword(user.id_usuario, formVal.nuevaPassword.trim()).subscribe({
+              next: () => {
+                this.guardandoEdicion.set(false);
+                this.mensajeExito.set(`${res.mensaje} y contraseña actualizada.`);
+                this.cerrarModalEditar();
+                this.sincronizarUsuarios();
+              },
+              error: () => {
+                this.guardandoEdicion.set(false);
+                this.mensajeExito.set(res.mensaje);
+                this.cerrarModalEditar();
+                this.sincronizarUsuarios();
+              }
+            });
+          } else {
+            this.guardandoEdicion.set(false);
+            this.mensajeExito.set(res.mensaje);
+            this.cerrarModalEditar();
+            this.sincronizarUsuarios();
+          }
         } else {
+          this.guardandoEdicion.set(false);
           this.mensajeError.set(res.mensaje);
         }
       },

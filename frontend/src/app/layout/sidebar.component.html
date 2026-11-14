@@ -1,16 +1,15 @@
 <aside class="w-64 bg-slate-900 text-slate-100 flex flex-col h-full border-r border-slate-800 select-none">
-  <!-- Logotipo y nombre de la empresa -->
+  <!-- Logotipo y título -->
   <div class="p-4 flex items-center justify-between border-b border-slate-800">
     <div class="flex items-center gap-2.5">
-      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-green-700 flex items-center justify-center text-white shadow-md font-bold text-lg">
-        🌾
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-green-700 flex items-center justify-center text-white shadow-md font-bold">
+        <svg lucideSprout [size]="20" class="text-white"></svg>
       </div>
       <div>
-        <div class="text-base font-extrabold tracking-tight text-white flex items-center gap-1.5">
-          <span>PredIA</span>
-          <span class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono">ERP</span>
+        <div class="text-base font-extrabold tracking-tight text-white leading-tight">
+          PredIA
         </div>
-        <div class="text-[10px] text-slate-400 font-medium">Santa Laura Ltda. • Gestión Agrícola</div>
+        <div class="text-[10px] text-slate-400 font-medium">Gestión Agrícola</div>
       </div>
     </div>
 
@@ -19,38 +18,43 @@
       (click)="closeSidebar.emit()"
       class="lg:hidden p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
       aria-label="Cerrar menú">
-      ✕
+      <svg lucideX [size]="18"></svg>
     </button>
   </div>
 
   <!-- Menú dinámico según permisos de usuario -->
-  <nav class="flex-1 overflow-y-auto p-3 space-y-4">
-    <!-- Panel General (Dashboard) para todos los usuarios autenticados -->
+  <nav class="flex-1 overflow-y-auto p-3 space-y-3">
+    <!-- Panel General (Dashboard) -->
     <div>
       <a
         routerLink="/dashboard"
         routerLinkActive="bg-emerald-600 text-white shadow-sm"
         (click)="closeSidebar.emit()"
         class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
-        <span class="text-base">📊</span>
+        <svg lucideLayoutDashboard [size]="18" class="shrink-0 text-slate-400 group-hover:text-white"></svg>
         <span>Panel Principal</span>
       </a>
     </div>
 
     <!-- Opciones de administración (exclusivo para rol ADMINISTRADOR) -->
     <div *ngIf="authService.isAdmin()">
-      <div class="text-[11px] font-bold uppercase tracking-wider text-purple-400 px-3 mb-1.5 flex items-center justify-between">
+      <button
+        type="button"
+        (click)="toggleMenuAdmin()"
+        class="w-full text-[11px] font-bold uppercase tracking-wider text-purple-400 px-3 py-1.5 flex items-center justify-between hover:text-purple-300 transition-colors">
         <span>Administración</span>
-        <span class="text-[9px] bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded font-mono">Admin</span>
-      </div>
-      <div class="space-y-1">
+        <svg *ngIf="menuAdminAbierto()" lucideChevronDown [size]="14"></svg>
+        <svg *ngIf="!menuAdminAbierto()" lucideChevronRight [size]="14"></svg>
+      </button>
+
+      <div *ngIf="menuAdminAbierto()" class="space-y-1 mt-1 pl-1">
         <a
           routerLink="/admin/usuarios"
           routerLinkActive="bg-purple-700 text-white shadow-sm"
           (click)="closeSidebar.emit()"
           class="flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
           <span class="flex items-center gap-2.5">
-            <span class="text-base">👥</span>
+            <svg lucideUsers [size]="17" class="shrink-0"></svg>
             <span>Usuarios & Claves</span>
           </span>
           <span class="text-[10px] bg-purple-900/60 text-purple-200 px-1.5 py-0.5 rounded font-mono font-bold">
@@ -62,72 +66,79 @@
           routerLinkActive="bg-purple-700 text-white shadow-sm"
           (click)="closeSidebar.emit()"
           class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
-          <span class="text-base">📑</span>
+          <svg lucideFolderTree [size]="17" class="shrink-0"></svg>
           <span>Catálogos Maestros</span>
         </a>
       </div>
     </div>
 
-    <!-- Módulo de Producción y Terreno (Activo) -->
+    <!-- Módulo de Producción y Terreno -->
     <div *ngIf="authService.canAccessProduction()">
-      <div class="text-[11px] font-bold uppercase tracking-wider text-emerald-400 px-3 mb-1.5 flex items-center justify-between">
+      <button
+        type="button"
+        (click)="toggleMenuProduccion()"
+        class="w-full text-[11px] font-bold uppercase tracking-wider text-emerald-400 px-3 py-1.5 flex items-center justify-between hover:text-emerald-300 transition-colors">
         <span>Producción & Terreno</span>
-        <span class="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-mono">Oficial</span>
-      </div>
-      <div class="space-y-1">
+        <svg *ngIf="menuProduccionAbierto()" lucideChevronDown [size]="14"></svg>
+        <svg *ngIf="!menuProduccionAbierto()" lucideChevronRight [size]="14"></svg>
+      </button>
+
+      <div *ngIf="menuProduccionAbierto()" class="space-y-1 mt-1 pl-1">
         <a
           routerLink="/produccion/ciclos"
           routerLinkActive="bg-emerald-600 text-white shadow-sm"
           (click)="closeSidebar.emit()"
           class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
-          <span class="text-base">🏡</span>
-          <span>Ciclos & Naves (HU01)</span>
+          <svg lucideWarehouse [size]="17" class="shrink-0"></svg>
+          <span>Ciclos & Naves</span>
         </a>
         <a
           routerLink="/produccion/checklist"
           routerLinkActive="bg-emerald-600 text-white shadow-sm"
           (click)="closeSidebar.emit()"
-          class="flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
-          <span class="flex items-center gap-2.5">
-            <span class="text-base">📋</span>
-            <span>Checklist Naves (Tablet)</span>
-          </span>
-          <span class="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-mono font-bold">Terreno</span>
+          class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
+          <svg lucideClipboardCheck [size]="17" class="shrink-0"></svg>
+          <span>Checklist Naves</span>
         </a>
         <a
           routerLink="/produccion/labores"
           routerLinkActive="bg-emerald-600 text-white shadow-sm"
           (click)="closeSidebar.emit()"
           class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
-          <span class="text-base">🚜</span>
-          <span>Labores en Terreno (HU02)</span>
+          <svg lucideTractor [size]="17" class="shrink-0"></svg>
+          <span>Labores en Terreno</span>
         </a>
         <a
           routerLink="/produccion/cosechas"
           routerLinkActive="bg-emerald-600 text-white shadow-sm"
           (click)="closeSidebar.emit()"
           class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
-          <span class="text-base">🧺</span>
-          <span>Pesaje de Cosecha (HU03)</span>
+          <svg lucideScale [size]="17" class="shrink-0"></svg>
+          <span>Pesaje de Cosecha</span>
         </a>
       </div>
     </div>
 
-    <!-- Módulo de Bodega e Insumos (Activo) -->
+    <!-- Módulo de Bodega e Insumos -->
     <div *ngIf="authService.canAccessWarehouse()">
-      <div class="text-[11px] font-bold uppercase tracking-wider text-amber-400 px-3 mb-1.5 flex items-center justify-between">
+      <button
+        type="button"
+        (click)="toggleMenuBodega()"
+        class="w-full text-[11px] font-bold uppercase tracking-wider text-amber-400 px-3 py-1.5 flex items-center justify-between hover:text-amber-300 transition-colors">
         <span>Bodega & Insumos</span>
-        <span class="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-mono">Oficial</span>
-      </div>
-      <div class="space-y-1">
+        <svg *ngIf="menuBodegaAbierto()" lucideChevronDown [size]="14"></svg>
+        <svg *ngIf="!menuBodegaAbierto()" lucideChevronRight [size]="14"></svg>
+      </button>
+
+      <div *ngIf="menuBodegaAbierto()" class="space-y-1 mt-1 pl-1">
         <a
           routerLink="/bodega/kardex"
           routerLinkActive="bg-amber-700 text-white shadow-sm"
           (click)="closeSidebar.emit()"
           class="flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
           <span class="flex items-center gap-2.5">
-            <span class="text-base">📦</span>
-            <span>Kardex & Mermas (HU04)</span>
+            <svg lucideBoxes [size]="17" class="shrink-0"></svg>
+            <span>Kardex & Mermas</span>
           </span>
           <span *ngIf="erpService.insumos().length > 0" class="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded font-mono">
             {{ erpService.insumos().length }}
@@ -139,8 +150,8 @@
           (click)="closeSidebar.emit()"
           class="flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
           <span class="flex items-center gap-2.5">
-            <span class="text-base">🚨</span>
-            <span>Alertas de Stock (HU05)</span>
+            <svg lucideBell [size]="17" class="shrink-0"></svg>
+            <span>Alertas de Stock</span>
           </span>
           <span
             *ngIf="erpService.insumosCriticos().length > 0"
@@ -151,79 +162,89 @@
       </div>
     </div>
 
-    <!-- Módulo de Costos & Jornales (Prototipo) -->
+    <!-- Módulo de Costos & Jornales -->
     <div *ngIf="authService.isAdmin() || authService.isGerente()">
-      <div class="text-[11px] font-bold uppercase tracking-wider text-blue-400 px-3 mb-1.5 flex items-center justify-between">
+      <button
+        type="button"
+        (click)="toggleMenuCostos()"
+        class="w-full text-[11px] font-bold uppercase tracking-wider text-blue-400 px-3 py-1.5 flex items-center justify-between hover:text-blue-300 transition-colors">
         <span>Costos & Finanzas</span>
-        <span class="text-[9px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded font-mono">Prototipo</span>
-      </div>
-      <div class="space-y-1">
+        <svg *ngIf="menuCostosAbierto()" lucideChevronDown [size]="14"></svg>
+        <svg *ngIf="!menuCostosAbierto()" lucideChevronRight [size]="14"></svg>
+      </button>
+
+      <div *ngIf="menuCostosAbierto()" class="space-y-1 mt-1 pl-1">
         <a
           routerLink="/costos/asistencia"
           routerLinkActive="bg-blue-700 text-white shadow-sm"
           (click)="closeSidebar.emit()"
           class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
-          <span class="text-base">👷</span>
-          <span>Asistencia Jornales (HU06)</span>
+          <svg lucideUserCheck [size]="17" class="shrink-0"></svg>
+          <span>Asistencia Jornales</span>
         </a>
         <a
           routerLink="/costos/indirectos"
           routerLinkActive="bg-blue-700 text-white shadow-sm"
           (click)="closeSidebar.emit()"
           class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
-          <span class="text-base">💡</span>
-          <span>Costos Indirectos (HU07)</span>
+          <svg lucideReceipt [size]="17" class="shrink-0"></svg>
+          <span>Costos Indirectos</span>
         </a>
         <a
           routerLink="/costos/consolidado"
           routerLinkActive="bg-blue-700 text-white shadow-sm"
           (click)="closeSidebar.emit()"
           class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
-          <span class="text-base">💲</span>
-          <span>Consolidado $/Kg (HU09)</span>
+          <svg lucideBarChart3 [size]="17" class="shrink-0"></svg>
+          <span>Consolidado Costos</span>
         </a>
       </div>
     </div>
 
-    <!-- Módulo Comercial (Prototipo) -->
+    <!-- Módulo Comercial -->
     <div *ngIf="authService.isAdmin() || authService.isGerente()">
-      <div class="text-[11px] font-bold uppercase tracking-wider text-teal-400 px-3 mb-1.5 flex items-center justify-between">
+      <button
+        type="button"
+        (click)="toggleMenuComercial()"
+        class="w-full text-[11px] font-bold uppercase tracking-wider text-teal-400 px-3 py-1.5 flex items-center justify-between hover:text-teal-300 transition-colors">
         <span>Comercial</span>
-        <span class="text-[9px] bg-teal-500/20 text-teal-300 px-1.5 py-0.5 rounded font-mono">Prototipo</span>
-      </div>
-      <div class="space-y-1">
+        <svg *ngIf="menuComercialAbierto()" lucideChevronDown [size]="14"></svg>
+        <svg *ngIf="!menuComercialAbierto()" lucideChevronRight [size]="14"></svg>
+      </button>
+
+      <div *ngIf="menuComercialAbierto()" class="space-y-1 mt-1 pl-1">
         <a
           routerLink="/ventas"
           routerLinkActive="bg-teal-700 text-white shadow-sm"
           (click)="closeSidebar.emit()"
           class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
-          <span class="text-base">🛒</span>
-          <span>Notas de Venta (HU08/10)</span>
+          <svg lucideShoppingCart [size]="17" class="shrink-0"></svg>
+          <span>Notas de Venta</span>
         </a>
       </div>
     </div>
 
     <!-- Agroclima -->
     <div>
-      <div class="text-[11px] font-bold uppercase tracking-wider text-sky-400 px-3 mb-1.5 flex items-center justify-between">
+      <button
+        type="button"
+        (click)="toggleMenuClima()"
+        class="w-full text-[11px] font-bold uppercase tracking-wider text-sky-400 px-3 py-1.5 flex items-center justify-between hover:text-sky-300 transition-colors">
         <span>Agroclima</span>
-        <span class="text-[9px] bg-sky-500/20 text-sky-300 px-1.5 py-0.5 rounded font-mono">Open-Meteo</span>
-      </div>
-      <div class="space-y-1">
+        <svg *ngIf="menuClimaAbierto()" lucideChevronDown [size]="14"></svg>
+        <svg *ngIf="!menuClimaAbierto()" lucideChevronRight [size]="14"></svg>
+      </button>
+
+      <div *ngIf="menuClimaAbierto()" class="space-y-1 mt-1 pl-1">
         <a
           routerLink="/clima"
           routerLinkActive="bg-sky-700 text-white shadow-sm"
           (click)="closeSidebar.emit()"
           class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
-          <span class="text-base">⛅</span>
-          <span>Pronóstico & Heladas (HU11)</span>
+          <svg lucideCloudSun [size]="17" class="shrink-0"></svg>
+          <span>Pronóstico & Heladas</span>
         </a>
       </div>
     </div>
   </nav>
-
-  <!-- Pie de página del menú con identificación institucional -->
-  <div class="p-3 bg-slate-950 border-t border-slate-800 text-[11px] text-slate-400 text-center">
-    <span>Proyecto de Integración • INACAP 2026</span>
-  </div>
 </aside>

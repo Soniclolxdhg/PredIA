@@ -1,4 +1,4 @@
-export type RolUsuario = 'ADMINISTRADOR' | 'AGRONOMO' | 'BODEGUERO' | 'GERENTE' | 'TRABAJADOR';
+export type RolUsuario = 'ADMINISTRADOR' | 'AGRONOMO' | 'BODEGUERO' | 'GERENTE' | 'TRABAJADOR' | 'ADMINISTRATIVO';
 export type EstadoCiclo = 'ACTIVO' | 'FINALIZADO' | 'CANCELADO';
 export type TipoLabor = 'SIEMBRA' | 'RIEGO' | 'FERTILIZACION' | 'FITOSANITARIO' | 'COSECHA';
 export type CategoriaInsumo = 'SEMILLA' | 'ALMACIGO' | 'FERTILIZANTE' | 'DESINFECTANTE' | 'OTRO';

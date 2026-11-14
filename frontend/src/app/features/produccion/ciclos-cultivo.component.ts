@@ -72,10 +72,10 @@ export class CiclosCultivoComponent implements OnInit {
 
   // Formulario reactivo para la creación de nueva Nave
   readonly naveForm: FormGroup = this.fb.group({
-    codigo_nave: [{ value: '', disabled: false }, [Validators.required, Validators.minLength(3)]],
+    codigo_nave: ['', [Validators.required, Validators.minLength(3)]],
     nombre: ['', [Validators.required, Validators.minLength(3)]],
-    superficie_m2: [2500, [Validators.required, Validators.min(10)]],
-    tipo_estructura: ['Multitúnel Metal', [Validators.required]]
+    superficie_m2: ['', [Validators.required, Validators.min(10)]],
+    tipo_estructura: ['', [Validators.required]]
   });
 
   // Formulario reactivo para la edición de Nave existente
@@ -108,6 +108,19 @@ export class CiclosCultivoComponent implements OnInit {
   // Ciclos activos simultáneos
   readonly ciclosActivos = computed(() =>
     this.erpService.ciclos().filter((c) => c.estado === 'ACTIVO')
+  );
+
+  // Resumen dinámico general de lo que está plantado
+  readonly resumenCultivosPlantados = computed(() => {
+    const activos = this.ciclosActivos();
+    if (activos.length === 0) return 'Sin ciclos productivos activos en este momento.';
+    const variedades = Array.from(new Set(activos.map((c) => c.variedad)));
+    return `Cultivos actualmente plantados: ${variedades.join(', ')} (${activos.length} ciclo${activos.length > 1 ? 's' : ''} activo${activos.length > 1 ? 's' : ''}).`;
+  });
+
+  // Naves disponibles para apertura de nuevos ciclos
+  readonly navesDisponibles = computed(() =>
+    this.erpService.naves().filter((n) => n.estado === 'DISPONIBLE')
   );
 
   /**
@@ -167,6 +180,11 @@ export class CiclosCultivoComponent implements OnInit {
     }
   }
 
+  formatEstadoNave(estado: string): string {
+    if (estado === 'EN_CULTIVO') return 'EN CULTIVO';
+    return estado;
+  }
+
   /**
    * Siembra las 4 naves base de Santa Laura Ltda. en Supabase si la tabla está vacía
    */
@@ -199,15 +217,11 @@ export class CiclosCultivoComponent implements OnInit {
   // ==========================================
 
   abrirModalNave(): void {
-    const totalActual = this.erpService.naves().length;
-    const proxNum = totalActual + 1;
-    const codSugerido = `NAV-${proxNum < 10 ? '0' + proxNum : proxNum}`;
-
     this.naveForm.reset({
-      codigo_nave: codSugerido,
-      nombre: `Nave ${proxNum} - Invernadero`,
-      superficie_m2: 2500,
-      tipo_estructura: 'Multitúnel Metal'
+      codigo_nave: '',
+      nombre: '',
+      superficie_m2: '',
+      tipo_estructura: ''
     });
     this.mensajeError.set(null);
     this.modalNaveVisible.set(true);
@@ -315,23 +329,50 @@ export class CiclosCultivoComponent implements OnInit {
     });
   }
 
-  darDeBajaNave(nave: Nave): void {
-    const confirmacion = confirm(`¿Estás seguro de dar de baja la nave "${nave.nombre}" (${nave.codigo_nave}) pasándola a MANTENCIÓN?`);
+  ponerEnMantenimientoNave(nave: Nave): void {
+    const confirmacion = confirm(`¿Estás seguro de pasar la nave "${nave.nombre}" (${nave.codigo_nave}) a MANTENCIÓN?`);
     if (!confirmacion) return;
 
     this.mensajeError.set(null);
     this.erpService.actualizarNave(nave.id_nave, { estado: 'MANTENCION' as any }).subscribe({
       next: (res) => {
         if (res.exito) {
-          this.mensajeExito.set(`Nave ${nave.codigo_nave} dada de baja y pasada a MANTENCIÓN.`);
+          this.mensajeExito.set(`Nave ${nave.codigo_nave} pasada a MANTENCIÓN.`);
           this.recargarDatos();
         } else {
           this.mensajeError.set(res.mensaje);
         }
       },
       error: (err) => {
-        console.error('❌ [PATCH Dar de baja nave]:', err);
-        this.mensajeError.set('Error al dar de baja la nave.');
+        console.error('❌ [PATCH Mantenimiento nave]:', err);
+        this.mensajeError.set('Error al actualizar la nave a mantenimiento.');
+      }
+    });
+  }
+
+  eliminarNaveDesdeModal(): void {
+    const nave = this.naveSeleccionada();
+    if (!nave) return;
+    const confirmacion = confirm(`¿Estás seguro de eliminar permanentemente la nave "${nave.nombre}" (${nave.codigo_nave})? Esta acción no se puede deshacer.`);
+    if (!confirmacion) return;
+
+    this.guardandoEdicionNave.set(true);
+    this.mensajeError.set(null);
+    this.erpService.eliminarNave(nave.id_nave).subscribe({
+      next: (res) => {
+        this.guardandoEdicionNave.set(false);
+        if (res.exito) {
+          this.mensajeExito.set(res.mensaje);
+          this.cerrarModalEditarNave();
+          this.recargarDatos();
+        } else {
+          this.mensajeError.set(res.mensaje);
+        }
+      },
+      error: (err) => {
+        this.guardandoEdicionNave.set(false);
+        console.error('❌ [DELETE Nave] Error:', err);
+        this.mensajeError.set('Error inesperado al eliminar la nave.');
       }
     });
   }

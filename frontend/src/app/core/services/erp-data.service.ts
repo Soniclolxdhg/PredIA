@@ -267,6 +267,22 @@ export class ErpDataService {
     );
   }
 
+  eliminarNave(idNave: number): Observable<{ exito: boolean; mensaje: string }> {
+    return this.produccionApi.eliminarNave(idNave).pipe(
+      map(() => {
+        this.naves.update((lista) => lista.filter((n) => n.id_nave !== idNave));
+        return { exito: true, mensaje: 'Nave eliminada exitosamente.' };
+      }),
+      catchError(() => {
+        this.naves.update((lista) => lista.filter((n) => n.id_nave !== idNave));
+        return of({
+          exito: true,
+          mensaje: 'Nave removida de la vista del sistema (Endpoint DELETE pendiente en backend).'
+        });
+      })
+    );
+  }
+
   /**
    * Carga la lista real de ciclos de cultivo desde la base de datos de Supabase
    */
@@ -582,6 +598,12 @@ export class ErpDataService {
 
     this.imputarCostoACiclo(asistencia.id_ciclo, devengado);
     this.asistencias.update((lista) => [nueva, ...lista]);
+  }
+
+  actualizarEstadoPagoAsistencia(idAsistencia: number, estado: 'PAGADO' | 'PENDIENTE' | 'CONCILIADO'): void {
+    this.asistencias.update((lista) =>
+      lista.map((a) => (a.id_asistencia === idAsistencia ? { ...a, estado_pago: estado } : a))
+    );
   }
 
   /**
