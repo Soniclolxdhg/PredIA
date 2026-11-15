@@ -8,3 +8,4 @@ export class ActualizarDespachoDto {
   @IsNotEmpty({ message: 'El estado de despacho es obligatorio.' })
   estadoDespacho: EstadoDespacho;
 }
+

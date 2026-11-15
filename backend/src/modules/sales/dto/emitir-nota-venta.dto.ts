@@ -47,3 +47,4 @@ export class EmitirNotaVentaDto {
   })
   estadoDespacho?: EstadoDespacho;
 }
+
