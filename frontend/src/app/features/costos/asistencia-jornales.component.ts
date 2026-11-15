@@ -246,7 +246,7 @@ export class AsistenciaJornalesComponent implements OnInit {
           console.log('[AsistenciaJornales] Asistencias backend:', lista.length);
         }
       },
-      error: () => {}
+      error: () => { }
     });
   }
 

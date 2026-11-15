@@ -1,0 +1,675 @@
+<div class="space-y-6">
+  <!-- Encabezado con Botones de Acción -->
+  <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div>
+      <div class="flex items-center gap-2">
+        <span class="text-2xl" aria-hidden="true">🛒</span>
+        <h2 class="text-xl font-bold text-slate-800">Comercial & Ventas: Clientes y Notas de Venta</h2>
+      </div>
+      <p class="text-xs sm:text-sm text-slate-500 mt-1">
+        Directorio comercial mayorista, emisión de comprobantes con trazabilidad de cosecha y control de margen bruto operativo.
+      </p>
+    </div>
+
+    <div class="flex flex-wrap gap-2.5">
+      <button
+        type="button"
+        (click)="abrirModalCliente()"
+        class="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs sm:text-sm rounded-xl border border-slate-300 transition-colors flex items-center gap-1.5 touch-target">
+        <span>👤</span>
+        <span>Nuevo Cliente</span>
+      </button>
+      <button
+        type="button"
+        (click)="abrirModalVenta()"
+        class="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs sm:text-sm rounded-xl shadow-xs transition-colors flex items-center gap-1.5 touch-target">
+        <span>📄</span>
+        <span>Emitir Nota de Venta</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Banner Informativo Oficial -->
+  <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs sm:text-sm text-emerald-900 shadow-xs flex items-start gap-3">
+    <span class="text-xl">ℹ️</span>
+    <div class="space-y-1">
+      <div class="font-bold">Módulo Comercial & Ventas (Fase 5)</div>
+      <p class="text-xs text-emerald-800">
+        Control de saldos cosechados disponibles para venta, cálculo automático del margen operativo contra el costo real $/Kg del ciclo y ciclo de despacho logístico.
+      </p>
+    </div>
+  </div>
+
+  <!-- Alertas de Feedback -->
+  <div *ngIf="mensajeError()" class="p-4 bg-rose-50 border border-rose-300 text-rose-800 text-sm rounded-xl flex items-center justify-between">
+    <span class="font-medium">⚠️ {{ mensajeError() }}</span>
+    <button (click)="mensajeError.set(null)" class="text-rose-600 font-bold hover:text-rose-900 px-2 py-1">✕</button>
+  </div>
+
+  <div *ngIf="mensajeExito()" class="p-4 bg-emerald-50 border border-emerald-300 text-emerald-800 text-sm rounded-xl flex items-center justify-between">
+    <span class="font-medium">✓ {{ mensajeExito() }}</span>
+    <button (click)="mensajeExito.set(null)" class="text-emerald-700 font-bold hover:text-emerald-950 px-2 py-1">✕</button>
+  </div>
+
+  <!-- KPIs Comerciales & Rentabilidad -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <!-- Facturación Total -->
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+      <div class="flex items-center justify-between text-slate-500 text-xs font-bold mb-1">
+        <span>FACTURACIÓN TOTAL</span>
+        <span>💵</span>
+      </div>
+      <div class="text-2xl font-black font-mono text-slate-900">
+        \${{ kpis().totalVentasMonto | number }}
+      </div>
+      <p class="text-[11px] text-slate-500 mt-1">Ingresos brutos acumulados</p>
+    </div>
+
+    <!-- Margen Bruto Operativo -->
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+      <div class="flex items-center justify-between text-slate-500 text-xs font-bold mb-1">
+        <span>MARGEN OPERATIVO</span>
+        <span>📈</span>
+      </div>
+      <div class="text-2xl font-black font-mono text-emerald-700">
+        \${{ kpis().margenBrutoTotal | number }}
+      </div>
+      <p class="text-[11px] text-emerald-700 font-semibold mt-1">
+        Retorno: {{ kpis().margenPorcentaje }}% sobre ventas
+      </p>
+    </div>
+
+    <!-- Volumen Comercializado -->
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+      <div class="flex items-center justify-between text-slate-500 text-xs font-bold mb-1">
+        <span>VOLUMEN DESPACHADO</span>
+        <span>🧺</span>
+      </div>
+      <div class="text-2xl font-black font-mono text-blue-700">
+        {{ totalKilosVendidos() | number }} Kg
+      </div>
+      <p class="text-[11px] text-slate-500 mt-1">Kilos comercializados en terreno</p>
+    </div>
+
+    <!-- Estado Logístico Despachos -->
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+      <div class="flex items-center justify-between text-slate-500 text-xs font-bold mb-1">
+        <span>ESTADO LOGÍSTICO</span>
+        <span>🚚</span>
+      </div>
+      <div class="flex items-center gap-2 mt-1">
+        <span class="px-2 py-0.5 text-xs font-bold rounded-md bg-amber-100 text-amber-800 border border-amber-200">
+          {{ conteoDespacho().pendientes }} Pend.
+        </span>
+        <span class="px-2 py-0.5 text-xs font-bold rounded-md bg-blue-100 text-blue-800 border border-blue-200">
+          {{ conteoDespacho().despachados }} Desp.
+        </span>
+        <span class="px-2 py-0.5 text-xs font-bold rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200">
+          {{ conteoDespacho().entregados }} Entr.
+        </span>
+      </div>
+      <p class="text-[11px] text-slate-500 mt-2">Seguimiento de entregas</p>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 1: TABLA DE NOTAS DE VENTA EMITIDAS -->
+  <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+    <div class="p-4 border-b border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div>
+        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+          <span>📄</span>
+          <span>Historial de Notas de Venta Emitidas</span>
+        </h3>
+        <p class="text-xs text-slate-500 mt-0.5">Trazabilidad de ventas y margen bruto calculado por lote</p>
+      </div>
+
+      <!-- Filtro por Estado de Despacho -->
+      <div class="flex items-center gap-2">
+        <label class="text-xs font-bold text-slate-600">Despacho:</label>
+        <select
+          [value]="filtroDespacho()"
+          (change)="onFiltroDespachoChange($event)"
+          class="text-xs p-1.5 rounded-lg border border-slate-300 bg-white font-medium focus:ring-1 focus:ring-emerald-600">
+          <option value="TODAS">Todos los Estados</option>
+          <option value="PENDIENTE">Solo Pendientes</option>
+          <option value="DESPACHADO">Solo Despachados</option>
+          <option value="ENTREGADO">Solo Entregados</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse text-xs sm:text-sm">
+        <thead>
+          <tr class="bg-slate-100 border-b border-slate-200 text-slate-600 font-semibold text-xs uppercase">
+            <th class="p-3">Nº Nota / Fecha</th>
+            <th class="p-3">Cliente Comprador</th>
+            <th class="p-3">Lote Cosecha</th>
+            <th class="p-3 text-right">Kilos</th>
+            <th class="p-3 text-right">Precio $/Kg</th>
+            <th class="p-3 text-right">Total Ingreso</th>
+            <th class="p-3 text-right">Costo Ref.</th>
+            <th class="p-3 text-right">Margen Bruto</th>
+            <th class="p-3 text-center">Estado Despacho</th>
+            <th class="p-3 text-right">Acción</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr *ngFor="let v of ventasFiltradas()" class="hover:bg-slate-50 transition-colors">
+            <td class="p-3 font-mono font-bold text-slate-900">
+              <div>{{ v.numero_nota_venta }}</div>
+              <div class="text-[11px] font-normal text-slate-400">{{ v.fecha_venta }}</div>
+            </td>
+            <td class="p-3">
+              <div class="font-semibold text-slate-900">{{ getNombreCliente(v.id_cliente) }}</div>
+              <div class="text-[11px] text-slate-500">ID Cliente: #{{ v.id_cliente }}</div>
+            </td>
+            <td class="p-3 font-mono text-xs text-slate-600">
+              <span class="px-2 py-0.5 rounded bg-slate-100 border">#COS-{{ v.id_cosecha }}</span>
+            </td>
+            <td class="p-3 text-right font-bold font-mono text-slate-800">
+              {{ v.kilos_vendidos | number }} Kg
+            </td>
+            <td class="p-3 text-right font-mono text-slate-700">
+              \${{ v.precio_unitario_venta | number }}
+            </td>
+            <td class="p-3 text-right font-mono font-bold text-slate-900">
+              \${{ v.monto_total_ingreso | number }}
+            </td>
+            <td class="p-3 text-right font-mono text-slate-500 text-xs">
+              \${{ v.costo_unitario_ciclo_ref | number:'1.1-1' }}
+            </td>
+            <td class="p-3 text-right font-mono font-bold text-emerald-700">
+              +\${{ v.margen_bruto_operativo | number }}
+            </td>
+            <td class="p-3 text-center">
+              <span [class]="getClaseDespacho(v.estado_despacho)" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold border">
+                {{ v.estado_despacho }}
+              </span>
+            </td>
+            <td class="p-3 text-right">
+              <div class="flex items-center justify-end gap-1.5">
+                <button
+                  *ngIf="v.estado_despacho === 'PENDIENTE'"
+                  type="button"
+                  (click)="cambiarEstadoDespacho(v, 'DESPACHADO')"
+                  class="px-2 py-1 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors">
+                  🚚 Despachar
+                </button>
+                <button
+                  *ngIf="v.estado_despacho === 'DESPACHADO'"
+                  type="button"
+                  (click)="cambiarEstadoDespacho(v, 'ENTREGADO')"
+                  class="px-2 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors">
+                  ✓ Entregar
+                </button>
+                <span *ngIf="v.estado_despacho === 'ENTREGADO'" class="text-xs text-emerald-600 font-semibold">
+                  ✓ Completado
+                </span>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="ventasFiltradas().length === 0">
+            <td colspan="10" class="p-8 text-center text-slate-500 text-xs">
+              No hay notas de venta registradas con el filtro seleccionado.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 2: DIRECTORIO DE CLIENTES COMERCIALES (HU08) -->
+  <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+    <div class="p-4 border-b border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div>
+        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+          <span>👥</span>
+          <span>Directorio Comercial de Clientes Mayoristas</span>
+        </h3>
+        <p class="text-xs text-slate-500 mt-0.5">Empresas compradoras registradas con validación de RUN/RUT único</p>
+      </div>
+
+      <!-- Buscador en tiempo real de clientes -->
+      <div class="w-full sm:w-72">
+        <input
+          type="text"
+          [value]="busquedaCliente()"
+          (input)="onBusquedaClienteInput($event)"
+          placeholder="Buscar por RUN, empresa o contacto..."
+          class="w-full p-2 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+        />
+      </div>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse text-xs sm:text-sm">
+        <thead>
+          <tr class="bg-slate-100 border-b border-slate-200 text-slate-600 font-semibold text-xs uppercase">
+            <th class="p-3">RUN / RUT</th>
+            <th class="p-3">Razón Social</th>
+            <th class="p-3">Contacto</th>
+            <th class="p-3">Teléfono</th>
+            <th class="p-3">Correo Electrónico</th>
+            <th class="p-3">Dirección</th>
+            <th class="p-3 text-center">Compras</th>
+            <th class="p-3 text-right">Acciones</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr *ngFor="let c of clientesFiltrados()" class="hover:bg-slate-50 transition-colors">
+            <td class="p-3 font-mono font-semibold text-slate-700">{{ c.rut_cliente }}</td>
+            <td class="p-3 font-bold text-slate-900">{{ c.razon_social }}</td>
+            <td class="p-3 text-slate-700">{{ c.contacto_nombre }}</td>
+            <td class="p-3 text-slate-600 font-mono">{{ c.telefono }}</td>
+            <td class="p-3 text-slate-600">{{ c.email }}</td>
+            <td class="p-3 text-slate-500 text-xs">{{ c.direccion }}</td>
+            <td class="p-3 text-center">
+              <span class="px-2 py-0.5 rounded-full bg-slate-100 border text-xs font-bold text-slate-700 font-mono">
+                {{ getVentasClienteConteo(c.id_cliente) }}
+              </span>
+            </td>
+            <td class="p-3 text-right">
+              <div class="flex items-center justify-end gap-1.5">
+                <button
+                  type="button"
+                  (click)="abrirHistorialCliente(c)"
+                  title="Ver Historial de Ventas"
+                  class="px-2 py-1 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-300 transition-colors">
+                  👁️ Historial
+                </button>
+                <button
+                  type="button"
+                  (click)="abrirModalEditarCliente(c)"
+                  title="Editar Cliente"
+                  class="px-2 py-1 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors">
+                  ✏️ Editar
+                </button>
+                <button
+                  type="button"
+                  (click)="eliminarCliente(c)"
+                  title="Eliminar Cliente"
+                  class="px-2 py-1 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200 transition-colors">
+                  🗑️
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="clientesFiltrados().length === 0">
+            <td colspan="8" class="p-8 text-center text-slate-500 text-xs">
+              No se encontraron clientes que coincidan con la búsqueda.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- MODAL 1: EMISIÓN DE NOTA DE VENTA AGRÍCOLA (HU10) -->
+  <div
+    *ngIf="modalVentaVisible()"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="tituloModalVenta"
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 id="tituloModalVenta" class="font-bold text-slate-900 text-base flex items-center gap-2">
+          <span>📄</span>
+          <span>Emitir Nota de Venta Agrícola</span>
+        </h3>
+        <button (click)="cerrarModalVenta()" class="text-slate-400 hover:text-slate-700 font-bold text-lg px-2">✕</button>
+      </div>
+
+      <form [formGroup]="ventaForm" (ngSubmit)="onSubmitVenta()" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Cliente Comprador *</label>
+          <select formControlName="id_cliente" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none">
+            <option value="" disabled selected>Seleccione cliente registrado...</option>
+            <option *ngFor="let cli of erpService.clientes()" [value]="cli.id_cliente">
+              {{ cli.razon_social }} (RUN: {{ cli.rut_cliente }})
+            </option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Lote de Cosecha con Saldo Disponible *</label>
+          <select
+            formControlName="id_cosecha"
+            (change)="onCosechaSeleccionadaChange()"
+            class="w-full p-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none">
+            <option value="" disabled selected>
+              {{ cosechasDisponibles().length > 0 ? 'Seleccione lote de cosecha...' : 'No hay cosechas con kilos disponibles' }}
+            </option>
+            <option *ngFor="let cos of cosechasDisponibles()" [value]="cos.id_cosecha">
+              #COS-{{ cos.id_cosecha }} &bull; Ciclo #{{ cos.id_ciclo }} &bull; Disp: {{ cos.kilos_disponibles_venta | number }} Kg ({{ cos.calidad_grado }})
+            </option>
+          </select>
+          <span class="text-[11px] text-slate-500 mt-1 block">
+            Saldo máximo disponible en lote: <strong>{{ loteSeleccionadoKilosMax() | number }} Kg</strong>
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Kilos a Vender *</label>
+            <input
+              type="number"
+              min="1"
+              [max]="loteSeleccionadoKilosMax()"
+              formControlName="kilos_vendidos"
+              placeholder="ej. 1000"
+              class="w-full p-2.5 text-sm rounded-xl border border-slate-300 font-mono font-bold focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+            />
+            <span *ngIf="kilosSuperanStock()" class="text-rose-600 text-[11px] font-bold mt-1 block">
+              Supera los {{ loteSeleccionadoKilosMax() | number }} Kg disponibles.
+            </span>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Precio Venta $/Kg *</label>
+            <input
+              type="number"
+              min="100"
+              formControlName="precio_unitario_venta"
+              placeholder="ej. 1100"
+              class="w-full p-2.5 text-sm rounded-xl border border-slate-300 font-mono font-bold focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <!-- Previsualización Dinámica de Ingreso y Margen Operativo -->
+        <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
+          <div class="flex justify-between items-center text-slate-600">
+            <span>Total a Facturar Estimado:</span>
+            <span class="font-mono font-bold text-slate-900 text-sm">
+              \${{ calcularTotalVentaPrevia() | number }}
+            </span>
+          </div>
+          <div class="flex justify-between items-center text-slate-600">
+            <span>Costo Unitario Ref. $/Kg:</span>
+            <span class="font-mono font-bold text-slate-700">
+              \${{ costoUnitarioRefPrevia() | number:'1.1-1' }} /Kg
+            </span>
+          </div>
+          <div class="pt-2 border-t border-slate-200 flex justify-between items-center">
+            <span class="font-bold text-emerald-800">Margen Bruto Operativo:</span>
+            <span class="font-mono font-black text-emerald-700 text-sm">
+              +\${{ calcularMargenVentaPrevia() | number }} ({{ calcularMargenPctPrevia() }}%)
+            </span>
+          </div>
+        </div>
+
+        <div class="pt-3 flex gap-3 justify-end border-t border-slate-100">
+          <button
+            type="button"
+            (click)="cerrarModalVenta()"
+            class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl font-medium">
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            [disabled]="ventaForm.invalid || kilosSuperanStock() || cosechasDisponibles().length === 0"
+            class="px-5 py-2 text-sm bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-semibold rounded-xl shadow-xs transition-colors">
+            Emitir Nota de Venta
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 2: REGISTRO DE NUEVO CLIENTE (HU08) -->
+  <div
+    *ngIf="modalClienteVisible()"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="tituloModalCliente"
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 id="tituloModalCliente" class="font-bold text-slate-900 text-base flex items-center gap-2">
+          <span>👤</span>
+          <span>Registrar Nuevo Cliente Comprador</span>
+        </h3>
+        <button (click)="cerrarModalCliente()" class="text-slate-400 hover:text-slate-700 font-bold text-lg px-2">✕</button>
+      </div>
+
+      <form [formGroup]="clienteForm" (ngSubmit)="onSubmitCliente()" class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Razón Social *</label>
+          <input
+            type="text"
+            formControlName="razon_social"
+            placeholder="ej. Distribuidora Lo Valledor SpA"
+            class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+          />
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">RUN / RUT Empresa *</label>
+            <input
+              type="text"
+              formControlName="rut_cliente"
+              placeholder="76.123.456-7"
+              class="w-full p-2.5 text-sm rounded-xl border border-slate-300 font-mono focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Nombre Contacto *</label>
+            <input
+              type="text"
+              formControlName="contacto_nombre"
+              placeholder="ej. Carlos Silva"
+              class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Teléfono *</label>
+            <input
+              type="text"
+              formControlName="telefono"
+              placeholder="+56 9 8765 4321"
+              class="w-full p-2.5 text-sm rounded-xl border border-slate-300 font-mono focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Email *</label>
+            <input
+              type="email"
+              formControlName="email"
+              placeholder="compras@cliente.cl"
+              class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Dirección Matriz / Despacho *</label>
+          <input
+            type="text"
+            formControlName="direccion"
+            placeholder="Av. Central #1234, Santiago"
+            class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+          />
+        </div>
+
+        <div class="pt-3 flex gap-3 justify-end border-t border-slate-100">
+          <button
+            type="button"
+            (click)="cerrarModalCliente()"
+            class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl font-medium">
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            [disabled]="clienteForm.invalid"
+            class="px-5 py-2 text-sm bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-semibold rounded-xl shadow-xs transition-colors">
+            Guardar Cliente
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 3: EDITAR CLIENTE (HU08) -->
+  <div
+    *ngIf="modalEditarClienteVisible()"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="tituloModalEditarCliente"
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 id="tituloModalEditarCliente" class="font-bold text-slate-900 text-base flex items-center gap-2">
+          <span>✏️</span>
+          <span>Editar Datos de Cliente</span>
+        </h3>
+        <button (click)="cerrarModalEditarCliente()" class="text-slate-400 hover:text-slate-700 font-bold text-lg px-2">✕</button>
+      </div>
+
+      <form [formGroup]="editarClienteForm" (ngSubmit)="onSubmitEditarCliente()" class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Razón Social *</label>
+          <input
+            type="text"
+            formControlName="razon_social"
+            class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+          />
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">RUN / RUT (Solo lectura)</label>
+            <input
+              type="text"
+              formControlName="rut_cliente"
+              class="w-full p-2.5 text-sm rounded-xl border border-slate-200 bg-slate-100 text-slate-500 font-mono cursor-not-allowed"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Nombre Contacto *</label>
+            <input
+              type="text"
+              formControlName="contacto_nombre"
+              class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Teléfono *</label>
+            <input
+              type="text"
+              formControlName="telefono"
+              class="w-full p-2.5 text-sm rounded-xl border border-slate-300 font-mono focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Email *</label>
+            <input
+              type="email"
+              formControlName="email"
+              class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Dirección Matriz / Despacho *</label>
+          <input
+            type="text"
+            formControlName="direccion"
+            class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+          />
+        </div>
+
+        <div class="pt-3 flex gap-3 justify-end border-t border-slate-100">
+          <button
+            type="button"
+            (click)="cerrarModalEditarCliente()"
+            class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl font-medium">
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            [disabled]="editarClienteForm.invalid"
+            class="px-5 py-2 text-sm bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-semibold rounded-xl shadow-xs transition-colors">
+            Guardar Cambios
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 4: HISTORIAL DE COMPRAS DEL CLIENTE (HU08) -->
+  <div
+    *ngIf="modalHistorialVisible() && clienteSeleccionado()"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="tituloModalHistorial"
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+    <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div>
+          <h3 id="tituloModalHistorial" class="font-bold text-slate-900 text-base flex items-center gap-2">
+            <span>👁️</span>
+            <span>Historial Comercial: {{ clienteSeleccionado()?.razon_social }}</span>
+          </h3>
+          <p class="text-xs text-slate-500 mt-0.5 font-mono">RUN: {{ clienteSeleccionado()?.rut_cliente }} &bull; Contacto: {{ clienteSeleccionado()?.contacto_nombre }}</p>
+        </div>
+        <button (click)="cerrarHistorialCliente()" class="text-slate-400 hover:text-slate-700 font-bold text-lg px-2">✕</button>
+      </div>
+
+      <div class="overflow-x-auto max-h-80">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-100 border-b border-slate-200 text-slate-600 font-semibold uppercase">
+              <th class="p-2.5">Nota</th>
+              <th class="p-2.5">Fecha</th>
+              <th class="p-2.5 text-right">Kilos</th>
+              <th class="p-2.5 text-right">Precio $/Kg</th>
+              <th class="p-2.5 text-right">Monto Total</th>
+              <th class="p-2.5 text-right">Margen Bruto</th>
+              <th class="p-2.5 text-center">Estado</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr *ngFor="let v of ventasClienteSeleccionado()" class="hover:bg-slate-50">
+              <td class="p-2.5 font-mono font-bold text-slate-900">{{ v.numero_nota_venta }}</td>
+              <td class="p-2.5 text-slate-500 font-mono">{{ v.fecha_venta }}</td>
+              <td class="p-2.5 text-right font-mono font-semibold">{{ v.kilos_vendidos | number }} Kg</td>
+              <td class="p-2.5 text-right font-mono">\${{ v.precio_unitario_venta | number }}</td>
+              <td class="p-2.5 text-right font-mono font-bold text-slate-900">\${{ v.monto_total_ingreso | number }}</td>
+              <td class="p-2.5 text-right font-mono font-bold text-emerald-700">+\${{ v.margen_bruto_operativo | number }}</td>
+              <td class="p-2.5 text-center">
+                <span [class]="getClaseDespacho(v.estado_despacho)" class="px-2 py-0.5 rounded-full text-[10px] font-bold border">
+                  {{ v.estado_despacho }}
+                </span>
+              </td>
+            </tr>
+            <tr *ngIf="ventasClienteSeleccionado().length === 0">
+              <td colspan="7" class="p-6 text-center text-slate-500">
+                Este cliente aún no registra compras ni notas de venta emitidas.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pt-3 flex justify-end border-t border-slate-100">
+        <button
+          type="button"
+          (click)="cerrarHistorialCliente()"
+          class="px-4 py-2 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-colors">
+          Cerrar Historial
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+

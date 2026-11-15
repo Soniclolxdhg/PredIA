@@ -617,6 +617,24 @@ export class ErpDataService {
     this.clientes.update((lista) => [nuevo, ...lista]);
   }
 
+  actualizarCliente(idCliente: number, cambios: Partial<Cliente>): void {
+    this.clientes.update((lista) =>
+      lista.map((c) => (c.id_cliente === idCliente ? { ...c, ...cambios } : c))
+    );
+  }
+
+  eliminarCliente(idCliente: number): { exito: boolean; mensaje: string } {
+    const tieneVentas = this.ventas().some((v) => v.id_cliente === idCliente);
+    if (tieneVentas) {
+      return {
+        exito: false,
+        mensaje: 'No se puede eliminar el cliente porque tiene notas de venta históricas registradas.'
+      };
+    }
+    this.clientes.update((lista) => lista.filter((c) => c.id_cliente !== idCliente));
+    return { exito: true, mensaje: 'Cliente eliminado correctamente del directorio comercial.' };
+  }
+
   /**
    * HU07: Prorrateo de costos indirectos
    */
@@ -680,6 +698,12 @@ export class ErpDataService {
     venta: Omit<Venta, 'id_venta' | 'numero_nota_venta' | 'margen_bruto_operativo' | 'costo_unitario_ciclo_ref'>
   ): { exito: boolean; mensaje: string } {
     return this.registrarVenta(venta);
+  }
+
+  actualizarDespachoVenta(idVenta: number, nuevoEstado: 'PENDIENTE' | 'DESPACHADO' | 'ENTREGADO'): void {
+    this.ventas.update((lista) =>
+      lista.map((v) => (v.id_venta === idVenta ? { ...v, estado_despacho: nuevoEstado } : v))
+    );
   }
 
   /**

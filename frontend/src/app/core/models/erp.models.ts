@@ -143,6 +143,7 @@ export interface Cliente {
   telefono: string;
   email: string;
   direccion: string;
+  totalNotasVenta?: number;
 }
 
 export interface Venta {

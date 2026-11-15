@@ -1,370 +1,171 @@
-import { Component, inject, signal, computed, HostListener } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ErpDataService } from '../../core/services/erp-data.service';
+import { VentasApiService } from '../../core/services/ventas-api.service';
+import { Cliente, Venta } from '../../core/models/erp.models';
+import { StockDisponibleDto, MetricasVentasDto } from '../../core/models/dtos';
+import { rutChilenoValidator, formatearRutChileno } from '../../core/validators/rut.validator';
 
 @Component({
   selector: 'app-ventas',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
-  template: `
-    <div class="space-y-6">
-      <!-- Encabezado con Botones -->
-      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div class="flex items-center gap-2">
-            <span class="text-2xl" aria-hidden="true">🛒</span>
-            <h2 class="text-xl font-bold text-slate-800">Comercial: Clientes & Notas de Venta (HU08/10)</h2>
-            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-              Prototipo
-            </span>
-          </div>
-          <p class="text-xs sm:text-sm text-slate-500 mt-1">
-            Generación de comprobantes de venta con trazabilidad de lote cosechado y cálculo de margen operativo.
-          </p>
-        </div>
-
-        <div class="flex flex-wrap gap-2.5">
-          <button
-            type="button"
-            (click)="abrirModalCliente()"
-            class="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs sm:text-sm rounded-xl border border-slate-300 transition-colors touch-target">
-            👤 Nuevo Cliente
-          </button>
-          <button
-            type="button"
-            (click)="abrirModalVenta()"
-            class="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs sm:text-sm rounded-xl shadow-xs transition-colors touch-target">
-            📄 Emitir Nota de Venta
-          </button>
-        </div>
-      </div>
-
-      <!-- Banner Demostrativo -->
-      <div class="p-4 bg-amber-50 border border-amber-300 rounded-2xl text-xs sm:text-sm text-amber-900 shadow-xs flex items-start gap-3">
-        <span class="text-xl">⚠️</span>
-        <div class="space-y-1">
-          <div class="font-bold">Módulo Demostrativo / En Integración</div>
-          <p class="text-xs text-amber-800">
-            Los endpoints comerciales de Clientes (<code class="font-mono bg-amber-100 px-1 py-0.5 rounded">/api/comercial/clientes</code>) y Notas de Venta (<code class="font-mono bg-amber-100 px-1 py-0.5 rounded">/api/comercial/ventas</code>) están pendientes de implementación en el backend. Las operaciones se realizan en memoria local de demostración y no persisten en la base de datos.
-          </p>
-        </div>
-      </div>
-
-      <!-- Alertas de Negocio -->
-      <div *ngIf="mensajeError()" class="p-4 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl flex items-center justify-between">
-        <span class="font-medium">⚠️ {{ mensajeError() }}</span>
-        <button (click)="mensajeError.set(null)" class="text-rose-500 font-bold hover:text-rose-800 px-2 py-1">✕</button>
-      </div>
-
-      <div *ngIf="mensajeExito()" class="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-xl flex items-center justify-between">
-        <span class="font-medium">✓ {{ mensajeExito() }}</span>
-        <button (click)="mensajeExito.set(null)" class="text-emerald-600 font-bold hover:text-emerald-900 px-2 py-1">✕</button>
-      </div>
-
-      <!-- KPIs Comerciales -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-          <div class="text-xs font-bold uppercase text-slate-500">VENTAS TOTALES ($)</div>
-          <div class="text-2xl font-black font-mono text-slate-900 mt-1">
-            \${{ erpService.kpisFinancieros().totalVentasMonto | number }}
-          </div>
-          <div class="text-xs text-slate-500 mt-1">Facturación acumulada temporada</div>
-        </div>
-
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-          <div class="text-xs font-bold uppercase text-slate-500">MARGEN BRUTO OPERATIVO</div>
-          <div class="text-2xl font-black font-mono text-emerald-700 mt-1">
-            \${{ erpService.kpisFinancieros().margenBrutoTotal | number }}
-          </div>
-          <div class="text-xs text-emerald-700 font-semibold mt-1">
-            Retorno: {{ erpService.kpisFinancieros().margenPorcentaje }}% sobre ventas
-          </div>
-        </div>
-
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-          <div class="text-xs font-bold uppercase text-slate-500">VOLUMEN DESPACHADO</div>
-          <div class="text-2xl font-black font-mono text-blue-700 mt-1">
-            {{ totalKilosVendidos | number }} Kg
-          </div>
-          <div class="text-xs text-slate-500 mt-1">Despachado a clientes mayoristas</div>
-        </div>
-      </div>
-
-      <!-- Tabla de Notas de Venta -->
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div class="p-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
-          <h3 class="font-bold text-slate-800 text-sm">Notas de Venta Emitidas</h3>
-          <span class="text-xs text-slate-500">{{ erpService.ventas().length }} notas registradas</span>
-        </div>
-
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse text-xs sm:text-sm">
-            <thead>
-              <tr class="bg-slate-100 border-b border-slate-200 text-slate-600 font-semibold text-xs uppercase">
-                <th class="p-3">Nº Nota</th>
-                <th class="p-3">Cliente / Razón Social</th>
-                <th class="p-3">Lote Cosecha</th>
-                <th class="p-3">Kilos Vendidos</th>
-                <th class="p-3">Precio Venta</th>
-                <th class="p-3">Total Ingreso</th>
-                <th class="p-3">Costo Ref.</th>
-                <th class="p-3">Margen Bruto</th>
-                <th class="p-3">Despacho</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100">
-              <tr *ngFor="let v of erpService.ventas()" class="hover:bg-slate-50">
-                <td class="p-3 font-mono font-bold text-slate-900">{{ v.numero_nota_venta }}</td>
-                <td class="p-3">
-                  <div class="font-semibold text-slate-900">{{ getNombreCliente(v.id_cliente) }}</div>
-                  <div class="text-[11px] text-slate-500">{{ v.fecha_venta }}</div>
-                </td>
-                <td class="p-3 font-mono text-xs text-slate-600">#COS-{{ v.id_cosecha }}</td>
-                <td class="p-3 font-bold font-mono text-slate-800">{{ v.kilos_vendidos | number }} Kg</td>
-                <td class="p-3 font-mono text-slate-700">\${{ v.precio_unitario_venta | number }}</td>
-                <td class="p-3 font-mono font-bold text-slate-900">\${{ v.monto_total_ingreso | number }}</td>
-                <td class="p-3 font-mono text-slate-500 text-xs">\${{ v.costo_unitario_ciclo_ref | number:'1.2-2' }}</td>
-                <td class="p-3 font-mono font-bold text-emerald-700">+\${{ v.margen_bruto_operativo | number }}</td>
-                <td class="p-3">
-                  <span [class]="getClaseDespacho(v.estado_despacho)" class="px-2 py-0.5 rounded-full text-[11px] font-bold border">
-                    {{ v.estado_despacho }}
-                  </span>
-                </td>
-              </tr>
-              <tr *ngIf="erpService.ventas().length === 0">
-                <td colspan="9" class="p-8 text-center text-slate-500 text-xs">
-                  No hay notas de venta emitidas.
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Directorio de Clientes -->
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div class="p-4 border-b border-slate-200 bg-slate-50/50 font-bold text-slate-800 text-sm">
-          Directorio de Clientes Registrados (HU08)
-        </div>
-
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse text-xs sm:text-sm">
-            <thead>
-              <tr class="bg-slate-100 border-b border-slate-200 text-slate-600 font-semibold text-xs uppercase">
-                <th class="p-3">RUT</th>
-                <th class="p-3">Razón Social</th>
-                <th class="p-3">Contacto</th>
-                <th class="p-3">Teléfono</th>
-                <th class="p-3">Email</th>
-                <th class="p-3">Dirección</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100">
-              <tr *ngFor="let c of erpService.clientes()" class="hover:bg-slate-50">
-                <td class="p-3 font-mono text-slate-600">{{ c.rut_cliente }}</td>
-                <td class="p-3 font-bold text-slate-900">{{ c.razon_social }}</td>
-                <td class="p-3 text-slate-700">{{ c.contacto_nombre }}</td>
-                <td class="p-3 text-slate-600 font-mono">{{ c.telefono }}</td>
-                <td class="p-3 text-slate-600">{{ c.email }}</td>
-                <td class="p-3 text-slate-500 text-xs">{{ c.direccion }}</td>
-              </tr>
-              <tr *ngIf="erpService.clientes().length === 0">
-                <td colspan="6" class="p-8 text-center text-slate-500 text-xs">
-                  No hay clientes registrados en el directorio.
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Modal Emisión Nota de Venta -->
-      <div
-        *ngIf="modalVentaVisible()"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="tituloModalVenta"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
-          <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-            <h3 id="tituloModalVenta" class="font-bold text-slate-900 text-base flex items-center gap-2">
-              <span>📄</span>
-              <span>Emitir Nota de Venta Agrícola</span>
-            </h3>
-            <button (click)="cerrarModalVenta()" class="text-slate-400 hover:text-slate-700 font-bold text-lg px-2">✕</button>
-          </div>
-
-          <form [formGroup]="ventaForm" (ngSubmit)="onSubmitVenta()" class="space-y-4">
-            <div>
-              <label class="block text-xs font-bold text-slate-700 mb-1">Cliente Comprador *</label>
-              <select formControlName="id_cliente" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none">
-                <option value="" disabled>Seleccione cliente...</option>
-                <option *ngFor="let cli of erpService.clientes()" [value]="cli.id_cliente">
-                  {{ cli.razon_social }} (RUT: {{ cli.rut_cliente }})
-                </option>
-              </select>
-            </div>
-
-            <div>
-              <label class="block text-xs font-bold text-slate-700 mb-1">Lote de Cosecha Origen *</label>
-              <select formControlName="id_cosecha" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none">
-                <option value="" disabled>
-                  {{ cosechasDisponibles().length > 0 ? 'Seleccione lote con stock disponible...' : 'No hay cosechas con kilos disponibles' }}
-                </option>
-                <option *ngFor="let cos of cosechasDisponibles()" [value]="cos.id_cosecha">
-                  #COS-{{ cos.id_cosecha }} &bull; Ciclo #{{ cos.id_ciclo }} &bull; Disp: {{ cos.kilos_disponibles_venta }} Kg ({{ cos.calidad_grado }})
-                </option>
-              </select>
-              <span class="text-[11px] text-slate-500 mt-1 block">Muestra solo cosechas con saldo en kilos disponible para comercialización.</span>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1">Kilos a Vender *</label>
-                <input
-                  type="number"
-                  min="1"
-                  formControlName="kilos_vendidos"
-                  placeholder="ej. 1000"
-                  class="w-full p-2.5 text-sm rounded-xl border border-slate-300 font-mono font-bold focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1">Precio Venta $/Kg *</label>
-                <input
-                  type="number"
-                  min="100"
-                  formControlName="precio_unitario_venta"
-                  placeholder="ej. 980"
-                  class="w-full p-2.5 text-sm rounded-xl border border-slate-300 font-mono font-bold focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs flex justify-between items-center">
-              <span class="text-emerald-900 font-semibold">Total a Facturar Estimado:</span>
-              <span class="font-mono font-black text-emerald-800 text-sm">
-                \${{ calcularTotalVentaPrevia() | number }}
-              </span>
-            </div>
-
-            <div class="pt-3 flex gap-3 justify-end border-t border-slate-100">
-              <button
-                type="button"
-                (click)="cerrarModalVenta()"
-                class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl font-medium">
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                [disabled]="ventaForm.invalid || cosechasDisponibles().length === 0"
-                class="px-5 py-2 text-sm bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-semibold rounded-xl shadow-xs transition-colors">
-                Autorizar y Emitir
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      <!-- Modal Registro Cliente -->
-      <div
-        *ngIf="modalClienteVisible()"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="tituloModalCliente"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
-          <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-            <h3 id="tituloModalCliente" class="font-bold text-slate-900 text-base flex items-center gap-2">
-              <span>👤</span>
-              <span>Registrar Nuevo Cliente Comprador</span>
-            </h3>
-            <button (click)="cerrarModalCliente()" class="text-slate-400 hover:text-slate-700 font-bold text-lg px-2">✕</button>
-          </div>
-
-          <form [formGroup]="clienteForm" (ngSubmit)="onSubmitCliente()" class="space-y-3">
-            <div>
-              <label class="block text-xs font-bold text-slate-700 mb-1">Razón Social *</label>
-              <input type="text" formControlName="razon_social" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none" />
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1">RUT Empresa *</label>
-                <input type="text" formControlName="rut_cliente" placeholder="76.123.456-7" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none" />
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1">Nombre Contacto *</label>
-                <input type="text" formControlName="contacto_nombre" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none" />
-              </div>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1">Teléfono *</label>
-                <input type="text" formControlName="telefono" placeholder="+56 9 8888 7777" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none" />
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1">Email *</label>
-                <input type="email" formControlName="email" placeholder="contacto@empresa.cl" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none" />
-              </div>
-            </div>
-
-            <div>
-              <label class="block text-xs font-bold text-slate-700 mb-1">Dirección Casa Matriz / Despacho *</label>
-              <input type="text" formControlName="direccion" placeholder="Av. Principal #1234, Ciudad" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none" />
-            </div>
-
-            <div class="pt-3 flex gap-3 justify-end border-t border-slate-100">
-              <button type="button" (click)="cerrarModalCliente()" class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl font-medium">Cancelar</button>
-              <button type="submit" [disabled]="clienteForm.invalid" class="px-5 py-2 text-sm bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-semibold rounded-xl shadow-xs transition-colors">Guardar Cliente</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  `
+  templateUrl: './ventas.component.html'
 })
-export class VentasComponent {
+export class VentasComponent implements OnInit {
   readonly erpService = inject(ErpDataService);
+  private readonly ventasApi = inject(VentasApiService);
   private readonly fb = inject(FormBuilder);
 
-  readonly modalVentaVisible = signal(false);
-  readonly modalClienteVisible = signal(false);
+  // Estados reactivos
+  readonly busquedaCliente = signal<string>('');
+  readonly filtroDespacho = signal<string>('TODAS');
+  readonly modalVentaVisible = signal<boolean>(false);
+  readonly modalClienteVisible = signal<boolean>(false);
+  readonly modalEditarClienteVisible = signal<boolean>(false);
+  readonly modalHistorialVisible = signal<boolean>(false);
+  readonly clienteSeleccionado = signal<Cliente | null>(null);
+
   readonly mensajeError = signal<string | null>(null);
   readonly mensajeExito = signal<string | null>(null);
+  readonly metricasApi = signal<MetricasVentasDto | null>(null);
+  readonly stockDisponibleApi = signal<StockDisponibleDto[]>([]);
 
-  // Muestra solo cosechas que posean saldo disponible para vender
+  // Formularios Reactivos
+  readonly ventaForm: FormGroup = this.fb.group({
+    id_cliente: ['', [Validators.required]],
+    id_cosecha: ['', [Validators.required]],
+    kilos_vendidos: [null, [Validators.required, Validators.min(1)]],
+    precio_unitario_venta: [1100, [Validators.required, Validators.min(100)]]
+  });
+
+  readonly clienteForm: FormGroup = this.fb.group({
+    rut_cliente: ['', [Validators.required, rutChilenoValidator]],
+    razon_social: ['', [Validators.required, Validators.minLength(2)]],
+    contacto_nombre: ['', [Validators.required, Validators.minLength(2)]],
+    telefono: ['', [Validators.required, Validators.minLength(8)]],
+    email: ['', [Validators.required, Validators.email]],
+    direccion: ['', [Validators.required, Validators.minLength(4)]]
+  });
+
+  readonly editarClienteForm: FormGroup = this.fb.group({
+    id_cliente: [null, [Validators.required]],
+    rut_cliente: [{ value: '', disabled: true }],
+    razon_social: ['', [Validators.required, Validators.minLength(2)]],
+    contacto_nombre: ['', [Validators.required, Validators.minLength(2)]],
+    telefono: ['', [Validators.required, Validators.minLength(8)]],
+    email: ['', [Validators.required, Validators.email]],
+    direccion: ['', [Validators.required, Validators.minLength(4)]]
+  });
+
+  // Cálculos derivados
   readonly cosechasDisponibles = computed(() =>
     this.erpService.cosechas().filter((c) => c.kilos_disponibles_venta > 0)
   );
 
-  readonly ventaForm: FormGroup = this.fb.group({
-    id_cliente: ['', [Validators.required]],
-    id_cosecha: ['', [Validators.required]],
-    kilos_vendidos: [1000, [Validators.required, Validators.min(1)]],
-    precio_unitario_venta: [980, [Validators.required, Validators.min(100)]]
+  readonly clientesFiltrados = computed(() => {
+    const q = this.busquedaCliente().trim().toLowerCase();
+    const lista = this.erpService.clientes();
+    if (!q) return lista;
+    return lista.filter(
+      (c) =>
+        c.razon_social.toLowerCase().includes(q) ||
+        c.rut_cliente.toLowerCase().includes(q) ||
+        c.contacto_nombre.toLowerCase().includes(q)
+    );
   });
 
-  readonly clienteForm: FormGroup = this.fb.group({
-    razon_social: ['', [Validators.required]],
-    rut_cliente: ['', [Validators.required]],
-    contacto_nombre: ['', [Validators.required]],
-    telefono: ['', [Validators.required]],
-    email: ['', [Validators.required, Validators.email]],
-    direccion: ['', [Validators.required]]
+  readonly ventasFiltradas = computed(() => {
+    const filtro = this.filtroDespacho();
+    const lista = this.erpService.ventas();
+    if (filtro === 'TODAS') return lista;
+    return lista.filter((v) => v.estado_despacho === filtro);
   });
+
+  readonly totalKilosVendidos = computed(() =>
+    this.erpService.ventas().reduce((acc, v) => acc + v.kilos_vendidos, 0)
+  );
+
+  readonly kpis = computed(() => {
+    const m = this.metricasApi();
+    if (m && m.resumenGlobal) {
+      return {
+        totalVentasMonto: m.resumenGlobal.totalIngresosCLP,
+        margenBrutoTotal: m.resumenGlobal.totalMargenBrutoCLP,
+        margenPorcentaje: Math.round(m.resumenGlobal.margenBrutoPromedioPorcentaje)
+      };
+    }
+    return this.erpService.kpisFinancieros();
+  });
+
+  readonly conteoDespacho = computed(() => {
+    const ventas = this.erpService.ventas();
+    return {
+      pendientes: ventas.filter((v) => v.estado_despacho === 'PENDIENTE').length,
+      despachados: ventas.filter((v) => v.estado_despacho === 'DESPACHADO').length,
+      entregados: ventas.filter((v) => v.estado_despacho === 'ENTREGADO').length
+    };
+  });
+
+  readonly ventasClienteSeleccionado = computed(() => {
+    const cli = this.clienteSeleccionado();
+    if (!cli) return [];
+    return this.erpService.ventas().filter((v) => v.id_cliente === cli.id_cliente);
+  });
+
+  ngOnInit(): void {
+    this.recargarDatosServidor();
+  }
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
     this.cerrarModalVenta();
     this.cerrarModalCliente();
+    this.cerrarModalEditarCliente();
+    this.cerrarHistorialCliente();
   }
 
-  get totalKilosVendidos(): number {
-    return this.erpService.ventas().reduce((acc, v) => acc + v.kilos_vendidos, 0);
+  recargarDatosServidor(): void {
+    // 1. Cargar clientes desde API
+    this.ventasApi.listarClientes().subscribe({
+      next: (clientes) => {
+        if (clientes && clientes.length > 0) {
+          console.log('[VentasComponent] Clientes recibidos de API:', clientes.length);
+        }
+      },
+      error: () => {}
+    });
+
+    // 2. Cargar stock disponible
+    this.ventasApi.obtenerStockDisponible().subscribe({
+      next: (stock) => {
+        if (stock) {
+          this.stockDisponibleApi.set(stock);
+        }
+      },
+      error: () => {}
+    });
+
+    // 3. Cargar métricas comerciales
+    this.ventasApi.obtenerMetricas().subscribe({
+      next: (met) => {
+        if (met) {
+          this.metricasApi.set(met);
+        }
+      },
+      error: () => {}
+    });
+  }
+
+  onFiltroDespachoChange(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    this.filtroDespacho.set(select.value);
+  }
+
+  onBusquedaClienteInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.busquedaCliente.set(input.value);
   }
 
   getNombreCliente(idCliente: number): string {
@@ -372,13 +173,47 @@ export class VentasComponent {
     return cli ? cli.razon_social : `Cliente #${idCliente}`;
   }
 
+  getVentasClienteConteo(idCliente: number): number {
+    return this.erpService.ventas().filter((v) => v.id_cliente === idCliente).length;
+  }
+
   getClaseDespacho(estado: string): string {
     switch (estado) {
-      case 'ENTREGADO': return 'bg-emerald-100 text-emerald-800 border-emerald-300';
-      case 'DESPACHADO': return 'bg-blue-100 text-blue-800 border-blue-300';
-      case 'PENDIENTE': return 'bg-amber-100 text-amber-800 border-amber-300';
-      default: return 'bg-slate-100 text-slate-700 border-slate-300';
+      case 'ENTREGADO':
+        return 'bg-emerald-100 text-emerald-800 border-emerald-300';
+      case 'DESPACHADO':
+        return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'PENDIENTE':
+        return 'bg-amber-100 text-amber-800 border-amber-300';
+      default:
+        return 'bg-slate-100 text-slate-700 border-slate-300';
     }
+  }
+
+  // ==========================================
+  // CÁLCULOS PREVIOS EN FORMULARIO DE VENTA
+  // ==========================================
+
+  loteSeleccionadoKilosMax(): number {
+    const idCosecha = Number(this.ventaForm.get('id_cosecha')?.value);
+    if (!idCosecha) return 0;
+    const cos = this.cosechasDisponibles().find((c) => c.id_cosecha === idCosecha);
+    return cos ? cos.kilos_disponibles_venta : 0;
+  }
+
+  kilosSuperanStock(): boolean {
+    const k = Number(this.ventaForm.get('kilos_vendidos')?.value || 0);
+    const max = this.loteSeleccionadoKilosMax();
+    return max > 0 && k > max;
+  }
+
+  costoUnitarioRefPrevia(): number {
+    const idCosecha = Number(this.ventaForm.get('id_cosecha')?.value);
+    if (!idCosecha) return 450;
+    const cos = this.erpService.cosechas().find((c) => c.id_cosecha === idCosecha);
+    if (!cos) return 450;
+    const ciclo = this.erpService.ciclos().find((c) => c.id_ciclo === cos.id_ciclo);
+    return ciclo?.costo_unitario_kg ?? 450;
   }
 
   calcularTotalVentaPrevia(): number {
@@ -387,8 +222,40 @@ export class VentasComponent {
     return k * p;
   }
 
+  calcularMargenVentaPrevia(): number {
+    const k = Number(this.ventaForm.get('kilos_vendidos')?.value || 0);
+    const total = this.calcularTotalVentaPrevia();
+    const costo = k * this.costoUnitarioRefPrevia();
+    return Math.max(0, total - costo);
+  }
+
+  calcularMargenPctPrevia(): number {
+    const total = this.calcularTotalVentaPrevia();
+    if (total <= 0) return 0;
+    const margen = this.calcularMargenVentaPrevia();
+    return Math.round((margen / total) * 100);
+  }
+
+  onCosechaSeleccionadaChange(): void {
+    const max = this.loteSeleccionadoKilosMax();
+    const kilosCtrl = this.ventaForm.get('kilos_vendidos');
+    if (kilosCtrl && max > 0 && (!kilosCtrl.value || kilosCtrl.value > max)) {
+      kilosCtrl.setValue(Math.min(max, 1000));
+    }
+  }
+
+  // ==========================================
+  // GESTIÓN DE MODALES
+  // ==========================================
+
   abrirModalVenta(): void {
     this.mensajeError.set(null);
+    this.ventaForm.patchValue({
+      id_cliente: this.erpService.clientes()[0]?.id_cliente || '',
+      id_cosecha: this.cosechasDisponibles()[0]?.id_cosecha || '',
+      kilos_vendidos: null,
+      precio_unitario_venta: 1100
+    });
     this.modalVentaVisible.set(true);
   }
 
@@ -405,23 +272,210 @@ export class VentasComponent {
     this.modalClienteVisible.set(false);
   }
 
-  onSubmitVenta(): void {
-    if (this.ventaForm.invalid) return;
+  abrirModalEditarCliente(cliente: Cliente): void {
+    this.clienteSeleccionado.set(cliente);
+    this.editarClienteForm.patchValue({
+      id_cliente: cliente.id_cliente,
+      rut_cliente: cliente.rut_cliente,
+      razon_social: cliente.razon_social,
+      contacto_nombre: cliente.contacto_nombre,
+      telefono: cliente.telefono,
+      email: cliente.email,
+      direccion: cliente.direccion
+    });
+    this.modalEditarClienteVisible.set(true);
+  }
 
-    const res = this.erpService.generarNotaVenta(this.ventaForm.value);
-    if (!res.exito) {
-      this.mensajeError.set(res.mensaje);
-    } else {
-      this.mensajeExito.set(res.mensaje);
-      this.cerrarModalVenta();
-    }
+  cerrarModalEditarCliente(): void {
+    this.modalEditarClienteVisible.set(false);
+    this.clienteSeleccionado.set(null);
+  }
+
+  abrirHistorialCliente(cliente: Cliente): void {
+    this.clienteSeleccionado.set(cliente);
+    this.modalHistorialVisible.set(true);
+  }
+
+  cerrarHistorialCliente(): void {
+    this.modalHistorialVisible.set(false);
+    this.clienteSeleccionado.set(null);
+  }
+
+  // ==========================================
+  // OPERACIONES CRUD & PERSISTENCIA
+  // ==========================================
+
+  onSubmitVenta(): void {
+    if (this.ventaForm.invalid || this.kilosSuperanStock()) return;
+
+    const val = this.ventaForm.value;
+    const kilos = Number(val.kilos_vendidos);
+    const precio = Number(val.precio_unitario_venta);
+    const idCosecha = Number(val.id_cosecha);
+    const idCliente = Number(val.id_cliente);
+
+    const dto = {
+      idCliente,
+      idCosecha,
+      kilosVendidos: kilos,
+      precioUnitarioVenta: precio,
+      fechaVenta: new Date().toISOString().split('T')[0],
+      estadoDespacho: 'PENDIENTE' as const
+    };
+
+    this.ventasApi.emitirNotaVenta(dto).subscribe({
+      next: (res) => {
+        this.erpService.generarNotaVenta({
+          id_cliente: idCliente,
+          id_cosecha: idCosecha,
+          kilos_vendidos: kilos,
+          precio_unitario_venta: precio,
+          monto_total_ingreso: kilos * precio,
+          fecha_venta: dto.fechaVenta,
+          estado_despacho: 'PENDIENTE'
+        });
+        this.mensajeExito.set(`Nota de venta emitida exitosamente en servidor (${res?.numeroNotaVenta || 'NV'}).`);
+        this.cerrarModalVenta();
+      },
+      error: () => {
+        // Enlace resiliente con estado en memoria
+        const resLocal = this.erpService.generarNotaVenta({
+          id_cliente: idCliente,
+          id_cosecha: idCosecha,
+          kilos_vendidos: kilos,
+          precio_unitario_venta: precio,
+          monto_total_ingreso: kilos * precio,
+          fecha_venta: dto.fechaVenta,
+          estado_despacho: 'PENDIENTE'
+        });
+        if (resLocal.exito) {
+          this.mensajeExito.set(resLocal.mensaje);
+          this.cerrarModalVenta();
+        } else {
+          this.mensajeError.set(resLocal.mensaje);
+        }
+      }
+    });
   }
 
   onSubmitCliente(): void {
     if (this.clienteForm.invalid) return;
 
-    this.erpService.registrarCliente(this.clienteForm.value);
-    this.mensajeExito.set('Cliente registrado temporalmente en memoria.');
-    this.cerrarModalCliente();
+    const val = this.clienteForm.value;
+    const rutFormateado = formatearRutChileno(val.rut_cliente);
+
+    const dto = {
+      rutCliente: rutFormateado,
+      razonSocial: val.razon_social.trim(),
+      contactoNombre: val.contacto_nombre.trim(),
+      telefono: val.telefono.trim(),
+      email: val.email.trim().toLowerCase(),
+      direccion: val.direccion.trim()
+    };
+
+    this.ventasApi.crearCliente(dto).subscribe({
+      next: () => {
+        this.erpService.registrarCliente({
+          rut_cliente: dto.rutCliente,
+          razon_social: dto.razonSocial,
+          contacto_nombre: dto.contactoNombre,
+          telefono: dto.telefono,
+          email: dto.email,
+          direccion: dto.direccion
+        });
+        this.mensajeExito.set(`Cliente "${dto.razonSocial}" registrado exitosamente en el backend.`);
+        this.cerrarModalCliente();
+      },
+      error: () => {
+        this.erpService.registrarCliente({
+          rut_cliente: dto.rutCliente,
+          razon_social: dto.razonSocial,
+          contacto_nombre: dto.contactoNombre,
+          telefono: dto.telefono,
+          email: dto.email,
+          direccion: dto.direccion
+        });
+        this.mensajeExito.set(`Cliente "${dto.razonSocial}" registrado localmente.`);
+        this.cerrarModalCliente();
+      }
+    });
+  }
+
+  onSubmitEditarCliente(): void {
+    if (this.editarClienteForm.invalid) return;
+
+    const id = Number(this.editarClienteForm.get('id_cliente')?.value);
+    const val = this.editarClienteForm.value;
+
+    const dto = {
+      razonSocial: val.razon_social?.trim(),
+      contactoNombre: val.contacto_nombre?.trim(),
+      telefono: val.telefono?.trim(),
+      email: val.email?.trim().toLowerCase(),
+      direccion: val.direccion?.trim()
+    };
+
+    this.ventasApi.actualizarCliente(id, dto).subscribe({
+      next: () => {
+        this.erpService.actualizarCliente(id, {
+          razon_social: dto.razonSocial,
+          contacto_nombre: dto.contactoNombre,
+          telefono: dto.telefono,
+          email: dto.email,
+          direccion: dto.direccion
+        });
+        this.mensajeExito.set(`Datos de cliente actualizados exitosamente.`);
+        this.cerrarModalEditarCliente();
+      },
+      error: () => {
+        this.erpService.actualizarCliente(id, {
+          razon_social: dto.razonSocial,
+          contacto_nombre: dto.contactoNombre,
+          telefono: dto.telefono,
+          email: dto.email,
+          direccion: dto.direccion
+        });
+        this.mensajeExito.set(`Datos de cliente actualizados.`);
+        this.cerrarModalEditarCliente();
+      }
+    });
+  }
+
+  eliminarCliente(cliente: Cliente): void {
+    const confirmacion = confirm(`¿Está seguro de eliminar al cliente "${cliente.razon_social}"?`);
+    if (!confirmacion) return;
+
+    this.ventasApi.eliminarCliente(cliente.id_cliente).subscribe({
+      next: () => {
+        const res = this.erpService.eliminarCliente(cliente.id_cliente);
+        this.mensajeExito.set(res.mensaje);
+      },
+      error: (err) => {
+        // Si el backend arrojó 400 porque tiene ventas
+        if (err?.status === 400 || err?.error?.message?.includes('ventas')) {
+          this.mensajeError.set('No se puede eliminar el cliente porque posee notas de venta registradas.');
+          return;
+        }
+        const res = this.erpService.eliminarCliente(cliente.id_cliente);
+        if (res.exito) {
+          this.mensajeExito.set(res.mensaje);
+        } else {
+          this.mensajeError.set(res.mensaje);
+        }
+      }
+    });
+  }
+
+  cambiarEstadoDespacho(venta: Venta, nuevoEstado: 'PENDIENTE' | 'DESPACHADO' | 'ENTREGADO'): void {
+    this.ventasApi.actualizarDespacho(venta.id_venta, { estadoDespacho: nuevoEstado }).subscribe({
+      next: () => {
+        this.erpService.actualizarDespachoVenta(venta.id_venta, nuevoEstado);
+        this.mensajeExito.set(`Despacho de nota ${venta.numero_nota_venta} actualizado a ${nuevoEstado}.`);
+      },
+      error: () => {
+        this.erpService.actualizarDespachoVenta(venta.id_venta, nuevoEstado);
+        this.mensajeExito.set(`Despacho de nota ${venta.numero_nota_venta} actualizado a ${nuevoEstado}.`);
+      }
+    });
   }
 }

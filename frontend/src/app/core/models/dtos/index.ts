@@ -10,3 +10,4 @@ export * from './crear-insumo.dto';
 export * from './actualizar-insumo.dto';
 export * from './registrar-movimiento.dto';
 export * from './costos.dtos';
+export * from './ventas.dtos';
