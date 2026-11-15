@@ -1,0 +1,38 @@
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
+
+export class ActualizarClienteDto {
+  @IsOptional()
+  @IsString({ message: 'El RUT del cliente debe ser texto.' })
+  @MaxLength(12, { message: 'El RUT no puede exceder 12 caracteres.' })
+  rutCliente?: string;
+
+  @IsOptional()
+  @IsString({ message: 'La razón social debe ser texto.' })
+  @MaxLength(120, { message: 'La razón social no puede exceder 120 caracteres.' })
+  razonSocial?: string;
+
+  @IsOptional()
+  @IsString({ message: 'El nombre de contacto debe ser texto.' })
+  @MaxLength(80, { message: 'El nombre de contacto no puede exceder 80 caracteres.' })
+  contactoNombre?: string;
+
+  @IsOptional()
+  @IsString({ message: 'El teléfono debe ser texto.' })
+  @MaxLength(20, { message: 'El teléfono no puede exceder 20 caracteres.' })
+  telefono?: string;
+
+  @IsOptional()
+  @IsEmail({}, { message: 'El correo electrónico no tiene un formato válido.' })
+  @MaxLength(100, { message: 'El email no puede exceder 100 caracteres.' })
+  email?: string;
+
+  @IsOptional()
+  @IsString({ message: 'La dirección debe ser texto.' })
+  @MaxLength(150, { message: 'La dirección no puede exceder 150 caracteres.' })
+  direccion?: string;
+}
