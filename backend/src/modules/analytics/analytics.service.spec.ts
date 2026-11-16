@@ -216,3 +216,4 @@ describe('AnalyticsService', () => {
     expect(dashboard.proyeccionesPredictivas).toBeDefined();
   });
 });
+

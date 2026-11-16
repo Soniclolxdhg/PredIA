@@ -46,3 +46,4 @@ export class WeatherController {
     return this.weatherService.atenderAlerta(id, dto);
   }
 }
+

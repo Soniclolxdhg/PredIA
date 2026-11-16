@@ -27,3 +27,4 @@ export class AnalyticsController {
     return this.analyticsService.obtenerProyeccionesCiclos();
   }
 }
+

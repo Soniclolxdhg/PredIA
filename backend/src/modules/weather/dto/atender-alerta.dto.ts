@@ -13,3 +13,4 @@ export class AtenderAlertaDto {
   @MaxLength(200, { message: 'La observación no puede exceder 200 caracteres.' })
   observacion?: string;
 }
+

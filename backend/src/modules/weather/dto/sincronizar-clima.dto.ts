@@ -19,3 +19,4 @@ export class SincronizarClimaDto {
   @Max(16, { message: 'Open-Meteo soporta hasta 16 días de pronóstico.' })
   diasPronostico?: number;
 }
+
