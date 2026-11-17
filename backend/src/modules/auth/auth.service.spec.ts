@@ -2,7 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { ServicioPrisma } from '../../common/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
-import { UnauthorizedException } from '@nestjs/common';
+import {
+  UnauthorizedException,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import * as argon2 from 'argon2';
 
 describe('AuthService', () => {
@@ -13,6 +17,7 @@ describe('AuthService', () => {
       findFirst: jest.Mock;
       findMany: jest.Mock;
       create: jest.Mock;
+      update: jest.Mock;
     };
   };
   let jwtService: {
@@ -26,6 +31,7 @@ describe('AuthService', () => {
         findFirst: jest.fn(),
         findMany: jest.fn(),
         create: jest.fn(),
+        update: jest.fn(),
       },
     };
 
@@ -126,6 +132,94 @@ describe('AuthService', () => {
       expect(resultado).toHaveLength(2);
       expect(resultado[0].nombreCompleto).toBe('Administrador General');
       expect(prisma.usuario.findMany).toHaveBeenCalled();
+    });
+  });
+
+  describe('obtenerUsuarioPorId', () => {
+    it('debe retornar un usuario si existe', async () => {
+      const usuario = {
+        idUsuario: 8,
+        nombreCompleto: 'Carlos Agrónomo',
+        email: 'carlos@predia.cl',
+        rut: '18.123.456-7',
+        rol: 'AGRONOMO',
+        activo: true,
+        fechaCreacion: new Date(),
+      };
+      prisma.usuario.findUnique.mockResolvedValue(usuario);
+
+      const res = await service.obtenerUsuarioPorId(8);
+      expect(res.idUsuario).toBe(8);
+      expect(res.email).toBe('carlos@predia.cl');
+    });
+
+    it('debe lanzar NotFoundException si el usuario no existe', async () => {
+      prisma.usuario.findUnique.mockResolvedValue(null);
+
+      await expect(service.obtenerUsuarioPorId(999)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('actualizarUsuario', () => {
+    it('debe actualizar los datos de un usuario existente', async () => {
+      const usuarioExistente = {
+        idUsuario: 8,
+        nombreCompleto: 'Nombre Antiguo',
+        email: 'antiguo@predia.cl',
+        rut: '18.123.456-7',
+        rol: 'OPERARIO',
+        activo: true,
+      };
+
+      const usuarioActualizado = {
+        idUsuario: 8,
+        nombreCompleto: 'profedsofkdsf',
+        email: 'dfgdfogij@sdofij.com',
+        rut: '18.123.456-7',
+        rol: 'AGRONOMO',
+        activo: true,
+        fechaCreacion: new Date(),
+      };
+
+      prisma.usuario.findUnique
+        .mockResolvedValueOnce(usuarioExistente) // primera llamada: verificar existencia
+        .mockResolvedValueOnce(null); // segunda llamada: verificar unicidad de email
+
+      prisma.usuario.update.mockResolvedValue(usuarioActualizado);
+
+      const resultado = await service.actualizarUsuario(8, {
+        nombreCompleto: 'profedsofkdsf',
+        email: 'dfgdfogij@sdofij.com',
+        rol: 'AGRONOMO' as any,
+        activo: true,
+      });
+
+      expect(resultado.idUsuario).toBe(8);
+      expect(resultado.nombreCompleto).toBe('profedsofkdsf');
+      expect(resultado.rol).toBe('AGRONOMO');
+      expect(prisma.usuario.update).toHaveBeenCalledTimes(1);
+    });
+
+    it('debe lanzar ConflictException si el email nuevo ya pertenece a otro usuario', async () => {
+      const usuarioExistente = {
+        idUsuario: 8,
+        nombreCompleto: 'Juan',
+        email: 'juan@predia.cl',
+        rut: '18.123.456-7',
+      };
+
+      const otroUsuarioConMismoEmail = {
+        idUsuario: 2, // ID diferente
+        email: 'ocupado@predia.cl',
+      };
+
+      prisma.usuario.findUnique
+        .mockResolvedValueOnce(usuarioExistente)
+        .mockResolvedValueOnce(otroUsuarioConMismoEmail);
+
+      await expect(
+        service.actualizarUsuario(8, { email: 'ocupado@predia.cl' }),
+      ).rejects.toThrow(ConflictException);
     });
   });
 });

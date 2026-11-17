@@ -1,9 +1,13 @@
 import {
   Controller,
   Post,
+  Put,
+  Patch,
   Body,
   Get,
+  Param,
   Query,
+  ParseIntPipe,
   UseGuards,
   Request,
   HttpCode,
@@ -13,6 +17,7 @@ import { RolUsuario } from '@prisma/client';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegistroDto } from './dto/registro.dto';
+import { ActualizarUsuarioDto } from './dto/actualizar-usuario.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Controller('auth')
@@ -45,6 +50,30 @@ export class AuthController {
   ) {
     const activoBool = activo !== undefined ? activo === 'true' : undefined;
     return this.authService.listarUsuarios(rol, activoBool);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('usuarios/:id')
+  async obtenerUsuarioPorId(@Param('id', ParseIntPipe) id: number) {
+    return this.authService.obtenerUsuarioPorId(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put('usuarios/:id')
+  async actualizarUsuarioPut(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ActualizarUsuarioDto,
+  ) {
+    return this.authService.actualizarUsuario(id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('usuarios/:id')
+  async actualizarUsuarioPatch(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ActualizarUsuarioDto,
+  ) {
+    return this.authService.actualizarUsuario(id, dto);
   }
 }
 
