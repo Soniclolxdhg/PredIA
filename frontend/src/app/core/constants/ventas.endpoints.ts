@@ -1,9 +1,9 @@
 export const VENTAS_ENDPOINTS = {
-  CLIENTES: '/api/ventas/clientes',
-  CLIENTE_DETALLE: (id: number) => `/api/ventas/clientes/${id}`,
-  STOCK_DISPONIBLE: '/api/ventas/stock-disponible',
-  NOTAS_VENTA: '/api/ventas',
-  VENTA_DESPACHO: (id: number) => `/api/ventas/${id}/despacho`,
-  METRICAS: '/api/ventas/metricas'
+  CLIENTES: '/ventas/clientes',
+  CLIENTE_DETALLE: (id: number) => `/ventas/clientes/${id}`,
+  STOCK_DISPONIBLE: '/ventas/stock-disponible',
+  NOTAS_VENTA: '/ventas',
+  VENTA_DESPACHO: (id: number) => `/ventas/${id}/despacho`,
+  METRICAS: '/ventas/metricas'
 } as const;
 

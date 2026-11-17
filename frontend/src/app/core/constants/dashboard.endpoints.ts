@@ -1,6 +1,6 @@
 export const DASHBOARD_ENDPOINTS = {
-  EJECUTIVO: '/api/dashboard/ejecutivo',
-  KPIS: '/api/dashboard/kpis',
-  GRAFICOS: '/api/dashboard/graficos',
-  PROYECCIONES: '/api/dashboard/proyecciones'
+  EJECUTIVO: '/dashboard/ejecutivo',
+  KPIS: '/dashboard/kpis',
+  GRAFICOS: '/dashboard/graficos',
+  PROYECCIONES: '/dashboard/proyecciones'
 } as const;
