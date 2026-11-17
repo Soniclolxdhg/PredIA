@@ -17,7 +17,7 @@ import { SincronizarClimaDto } from './dto/sincronizar-clima.dto';
 import { AtenderAlertaDto } from './dto/atender-alerta.dto';
 
 @UseGuards(JwtAuthGuard)
-@Controller('clima')
+@Controller(['clima', 'api/clima'])
 export class WeatherController {
   constructor(private readonly weatherService: WeatherService) {}
 

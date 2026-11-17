@@ -25,9 +25,9 @@ export interface DiaPronostico {
 export class WeatherService implements OnApplicationBootstrap {
   private readonly registrador = new Logger(WeatherService.name);
 
-  // Coordenadas por defecto del predio Santa Laura Ltda. (Zona central de Chile / Valle del Maipo - Rancagua)
-  private readonly LATITUD_PREDETERMINADA = -33.81;
-  private readonly LONGITUD_PREDETERMINADA = -70.74;
+  // Coordenadas oficiales de Santa Laura Ltda. (Olmué, Región de Valparaíso, Chile - Pauta de Evaluación EV2)
+  private readonly LATITUD_PREDETERMINADA = -33.00;
+  private readonly LONGITUD_PREDETERMINADA = -71.19;
   private readonly UMBRAL_HELADA_C = 2.0;
 
   constructor(private readonly prisma: ServicioPrisma) {}
