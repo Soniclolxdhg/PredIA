@@ -65,8 +65,29 @@ import { TrabajadorDto, CrearAsistenciaDto, CrearTrabajadorDto } from '../../cor
         <button (click)="mensajeError.set(null)" class="text-rose-700 font-bold px-2 py-1">✕</button>
       </div>
 
-      <!-- Tabla de Asistencia y Jornales -->
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+      <!-- Selector de Pestañas -->
+      <div class="flex items-center gap-2 border-b border-slate-200 pb-2">
+        <button
+          type="button"
+          (click)="pestanaActiva.set('JORNADAS')"
+          [class]="pestanaActiva() === 'JORNADAS' ? 'bg-emerald-700 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
+          class="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2">
+          <span>📋</span>
+          <span>Jornadas & Asistencias ({{ erpService.asistencias().length }})</span>
+        </button>
+
+        <button
+          type="button"
+          (click)="pestanaActiva.set('TRABAJADORES')"
+          [class]="pestanaActiva() === 'TRABAJADORES' ? 'bg-emerald-700 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
+          class="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2">
+          <span>👥</span>
+          <span>Plantilla de Trabajadores Agrícolas ({{ trabajadores().length }})</span>
+        </button>
+      </div>
+
+      <!-- Tabla de Asistencia y Jornales (Pestaña Jornadas) -->
+      <div *ngIf="pestanaActiva() === 'JORNADAS'" class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div class="p-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
           <h3 class="font-bold text-slate-800 text-sm">Registro de Asistencia Imputada a Ciclos</h3>
           <span class="text-xs text-slate-500 font-mono font-bold">
@@ -121,6 +142,76 @@ import { TrabajadorDto, CrearAsistenciaDto, CrearTrabajadorDto } from '../../cor
               <tr *ngIf="erpService.asistencias().length === 0">
                 <td colspan="9" class="p-8 text-center text-slate-500 text-xs">
                   No hay jornadas registradas. Presione "Registrar Jornada de Trabajo" para imputar horas a un ciclo activo.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tabla de Trabajadores Agrícolas (Pestaña Trabajadores) -->
+      <div *ngIf="pestanaActiva() === 'TRABAJADORES'" class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        <div class="p-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
+          <h3 class="font-bold text-slate-800 text-sm">Directorio de Trabajadores Agrícolas Registrados</h3>
+          <button
+            type="button"
+            (click)="abrirModalTrabajador()"
+            class="text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200 transition-colors">
+            + Registrar Trabajador
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs sm:text-sm">
+            <thead>
+              <tr class="bg-slate-100 border-b border-slate-200 text-slate-600 font-semibold text-xs uppercase">
+                <th class="p-3">ID / RUT</th>
+                <th class="p-3">Nombre Completo</th>
+                <th class="p-3">Cargo Operacional</th>
+                <th class="p-3">Modalidad Contrato</th>
+                <th class="p-3">Tarifa Base ($/h)</th>
+                <th class="p-3">Estado</th>
+                <th class="p-3 text-right">Acción</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr *ngFor="let t of trabajadores()" class="hover:bg-slate-50">
+                <td class="p-3 font-mono text-slate-600">
+                  <span class="font-bold text-slate-900">#{{ t.idTrabajador }}</span> &bull; {{ t.rut }}
+                </td>
+                <td class="p-3 font-semibold text-slate-900">
+                  {{ t.nombres }} {{ t.apellidos }}
+                </td>
+                <td class="p-3 text-slate-700 font-medium">
+                  {{ formatCargo(t.cargo) }}
+                </td>
+                <td class="p-3 text-slate-600">
+                  <span class="px-2 py-0.5 rounded-full bg-slate-100 border text-[11px] font-bold">
+                    {{ t.modalidadPago }}
+                  </span>
+                </td>
+                <td class="p-3 font-mono font-bold text-emerald-800">
+                  \${{ t.tarifaBase | number }}
+                </td>
+                <td class="p-3">
+                  <span
+                    [class]="t.activo ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-slate-100 text-slate-600 border-slate-300'"
+                    class="px-2 py-0.5 rounded-full text-[11px] font-bold border">
+                    {{ t.activo ? 'ACTIVO' : 'INACTIVO' }}
+                  </span>
+                </td>
+                <td class="p-3 text-right">
+                  <button
+                    type="button"
+                    (click)="abrirModalParaTrabajador(t)"
+                    class="px-3 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors">
+                    ➕ Imputar Jornada
+                  </button>
+                </td>
+              </tr>
+              <tr *ngIf="trabajadores().length === 0">
+                <td colspan="7" class="p-8 text-center text-slate-500 text-xs">
+                  No hay trabajadores registrados en la base de datos. Presione "+ Nuevo Trabajador" para agregar colaboradores agrícolas.
                 </td>
               </tr>
             </tbody>
@@ -359,6 +450,7 @@ export class AsistenciaJornalesComponent implements OnInit {
   private readonly costosApi = inject(CostosApiService);
   private readonly fb = inject(FormBuilder);
 
+  readonly pestanaActiva = signal<'JORNADAS' | 'TRABAJADORES'>('JORNADAS');
   readonly modalVisible = signal(false);
   readonly modalTrabajadorVisible = signal(false);
   readonly mensajeExito = signal<string | null>(null);
@@ -388,16 +480,45 @@ export class AsistenciaJornalesComponent implements OnInit {
     this.cargarAsistencias();
   }
 
+  sanitizar(texto: string | null | undefined): string {
+    if (!texto) return '';
+    return texto.replace(/\uFFFD/g, 'é').replace(/Prez/g, 'Pérez').replace(/Perez/g, 'Pérez');
+  }
+
+  formatCargo(cargo: string): string {
+    switch (cargo) {
+      case 'OPERARIO_CAMPO': return 'Operario de Campo';
+      case 'COSECHADOR': return 'Cosechador';
+      case 'CHOFER': return 'Chofer';
+      case 'MECANICO': return 'Mecánico';
+      default: return cargo;
+    }
+  }
+
+  abrirModalParaTrabajador(t: TrabajadorDto): void {
+    this.asistenciaForm.patchValue({
+      id_trabajador: t.idTrabajador,
+      valor_hora_aplicado: Number(t.tarifaBase) || 4500,
+      modalidad_pago: t.modalidadPago || 'SEMANAL'
+    });
+    this.modalVisible.set(true);
+  }
+
   cargarTrabajadores(): void {
     this.costosApi.listarTrabajadores().subscribe({
       next: (lista) => {
         if (lista && Array.isArray(lista)) {
-          this.trabajadores.set(lista);
-          if (lista.length > 0 && !this.asistenciaForm.get('id_trabajador')?.value) {
+          const limpias = lista.map((t) => ({
+            ...t,
+            nombres: this.sanitizar(t.nombres),
+            apellidos: this.sanitizar(t.apellidos)
+          }));
+          this.trabajadores.set(limpias);
+          if (limpias.length > 0 && !this.asistenciaForm.get('id_trabajador')?.value) {
             this.asistenciaForm.patchValue({
-              id_trabajador: lista[0].idTrabajador,
-              valor_hora_aplicado: Number(lista[0].tarifaBase) || 4500,
-              modalidad_pago: lista[0].modalidadPago || 'SEMANAL'
+              id_trabajador: limpias[0].idTrabajador,
+              valor_hora_aplicado: Number(limpias[0].tarifaBase) || 4500,
+              modalidad_pago: limpias[0].modalidadPago || 'SEMANAL'
             });
           }
         }
@@ -412,18 +533,23 @@ export class AsistenciaJornalesComponent implements OnInit {
     this.costosApi.listarAsistencias().subscribe({
       next: (lista) => {
         if (lista && Array.isArray(lista) && lista.length > 0) {
-          const normalizadas: AsistenciaJornal[] = lista.map((a: any) => ({
-            id_asistencia: a.idAsistencia,
-            id_trabajador: a.idTrabajador,
-            nombre_trabajador: a.trabajador ? `${a.trabajador.nombres} ${a.trabajador.apellidos}` : `Trabajador #${a.idTrabajador}`,
-            id_ciclo: a.idCiclo,
-            fecha_jornada: typeof a.fechaJornada === 'string' ? a.fechaJornada.split('T')[0] : a.fechaJornada,
-            horas_trabajadas: Number(a.horasTrabajadas),
-            valor_hora_aplicado: Number(a.valorHoraAplicado),
-            monto_devengado: Number(a.montoDevengado),
-            modalidad_pago: a.trabajador?.modalidadPago || 'SEMANAL',
-            estado_pago: a.estadoPago || 'PENDIENTE'
-          }));
+          const normalizadas: AsistenciaJornal[] = lista.map((a: any) => {
+            const nom = a.trabajador 
+              ? `${this.sanitizar(a.trabajador.nombres)} ${this.sanitizar(a.trabajador.apellidos)}` 
+              : `Trabajador #${a.idTrabajador}`;
+            return {
+              id_asistencia: a.idAsistencia,
+              id_trabajador: a.idTrabajador,
+              nombre_trabajador: nom,
+              id_ciclo: a.idCiclo,
+              fecha_jornada: typeof a.fechaJornada === 'string' ? a.fechaJornada.split('T')[0] : a.fechaJornada,
+              horas_trabajadas: Number(a.horasTrabajadas),
+              valor_hora_aplicado: Number(a.valorHoraAplicado),
+              monto_devengado: Number(a.montoDevengado),
+              modalidad_pago: a.trabajador?.modalidadPago || 'SEMANAL',
+              estado_pago: a.estadoPago || 'PENDIENTE'
+            };
+          });
           this.erpService.setAsistencias(normalizadas);
         }
       },

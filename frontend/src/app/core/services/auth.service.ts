@@ -130,6 +130,10 @@ export class AuthService {
    * Carga la nómina real de colaboradores desde la base de datos de Supabase vía NestJS
    */
   cargarUsuarios(): Observable<Usuario[]> {
+    if (!this.getToken()) {
+      return of(this.usuarios());
+    }
+
     this.cargandoUsuarios.set(true);
     const url = `${this.baseUrl()}${AUTH_ENDPOINTS.USUARIOS}`;
     console.log(`📤 [GET ${AUTH_ENDPOINTS.USUARIOS}] Consultando usuarios en el servidor...`);
