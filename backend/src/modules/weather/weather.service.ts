@@ -2,6 +2,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  OnApplicationBootstrap,
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { TipoAlerta, EstadoAlerta } from '@prisma/client';
@@ -21,7 +22,7 @@ export interface DiaPronostico {
 }
 
 @Injectable()
-export class WeatherService {
+export class WeatherService implements OnApplicationBootstrap {
   private readonly registrador = new Logger(WeatherService.name);
 
   // Coordenadas por defecto del predio Santa Laura Ltda. (Zona central de Chile / Valle del Maipo - Rancagua)
@@ -30,6 +31,26 @@ export class WeatherService {
   private readonly UMBRAL_HELADA_C = 2.0;
 
   constructor(private readonly prisma: ServicioPrisma) {}
+
+  /**
+   * En el arranque del servidor, verifica si la tabla de clima está vacía
+   * y sincroniza de inmediato con Open-Meteo para que la tabla nunca esté vacía.
+   */
+  async onApplicationBootstrap() {
+    this.registrador.log('Verificando inicialización de datos meteorológicos en arranque...');
+    try {
+      const cantidad = await this.prisma.historicoClima.count();
+      if (cantidad < 7) {
+        this.registrador.log(
+          `Caché climática insuficiente (${cantidad} registros). Sincronizando pronóstico a 7 días con Open-Meteo...`,
+        );
+        await this.sincronizarPronostico({ diasPronostico: 7 });
+        this.registrador.log('Pronóstico meteorológico inicial sincronizado y almacenado con éxito.');
+      }
+    } catch (e: any) {
+      this.registrador.warn(`No se pudo sincronizar clima en arranque: ${e.message}`);
+    }
+  }
 
   /**
    * Sincroniza el pronóstico a 7 días desde Open-Meteo y genera alertas de helada (<2°C).

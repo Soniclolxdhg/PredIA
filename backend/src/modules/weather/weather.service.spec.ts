@@ -10,6 +10,7 @@ describe('WeatherService', () => {
       findMany: jest.Mock;
       findFirst: jest.Mock;
       upsert: jest.Mock;
+      count: jest.Mock;
     };
     alerta: {
       findMany: jest.Mock;
@@ -26,6 +27,7 @@ describe('WeatherService', () => {
         findMany: jest.fn().mockResolvedValue([]),
         findFirst: jest.fn().mockResolvedValue(null),
         upsert: jest.fn(),
+        count: jest.fn().mockResolvedValue(7),
       },
       alerta: {
         findMany: jest.fn().mockResolvedValue([]),
