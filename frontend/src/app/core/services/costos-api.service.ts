@@ -4,6 +4,8 @@ import { Observable, tap, catchError, throwError } from 'rxjs';
 import { AuthService } from './auth.service';
 import { COSTOS_ENDPOINTS } from '../constants/costos.endpoints';
 import {
+  CrearTrabajadorDto,
+  TrabajadorDto,
   CrearAsistenciaDto,
   ActualizarEstadoPagoDto,
   ProrratearCostoIndirectoDto,
@@ -26,14 +28,50 @@ export class CostosApiService {
   }
 
   // ==========================================
-  // 1. ASISTENCIA & MANO DE OBRA (HU06)
+  // 1. TRABAJADORES AGRÍCOLAS
+  // ==========================================
+
+  listarTrabajadores(): Observable<TrabajadorDto[]> {
+    const url = `${this.baseUrl}${COSTOS_ENDPOINTS.TRABAJADORES}`;
+    return this.http.get<TrabajadorDto[]>(url).pipe(
+      catchError((err) => {
+        console.error(`❌ [GET ${COSTOS_ENDPOINTS.TRABAJADORES}] Error:`, err);
+        return throwError(() => err);
+      })
+    );
+  }
+
+  crearTrabajador(dto: CrearTrabajadorDto): Observable<TrabajadorDto> {
+    const url = `${this.baseUrl}${COSTOS_ENDPOINTS.TRABAJADORES}`;
+    console.log(`[CostosApiService] POST ${COSTOS_ENDPOINTS.TRABAJADORES} payload:`, dto);
+
+    return this.http.post<TrabajadorDto>(url, dto).pipe(
+      tap((res) => console.log('✅ Trabajador registrado en backend:', res)),
+      catchError((err) => {
+        console.error(`❌ [POST ${COSTOS_ENDPOINTS.TRABAJADORES}] Error:`, err);
+        return throwError(() => err);
+      })
+    );
+  }
+
+  // ==========================================
+  // 2. ASISTENCIA & MANO DE OBRA (HU06)
   // ==========================================
 
   registrarAsistencia(dto: CrearAsistenciaDto): Observable<any> {
     const url = `${this.baseUrl}${COSTOS_ENDPOINTS.ASISTENCIAS}`;
-    console.log(`[CostosApiService] POST ${COSTOS_ENDPOINTS.ASISTENCIAS} payload:`, dto);
+    const payload: any = {
+      idTrabajador: Number(dto.idTrabajador),
+      idCiclo: Number(dto.idCiclo),
+      fechaJornada: dto.fechaJornada,
+      horasTrabajadas: Number(dto.horasTrabajadas),
+      valorHoraAplicado: Number(dto.valorHoraAplicado)
+    };
+    if (dto.idLabor) payload.idLabor = Number(dto.idLabor);
 
-    return this.http.post(url, dto).pipe(
+    console.log(`[CostosApiService] POST ${COSTOS_ENDPOINTS.ASISTENCIAS} payload:`, payload);
+
+    return this.http.post(url, payload).pipe(
       tap((res) => console.log('✅ Asistencia registrada en backend:', res)),
       catchError((err) => {
         console.error(`❌ [POST ${COSTOS_ENDPOINTS.ASISTENCIAS}] Error:`, err);
@@ -72,14 +110,23 @@ export class CostosApiService {
   }
 
   // ==========================================
-  // 2. PRORRATEO COSTOS INDIRECTOS (HU07)
+  // 3. PRORRATEO COSTOS INDIRECTOS (HU07)
   // ==========================================
 
   prorratearGastoIndirecto(dto: ProrratearCostoIndirectoDto): Observable<any> {
     const url = `${this.baseUrl}${COSTOS_ENDPOINTS.INDIRECTOS_PRORRATEAR}`;
-    console.log(`[CostosApiService] POST ${COSTOS_ENDPOINTS.INDIRECTOS_PRORRATEAR} payload:`, dto);
+    const payload: any = {
+      tipoGasto: dto.tipoGasto,
+      fechaImputacion: dto.fechaImputacion,
+      montoTotalFactura: Number(dto.montoTotalFactura),
+      criterio: dto.criterio === 'EQUITATIVO' ? 'EQUITATIVO' : 'SUPERFICIE_M2'
+    };
+    if (dto.comprobanteFactura) payload.comprobanteFactura = dto.comprobanteFactura;
+    if (dto.glosaDetalle) payload.glosaDetalle = dto.glosaDetalle;
 
-    return this.http.post(url, dto).pipe(
+    console.log(`[CostosApiService] POST ${COSTOS_ENDPOINTS.INDIRECTOS_PRORRATEAR} payload:`, payload);
+
+    return this.http.post(url, payload).pipe(
       tap((res) => console.log('✅ Costo indirecto prorrateado en backend:', res)),
       catchError((err) => {
         console.error(`❌ [POST ${COSTOS_ENDPOINTS.INDIRECTOS_PRORRATEAR}] Error:`, err);
@@ -89,7 +136,7 @@ export class CostosApiService {
   }
 
   // ==========================================
-  // 3. CONSOLIDADO Y LIQUIDACIÓN (HU09)
+  // 4. CONSOLIDADO Y LIQUIDACIÓN (HU09)
   // ==========================================
 
   obtenerLiquidacionCiclo(idCiclo: number): Observable<LiquidacionCicloResponse> {

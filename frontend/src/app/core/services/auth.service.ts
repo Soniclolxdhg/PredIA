@@ -270,10 +270,11 @@ export class AuthService {
 
   /**
    * Conecta con el endpoint para conmutar estado activo/inactivo del usuario.
+   * Utiliza PATCH /auth/usuarios/:id con el payload { activo: boolean } soportado por NestJS.
    */
   conmutarEstadoUsuario(idUsuario: number, nuevoEstado: boolean): Observable<{ exito: boolean; mensaje: string }> {
-    const url = `${this.baseUrl()}${AUTH_ENDPOINTS.CONMUTAR_ESTADO(idUsuario)}`;
-    console.log(`📤 [PATCH ${AUTH_ENDPOINTS.CONMUTAR_ESTADO(idUsuario)}] Cambiando estado activo=${nuevoEstado}`);
+    const url = `${this.baseUrl()}${AUTH_ENDPOINTS.USUARIO_POR_ID(idUsuario)}`;
+    console.log(`📤 [PATCH ${AUTH_ENDPOINTS.USUARIO_POR_ID(idUsuario)}] Cambiando estado activo=${nuevoEstado}`);
 
     return this.http.patch<any>(url, { activo: nuevoEstado }).pipe(
       map((res) => {
@@ -286,10 +287,10 @@ export class AuthService {
         };
       }),
       catchError((err) => {
-        console.warn(`⚠️ [PATCH ${AUTH_ENDPOINTS.CONMUTAR_ESTADO(idUsuario)}] Error o endpoint no disponible:`, err.status);
+        console.warn(`⚠️ [PATCH ${AUTH_ENDPOINTS.USUARIO_POR_ID(idUsuario)}] Error al cambiar estado:`, err.status);
         let mensaje = 'Error al cambiar estado del usuario en el servidor.';
         if (err.status === 404) {
-          mensaje = `⚠️ El endpoint 'PATCH /api/auth/usuarios/${idUsuario}/estado' aún no está implementado en el backend. El estado no fue modificado.`;
+          mensaje = `⚠️ El usuario con ID ${idUsuario} no fue encontrado en el backend.`;
         } else if (err.error?.message) {
           mensaje = Array.isArray(err.error.message) ? err.error.message.join(', ') : err.error.message;
         }
@@ -300,25 +301,26 @@ export class AuthService {
 
   /**
    * Conecta con el endpoint para actualizar la contraseña de un usuario en el sistema.
+   * Utiliza PATCH /auth/usuarios/:id con { password: string } soportado por NestJS.
    */
   cambiarPassword(idUsuario: number, nuevaPassword: string): Observable<{ exito: boolean; mensaje: string }> {
     if (!nuevaPassword || nuevaPassword.length < 6) {
       return of({ exito: false, mensaje: 'La contraseña debe contener al menos 6 caracteres.' });
     }
 
-    const url = `${this.baseUrl()}${AUTH_ENDPOINTS.CAMBIAR_PASSWORD(idUsuario)}`;
-    console.log(`📤 [PATCH ${AUTH_ENDPOINTS.CAMBIAR_PASSWORD(idUsuario)}] Solicitando cambio de clave`);
+    const url = `${this.baseUrl()}${AUTH_ENDPOINTS.USUARIO_POR_ID(idUsuario)}`;
+    console.log(`📤 [PATCH ${AUTH_ENDPOINTS.USUARIO_POR_ID(idUsuario)}] Solicitando cambio de clave`);
 
-    return this.http.patch<any>(url, { nuevaPassword }).pipe(
+    return this.http.patch<any>(url, { password: nuevaPassword }).pipe(
       map((res) => ({
         exito: true,
         mensaje: res?.mensaje || 'Contraseña actualizada con éxito en el servidor.'
       })),
       catchError((err) => {
-        console.warn(`⚠️ [PATCH ${AUTH_ENDPOINTS.CAMBIAR_PASSWORD(idUsuario)}] Error o endpoint no disponible:`, err.status);
+        console.warn(`⚠️ [PATCH ${AUTH_ENDPOINTS.USUARIO_POR_ID(idUsuario)}] Error al cambiar contraseña:`, err.status);
         let mensaje = 'Error al actualizar la contraseña en el servidor.';
         if (err.status === 404) {
-          mensaje = `⚠️ El endpoint 'PATCH /api/auth/usuarios/${idUsuario}/password' aún no está implementado en el backend. La clave no fue cambiada.`;
+          mensaje = `⚠️ El usuario con ID ${idUsuario} no fue encontrado en el backend.`;
         } else if (err.error?.message) {
           mensaje = Array.isArray(err.error.message) ? err.error.message.join(', ') : err.error.message;
         }

@@ -179,9 +179,8 @@ import { CostosApiService } from '../../core/services/costos-api.service';
               <div>
                 <label class="block text-xs font-bold text-slate-700 mb-1">Criterio Distribución *</label>
                 <select formControlName="criterio_distribucion" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none">
-                  <option value="SUPERFICIE_M2">Prorrateo por Superficie m²</option>
-                  <option value="VOLUMEN_PRODUCCION">Prorrateo por Volumen</option>
-                  <option value="IGUALITARIO">Equitativo / Igualitario</option>
+                  <option value="SUPERFICIE_M2">Prorrateo por Superficie m² (Técnico)</option>
+                  <option value="EQUITATIVO">Equitativo entre Ciclos Activos</option>
                 </select>
               </div>
             </div>
@@ -299,28 +298,45 @@ export class CostosIndirectosComponent {
     if (this.costoForm.invalid) return;
 
     const val = this.costoForm.value;
+    const criterioVal: 'SUPERFICIE_M2' | 'EQUITATIVO' = 
+      val.criterio_distribucion === 'EQUITATIVO' ? 'EQUITATIVO' : 'SUPERFICIE_M2';
+    const criterioErp: 'SUPERFICIE_M2' | 'EQUITATIVO_CICLOS' = 
+      criterioVal === 'EQUITATIVO' ? 'EQUITATIVO_CICLOS' : 'SUPERFICIE_M2';
 
     const dto = {
       tipoGasto: val.tipo_gasto,
       comprobanteFactura: val.comprobante_factura.trim(),
       fechaImputacion: val.fecha_imputacion,
       montoTotalFactura: Number(val.monto_total_prorrateado),
-      criterio: val.criterio_distribucion,
-      glosaDetalle: val.glosa_detalle?.trim() || 'Imputación de gasto indirecto',
-      idCiclo: Number(val.id_ciclo)
+      criterio: criterioVal,
+      glosaDetalle: val.glosa_detalle?.trim() || 'Imputación de gasto indirecto'
     };
 
     this.costosApi.prorratearGastoIndirecto(dto).subscribe({
-      next: () => {
-        this.erpService.registrarCostoIndirecto({
-          tipo_gasto: val.tipo_gasto,
-          id_ciclo: Number(val.id_ciclo),
-          monto_total_prorrateado: Number(val.monto_total_prorrateado),
-          fecha_imputacion: val.fecha_imputacion,
-          comprobante_factura: val.comprobante_factura,
-          criterio_distribucion: val.criterio_distribucion
-        });
-        this.mensajeExito.set(`Costo indirecto registrado exitosamente.`);
+      next: (res) => {
+        if (res && res.distribucion && Array.isArray(res.distribucion)) {
+          res.distribucion.forEach((d: any) => {
+            this.erpService.registrarCostoIndirecto({
+              tipo_gasto: val.tipo_gasto,
+              id_ciclo: d.idCiclo,
+              monto_total_prorrateado: Number(d.montoProrrateado),
+              fecha_imputacion: val.fecha_imputacion,
+              comprobante_factura: val.comprobante_factura,
+              criterio_distribucion: criterioErp
+            });
+          });
+          this.mensajeExito.set(`Gasto prorrateado exitosamente entre ${res.distribucion.length} ciclos activos.`);
+        } else {
+          this.erpService.registrarCostoIndirecto({
+            tipo_gasto: val.tipo_gasto,
+            id_ciclo: Number(val.id_ciclo),
+            monto_total_prorrateado: Number(val.monto_total_prorrateado),
+            fecha_imputacion: val.fecha_imputacion,
+            comprobante_factura: val.comprobante_factura,
+            criterio_distribucion: criterioErp
+          });
+          this.mensajeExito.set(`Costo indirecto registrado exitosamente.`);
+        }
       },
       error: () => {
         this.erpService.registrarCostoIndirecto({
@@ -329,9 +345,9 @@ export class CostosIndirectosComponent {
           monto_total_prorrateado: Number(val.monto_total_prorrateado),
           fecha_imputacion: val.fecha_imputacion,
           comprobante_factura: val.comprobante_factura,
-          criterio_distribucion: val.criterio_distribucion
+          criterio_distribucion: criterioErp
         });
-        this.mensajeExito.set(`Costo de ${val.tipo_gasto} imputado correctamente.`);
+        this.mensajeExito.set(`Costo de ${val.tipo_gasto} imputado correctamente en el sistema.`);
       }
     });
 

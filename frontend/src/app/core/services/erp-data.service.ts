@@ -588,6 +588,10 @@ export class ErpDataService {
   /**
    * HU06: Registro de asistencia de mano de obra
    */
+  setAsistencias(lista: AsistenciaJornal[]): void {
+    this.asistencias.set(lista);
+  }
+
   registrarAsistencia(asistencia: Omit<AsistenciaJornal, 'id_asistencia' | 'monto_devengado'>): void {
     const devengado = asistencia.horas_trabajadas * asistencia.valor_hora_aplicado;
     const nueva: AsistenciaJornal = {

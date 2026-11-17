@@ -1,12 +1,31 @@
+export interface CrearTrabajadorDto {
+  rut: string;
+  nombres: string;
+  apellidos: string;
+  cargo: 'OPERARIO_CAMPO' | 'COSECHADOR' | 'CHOFER' | 'MECANICO';
+  modalidadPago: 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL';
+  tarifaBase: number;
+  activo?: boolean;
+}
+
+export interface TrabajadorDto {
+  idTrabajador: number;
+  rut: string;
+  nombres: string;
+  apellidos: string;
+  cargo: string;
+  modalidadPago: string;
+  tarifaBase: number | string;
+  activo: boolean;
+}
+
 export interface CrearAsistenciaDto {
   idTrabajador: number;
   idCiclo: number;
   idLabor?: number;
   fechaJornada: string;
   horasTrabajadas: number;
-  valorHoraAplicado?: number;
-  modalidadPago?: string;
-  nombreTrabajador?: string;
+  valorHoraAplicado: number;
 }
 
 export interface ActualizarEstadoPagoDto {
@@ -15,11 +34,11 @@ export interface ActualizarEstadoPagoDto {
 
 export interface ProrratearCostoIndirectoDto {
   tipoGasto: string;
-  comprobanteFactura: string;
+  comprobanteFactura?: string;
   fechaImputacion: string;
   montoTotalFactura: number;
-  criterio: string;
-  glosaDetalle: string;
+  criterio: 'SUPERFICIE_M2' | 'EQUITATIVO';
+  glosaDetalle?: string;
   idCiclo?: number;
 }
 

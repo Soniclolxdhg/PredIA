@@ -62,13 +62,13 @@ export class ClimaApiService {
     );
   }
 
-  atenderAlerta(idAlerta: number, dto: AtenderAlertaHeladaDto): Observable<any> {
+  atenderAlerta(idAlerta: number, dto?: AtenderAlertaHeladaDto): Observable<any> {
     const endpoint = CLIMA_ENDPOINTS.ATENDER_ALERTA(idAlerta);
     const url = `${this.baseUrl}${endpoint}`;
-    console.log(`[ClimaApiService] PATCH ${endpoint} payload:`, dto);
+    console.log(`[ClimaApiService] PATCH ${endpoint}`);
 
-    return this.http.patch(url, dto).pipe(
-      tap((res) => console.log(`✅ Alerta de helada #${idAlerta} atendida:`, res)),
+    return this.http.patch(url, {}).pipe(
+      tap((res) => console.log(`✅ Alerta de helada #${idAlerta} atendida en backend:`, res)),
       catchError((err) => {
         console.error(`❌ [PATCH ${endpoint}] Error:`, err);
         return throwError(() => err);

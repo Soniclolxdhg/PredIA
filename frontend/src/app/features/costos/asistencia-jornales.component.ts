@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { ErpDataService } from '../../core/services/erp-data.service';
 import { CostosApiService } from '../../core/services/costos-api.service';
 import { AsistenciaJornal } from '../../core/models/erp.models';
+import { TrabajadorDto, CrearAsistenciaDto, CrearTrabajadorDto } from '../../core/models/dtos';
 
 @Component({
   selector: 'app-asistencia-jornales',
@@ -11,7 +12,7 @@ import { AsistenciaJornal } from '../../core/models/erp.models';
   imports: [CommonModule, ReactiveFormsModule],
   template: `
     <div class="space-y-6">
-      <!-- Encabezado con Botón -->
+      <!-- Encabezado con Botones -->
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div class="flex items-center gap-2">
@@ -23,13 +24,23 @@ import { AsistenciaJornal } from '../../core/models/erp.models';
           </p>
         </div>
 
-        <button
-          type="button"
-          (click)="abrirModal()"
-          class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm rounded-xl shadow-xs transition-colors touch-target">
-          <span>➕</span>
-          <span>Registrar Jornada de Trabajo</span>
-        </button>
+        <div class="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            (click)="abrirModalTrabajador()"
+            class="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs sm:text-sm rounded-xl transition-colors">
+            <span>👤</span>
+            <span>+ Nuevo Trabajador</span>
+          </button>
+
+          <button
+            type="button"
+            (click)="abrirModal()"
+            class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm rounded-xl shadow-xs transition-colors touch-target">
+            <span>➕</span>
+            <span>Registrar Jornada de Trabajo</span>
+          </button>
+        </div>
       </div>
 
       <!-- Banner Informativo -->
@@ -43,10 +54,15 @@ import { AsistenciaJornal } from '../../core/models/erp.models';
         </div>
       </div>
 
-      <!-- Alerta de Éxito -->
+      <!-- Alerta de Éxito o Error -->
       <div *ngIf="mensajeExito()" class="p-4 bg-emerald-50 border border-emerald-300 text-emerald-800 text-sm rounded-xl flex items-center justify-between">
         <span class="font-bold">✓ {{ mensajeExito() }}</span>
         <button (click)="mensajeExito.set(null)" class="text-emerald-700 font-bold px-2 py-1">✕</button>
+      </div>
+
+      <div *ngIf="mensajeError()" class="p-4 bg-rose-50 border border-rose-300 text-rose-800 text-sm rounded-xl flex items-center justify-between">
+        <span class="font-bold">⚠️ {{ mensajeError() }}</span>
+        <button (click)="mensajeError.set(null)" class="text-rose-700 font-bold px-2 py-1">✕</button>
       </div>
 
       <!-- Tabla de Asistencia y Jornales -->
@@ -130,13 +146,28 @@ import { AsistenciaJornal } from '../../core/models/erp.models';
 
           <form [formGroup]="asistenciaForm" (ngSubmit)="onSubmitAsistencia()" class="space-y-4">
             <div>
-              <label class="block text-xs font-bold text-slate-700 mb-1">Nombre del Trabajador *</label>
-              <input
-                type="text"
-                formControlName="nombre_trabajador"
-                placeholder="ej. Juan Pérez Morales"
-                class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-              />
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-xs font-bold text-slate-700">Trabajador Agrícola Registrado *</label>
+                <button
+                  type="button"
+                  (click)="abrirModalTrabajador()"
+                  class="text-[11px] text-emerald-700 hover:text-emerald-800 font-bold underline">
+                  + Registrar nuevo
+                </button>
+              </div>
+
+              <select
+                formControlName="id_trabajador"
+                (change)="onTrabajadorSeleccionado()"
+                class="w-full p-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none">
+                <option value="" disabled>Seleccione trabajador...</option>
+                <option *ngFor="let t of trabajadores()" [value]="t.idTrabajador">
+                  {{ t.nombres }} {{ t.apellidos }} ({{ t.rut }}) - {{ t.cargo }}
+                </option>
+              </select>
+              <p *ngIf="trabajadores().length === 0" class="text-xs text-amber-600 mt-1">
+                ⚠️ No hay trabajadores registrados. Haz clic en "+ Registrar nuevo" para agregar uno.
+              </p>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -184,13 +215,13 @@ import { AsistenciaJornal } from '../../core/models/erp.models';
               </div>
 
               <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1">Modalidad *</label>
-                <select formControlName="modalidad_pago" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none">
-                  <option value="DIARIA">Diaria</option>
-                  <option value="SEMANAL">Semanal</option>
-                  <option value="QUINCENAL">Quincenal</option>
-                  <option value="MENSUAL">Mensual</option>
-                </select>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Modalidad</label>
+                <input
+                  type="text"
+                  formControlName="modalidad_pago"
+                  readonly
+                  class="w-full p-2.5 text-sm rounded-xl border border-slate-200 bg-slate-50 text-slate-600 font-semibold focus:outline-none"
+                />
               </div>
             </div>
 
@@ -219,6 +250,107 @@ import { AsistenciaJornal } from '../../core/models/erp.models';
           </form>
         </div>
       </div>
+
+      <!-- Modal de Registro de Nuevo Trabajador -->
+      <div
+        *ngIf="modalTrabajadorVisible()"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tituloModalTrabajador"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+            <h3 id="tituloModalTrabajador" class="font-bold text-slate-900 text-base flex items-center gap-2">
+              <span>👤</span>
+              <span>Registrar Trabajador Agrícola</span>
+            </h3>
+            <button (click)="cerrarModalTrabajador()" class="text-slate-400 hover:text-slate-700 font-bold text-lg px-2">✕</button>
+          </div>
+
+          <form [formGroup]="trabajadorForm" (ngSubmit)="onSubmitNuevoTrabajador()" class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Nombres *</label>
+                <input
+                  type="text"
+                  formControlName="nombres"
+                  placeholder="ej. Carlos"
+                  class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Apellidos *</label>
+                <input
+                  type="text"
+                  formControlName="apellidos"
+                  placeholder="ej. Muñoz Silva"
+                  class="w-full p-2.5 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">RUT *</label>
+                <input
+                  type="text"
+                  formControlName="rut"
+                  placeholder="12.345.678-9"
+                  class="w-full p-2.5 text-sm rounded-xl border border-slate-300 font-mono focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Cargo *</label>
+                <select formControlName="cargo" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none">
+                  <option value="OPERARIO_CAMPO">Operario de Campo</option>
+                  <option value="COSECHADOR">Cosechador</option>
+                  <option value="CHOFER">Chofer</option>
+                  <option value="MECANICO">Mecánico</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Modalidad Pago *</label>
+                <select formControlName="modalidadPago" class="w-full p-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none">
+                  <option value="DIARIO">Diario</option>
+                  <option value="SEMANAL">Semanal</option>
+                  <option value="QUINCENAL">Quincenal</option>
+                  <option value="MENSUAL">Mensual</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Tarifa Base / Hora ($) *</label>
+                <input
+                  type="number"
+                  min="1000"
+                  step="100"
+                  formControlName="tarifaBase"
+                  class="w-full p-2.5 text-sm rounded-xl border border-slate-300 font-mono focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div class="pt-3 flex gap-3 justify-end border-t border-slate-100">
+              <button
+                type="button"
+                (click)="cerrarModalTrabajador()"
+                class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl font-medium">
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                [disabled]="trabajadorForm.invalid"
+                class="px-5 py-2 text-sm bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-semibold rounded-xl shadow-xs transition-colors">
+                Guardar Trabajador
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   `
 })
@@ -228,31 +360,94 @@ export class AsistenciaJornalesComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
 
   readonly modalVisible = signal(false);
+  readonly modalTrabajadorVisible = signal(false);
   readonly mensajeExito = signal<string | null>(null);
+  readonly mensajeError = signal<string | null>(null);
+  readonly trabajadores = signal<TrabajadorDto[]>([]);
 
   readonly asistenciaForm: FormGroup = this.fb.group({
-    nombre_trabajador: ['', [Validators.required]],
+    id_trabajador: ['', [Validators.required]],
     id_ciclo: ['', [Validators.required]],
     fecha_jornada: [new Date().toISOString().split('T')[0], [Validators.required]],
     horas_trabajadas: [8, [Validators.required, Validators.min(1), Validators.max(16)]],
     valor_hora_aplicado: [4500, [Validators.required, Validators.min(1000)]],
-    modalidad_pago: ['SEMANAL', [Validators.required]]
+    modalidad_pago: ['SEMANAL']
+  });
+
+  readonly trabajadorForm: FormGroup = this.fb.group({
+    rut: ['', [Validators.required]],
+    nombres: ['', [Validators.required]],
+    apellidos: ['', [Validators.required]],
+    cargo: ['OPERARIO_CAMPO', [Validators.required]],
+    modalidadPago: ['SEMANAL', [Validators.required]],
+    tarifaBase: [4500, [Validators.required, Validators.min(1000)]]
   });
 
   ngOnInit(): void {
-    this.costosApi.listarAsistencias().subscribe({
+    this.cargarTrabajadores();
+    this.cargarAsistencias();
+  }
+
+  cargarTrabajadores(): void {
+    this.costosApi.listarTrabajadores().subscribe({
       next: (lista) => {
-        if (lista && lista.length > 0) {
-          console.log('[AsistenciaJornales] Asistencias backend:', lista.length);
+        if (lista && Array.isArray(lista)) {
+          this.trabajadores.set(lista);
+          if (lista.length > 0 && !this.asistenciaForm.get('id_trabajador')?.value) {
+            this.asistenciaForm.patchValue({
+              id_trabajador: lista[0].idTrabajador,
+              valor_hora_aplicado: Number(lista[0].tarifaBase) || 4500,
+              modalidad_pago: lista[0].modalidadPago || 'SEMANAL'
+            });
+          }
         }
       },
-      error: () => { }
+      error: (err) => {
+        console.warn('⚠️ No se pudo obtener la lista de trabajadores desde el backend:', err);
+      }
     });
+  }
+
+  cargarAsistencias(): void {
+    this.costosApi.listarAsistencias().subscribe({
+      next: (lista) => {
+        if (lista && Array.isArray(lista) && lista.length > 0) {
+          const normalizadas: AsistenciaJornal[] = lista.map((a: any) => ({
+            id_asistencia: a.idAsistencia,
+            id_trabajador: a.idTrabajador,
+            nombre_trabajador: a.trabajador ? `${a.trabajador.nombres} ${a.trabajador.apellidos}` : `Trabajador #${a.idTrabajador}`,
+            id_ciclo: a.idCiclo,
+            fecha_jornada: typeof a.fechaJornada === 'string' ? a.fechaJornada.split('T')[0] : a.fechaJornada,
+            horas_trabajadas: Number(a.horasTrabajadas),
+            valor_hora_aplicado: Number(a.valorHoraAplicado),
+            monto_devengado: Number(a.montoDevengado),
+            modalidad_pago: a.trabajador?.modalidadPago || 'SEMANAL',
+            estado_pago: a.estadoPago || 'PENDIENTE'
+          }));
+          this.erpService.setAsistencias(normalizadas);
+        }
+      },
+      error: (err) => {
+        console.warn('⚠️ No se pudo obtener asistencias del backend:', err);
+      }
+    });
+  }
+
+  onTrabajadorSeleccionado(): void {
+    const id = Number(this.asistenciaForm.get('id_trabajador')?.value);
+    const trabajador = this.trabajadores().find(t => t.idTrabajador === id);
+    if (trabajador) {
+      this.asistenciaForm.patchValue({
+        valor_hora_aplicado: Number(trabajador.tarifaBase) || 4500,
+        modalidad_pago: trabajador.modalidadPago || 'SEMANAL'
+      });
+    }
   }
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
     this.cerrarModal();
+    this.cerrarModalTrabajador();
   }
 
   get totalDevengado(): number {
@@ -273,52 +468,81 @@ export class AsistenciaJornalesComponent implements OnInit {
     this.modalVisible.set(false);
   }
 
+  abrirModalTrabajador(): void {
+    this.modalTrabajadorVisible.set(true);
+  }
+
+  cerrarModalTrabajador(): void {
+    this.modalTrabajadorVisible.set(false);
+  }
+
+  onSubmitNuevoTrabajador(): void {
+    if (this.trabajadorForm.invalid) return;
+
+    const val = this.trabajadorForm.value;
+    const dto: CrearTrabajadorDto = {
+      rut: val.rut.trim(),
+      nombres: val.nombres.trim(),
+      apellidos: val.apellidos.trim(),
+      cargo: val.cargo,
+      modalidadPago: val.modalidadPago,
+      tarifaBase: Number(val.tarifaBase),
+      activo: true
+    };
+
+    this.costosApi.crearTrabajador(dto).subscribe({
+      next: (nuevo) => {
+        this.trabajadores.update(prev => [...prev, nuevo]);
+        this.asistenciaForm.patchValue({
+          id_trabajador: nuevo.idTrabajador,
+          valor_hora_aplicado: Number(nuevo.tarifaBase),
+          modalidad_pago: nuevo.modalidadPago
+        });
+        this.mensajeExito.set(`Trabajador ${nuevo.nombres} ${nuevo.apellidos} registrado exitosamente.`);
+        this.cerrarModalTrabajador();
+      },
+      error: (err) => {
+        const msg = err.error?.message || 'Error al registrar el trabajador.';
+        this.mensajeError.set(Array.isArray(msg) ? msg.join(', ') : msg);
+      }
+    });
+  }
+
   onSubmitAsistencia(): void {
     if (this.asistenciaForm.invalid) return;
 
     const val = this.asistenciaForm.value;
-    const nuevoId = this.erpService.asistencias().length + 1;
+    const trabajador = this.trabajadores().find(t => t.idTrabajador === Number(val.id_trabajador));
+    const nombre = trabajador ? `${trabajador.nombres} ${trabajador.apellidos}` : `Trabajador #${val.id_trabajador}`;
 
-    const dto = {
-      idTrabajador: nuevoId,
-      nombreTrabajador: val.nombre_trabajador.trim(),
+    const dto: CrearAsistenciaDto = {
+      idTrabajador: Number(val.id_trabajador),
       idCiclo: Number(val.id_ciclo),
       fechaJornada: val.fecha_jornada,
       horasTrabajadas: Number(val.horas_trabajadas),
-      valorHoraAplicado: Number(val.valor_hora_aplicado),
-      modalidadPago: val.modalidad_pago
+      valorHoraAplicado: Number(val.valor_hora_aplicado)
     };
 
     this.costosApi.registrarAsistencia(dto).subscribe({
-      next: () => {
+      next: (res) => {
         this.erpService.registrarAsistencia({
-          id_trabajador: nuevoId,
-          nombre_trabajador: val.nombre_trabajador.trim(),
+          id_trabajador: Number(val.id_trabajador),
+          nombre_trabajador: nombre,
           id_ciclo: Number(val.id_ciclo),
           fecha_jornada: val.fecha_jornada,
           horas_trabajadas: Number(val.horas_trabajadas),
           valor_hora_aplicado: Number(val.valor_hora_aplicado),
-          modalidad_pago: val.modalidad_pago,
+          modalidad_pago: (trabajador?.modalidadPago as any) || 'SEMANAL',
           estado_pago: 'PENDIENTE'
         });
-        this.mensajeExito.set(`Jornal de ${val.nombre_trabajador} registrado con éxito.`);
+        this.mensajeExito.set(`Jornal de ${nombre} imputado con éxito al Ciclo #${val.id_ciclo}.`);
+        this.cerrarModal();
       },
-      error: () => {
-        this.erpService.registrarAsistencia({
-          id_trabajador: nuevoId,
-          nombre_trabajador: val.nombre_trabajador.trim(),
-          id_ciclo: Number(val.id_ciclo),
-          fecha_jornada: val.fecha_jornada,
-          horas_trabajadas: Number(val.horas_trabajadas),
-          valor_hora_aplicado: Number(val.valor_hora_aplicado),
-          modalidad_pago: val.modalidad_pago,
-          estado_pago: 'PENDIENTE'
-        });
-        this.mensajeExito.set(`Jornal de ${val.nombre_trabajador} registrado con estado PENDIENTE.`);
+      error: (err) => {
+        const msg = err.error?.message || 'Error al imputar jornada en backend.';
+        this.mensajeError.set(Array.isArray(msg) ? msg.join(', ') : msg);
       }
     });
-
-    this.cerrarModal();
   }
 
   cambiarEstadoPago(a: AsistenciaJornal, nuevoEstado: 'PAGADO' | 'PENDIENTE' | 'CONCILIADO'): void {
@@ -327,9 +551,9 @@ export class AsistenciaJornalesComponent implements OnInit {
         this.erpService.actualizarEstadoPagoAsistencia(a.id_asistencia, nuevoEstado);
         this.mensajeExito.set(`Jornada #${a.id_asistencia} actualizada a ${nuevoEstado}.`);
       },
-      error: () => {
-        this.erpService.actualizarEstadoPagoAsistencia(a.id_asistencia, nuevoEstado);
-        this.mensajeExito.set(`Jornada #${a.id_asistencia} actualizada a ${nuevoEstado}.`);
+      error: (err) => {
+        const msg = err.error?.message || 'Error al actualizar estado en backend.';
+        this.mensajeError.set(Array.isArray(msg) ? msg.join(', ') : msg);
       }
     });
   }

@@ -52,6 +52,7 @@ describe('authInterceptor y Endpoints', () => {
     expect(CLIMA_ENDPOINTS.SINCRONIZAR).toBe('/clima/sincronizar');
     expect(VENTAS_ENDPOINTS.CLIENTES).toBe('/ventas/clientes');
     expect(COSTOS_ENDPOINTS.ASISTENCIAS).toBe('/costos/asistencias');
+    expect(COSTOS_ENDPOINTS.TRABAJADORES).toBe('/costos/trabajadores');
     expect(DASHBOARD_ENDPOINTS.EJECUTIVO).toBe('/dashboard/ejecutivo');
 
     const fullUrlClima = `${authServiceSpy.baseUrl()}${CLIMA_ENDPOINTS.SINCRONIZAR}`;
