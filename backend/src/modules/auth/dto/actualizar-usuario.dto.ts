@@ -34,3 +34,4 @@ export class ActualizarUsuarioDto {
   @MinLength(6, { message: 'La contraseña debe tener al menos 6 caracteres si se modifica.' })
   password?: string;
 }
+
