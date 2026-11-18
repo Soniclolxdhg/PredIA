@@ -93,6 +93,34 @@ export class ProductionService {
     });
   }
 
+  async eliminarNave(idNave: number) {
+    const nave = await this.obtenerNavePorId(idNave);
+
+    const ciclosAsociados = await this.prisma.cicloCultivo.count({
+      where: { idNave },
+    });
+
+    if (ciclosAsociados > 0) {
+      throw new BadRequestException(
+        `No es posible eliminar la nave "${nave.nombre}" (${nave.codigoNave}) porque registra ${ciclosAsociados} ciclo(s) de cultivo asociados.`,
+      );
+    }
+
+    await this.prisma.nave.delete({
+      where: { idNave },
+    });
+
+    this.registrador.log(
+      `Nave ID ${idNave} (${nave.codigoNave} - ${nave.nombre}) eliminada correctamente.`,
+    );
+
+    return {
+      idNave,
+      codigoNave: nave.codigoNave,
+      mensaje: `Nave "${nave.nombre}" (${nave.codigoNave}) eliminada correctamente.`,
+    };
+  }
+
   // ==========================================
   // 2. CICLOS DE CULTIVO (HU01 - Sin Colisión)
   // ==========================================

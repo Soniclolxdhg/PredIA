@@ -12,12 +12,14 @@ describe('ProductionService', () => {
       findUnique: jest.Mock;
       create: jest.Mock;
       update: jest.Mock;
+      delete: jest.Mock;
     };
     cicloCultivo: {
       findMany: jest.Mock;
       findUnique: jest.Mock;
       create: jest.Mock;
       update: jest.Mock;
+      count: jest.Mock;
     };
     laborAgricola: {
       findMany: jest.Mock;
@@ -37,12 +39,14 @@ describe('ProductionService', () => {
         findUnique: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
+        delete: jest.fn(),
       },
       cicloCultivo: {
         findMany: jest.fn(),
         findUnique: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
+        count: jest.fn(),
       },
       laborAgricola: {
         findMany: jest.fn(),
@@ -100,6 +104,33 @@ describe('ProductionService', () => {
           superficieM2: 400,
         }),
       ).rejects.toThrow(ConflictException);
+    });
+
+    it('debe eliminar una nave si no tiene ciclos asociados', async () => {
+      prisma.nave.findUnique.mockResolvedValue({
+        idNave: 6,
+        codigoNave: 'NAV-06',
+        nombre: 'Nave Prueba',
+      });
+      prisma.cicloCultivo.count.mockResolvedValue(0);
+      prisma.nave.delete.mockResolvedValue({ idNave: 6 });
+
+      const res = await service.eliminarNave(6);
+      expect(res.idNave).toBe(6);
+      expect(res.mensaje).toContain('eliminada correctamente');
+      expect(prisma.nave.delete).toHaveBeenCalledWith({ where: { idNave: 6 } });
+    });
+
+    it('debe impedir eliminar una nave si registra ciclos de cultivo asociados (BadRequestException)', async () => {
+      prisma.nave.findUnique.mockResolvedValue({
+        idNave: 6,
+        codigoNave: 'NAV-06',
+        nombre: 'Nave Con Historial',
+      });
+      prisma.cicloCultivo.count.mockResolvedValue(2);
+
+      await expect(service.eliminarNave(6)).rejects.toThrow(BadRequestException);
+      expect(prisma.nave.delete).not.toHaveBeenCalled();
     });
   });
 

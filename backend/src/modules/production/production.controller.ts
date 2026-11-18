@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -50,6 +51,11 @@ export class ProductionController {
   @Patch('naves/:id')
   actualizarNave(@Param('id', ParseIntPipe) id: number, @Body() dto: ActualizarNaveDto) {
     return this.productionService.actualizarNave(id, dto);
+  }
+
+  @Delete('naves/:id')
+  eliminarNave(@Param('id', ParseIntPipe) id: number) {
+    return this.productionService.eliminarNave(id);
   }
 
   // ==========================================
