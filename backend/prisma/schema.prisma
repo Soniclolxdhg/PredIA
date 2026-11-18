@@ -470,3 +470,19 @@ model ProyeccionCiclo {
   @@index([idCiclo])
   @@map("proyecciones_ciclo")
 }
+
+// ==========================================
+// 8. MODELOS: MEJORAS EVOLUTIVAS / CATÁLOGOS EXTERNOS AL INFORME EV2
+// ==========================================
+
+/// Entidad: CATALOGO_VARIEDAD (RFC-01 / Mejora Externa - Normalización de variedades hortícolas)
+model CatalogoVariedad {
+  idVariedad    Int      @id @default(autoincrement()) @map("id_variedad")
+  nombre        String   @unique @db.VarChar(50)
+  especie       String?  @db.VarChar(50)
+  descripcion   String?  @db.VarChar(200)
+  activo        Boolean  @default(true)
+  fechaCreacion DateTime @default(now()) @map("fecha_creacion")
+
+  @@map("catalogo_variedades")
+}

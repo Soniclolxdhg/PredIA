@@ -12,6 +12,7 @@ import { CostingEngineModule } from './modules/costing-engine/costing-engine.mod
 import { SalesModule } from './modules/sales/sales.module';
 import { WeatherModule } from './modules/weather/weather.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { CatalogsModule } from './modules/catalogs/catalogs.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
     SalesModule,
     WeatherModule,
     AnalyticsModule,
+    CatalogsModule,
   ],
   controllers: [HealthController],
   providers: [
