@@ -486,3 +486,28 @@ model CatalogoVariedad {
 
   @@map("catalogo_variedades")
 }
+
+/// Entidad: CATALOGO_ESTRUCTURA (RFC-01B / Mejora Externa - Tipos de estructura de naves)
+model CatalogoEstructura {
+  idEstructura  Int      @id @default(autoincrement()) @map("id_estructura")
+  codigo        String   @unique @db.VarChar(20)
+  nombre        String   @unique @db.VarChar(50)
+  descripcion   String?  @db.VarChar(250)
+  activo        Boolean  @default(true)
+  fechaCreacion DateTime @default(now()) @map("fecha_creacion")
+
+  @@map("catalogo_estructuras")
+}
+
+/// Entidad: CATALOGO_UNIDAD (RFC-01C / Mejora Externa - Unidades de medida para insumos)
+model CatalogoUnidad {
+  idUnidad      Int      @id @default(autoincrement()) @map("id_unidad")
+  codigo        String   @unique @db.VarChar(20)
+  nombre        String   @unique @db.VarChar(50)
+  simbolo       String   @unique @db.VarChar(20)
+  magnitud      String   @db.VarChar(30)
+  activo        Boolean  @default(true)
+  fechaCreacion DateTime @default(now()) @map("fecha_creacion")
+
+  @@map("catalogo_unidades")
+}

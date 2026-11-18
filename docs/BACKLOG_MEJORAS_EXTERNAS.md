@@ -8,7 +8,9 @@ Este documento registra todas las **mejoras funcionales, técnicas y de base de 
 
 | ID | Título | Módulo Afectado | Impacto en BD | Estado | Fecha |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **MEJ-01 (RFC-01)** | Catálogo Maestro de Variedades Hortícolas | Catálogos (`CatalogsModule`) | Nueva tabla `catalogo_variedades` | ✅ Implementado | 2026-11-17 |
+| **MEJ-01A (RFC-01A)** | Catálogo Maestro de Variedades Hortícolas | Catálogos (`CatalogsModule`) | Nueva tabla `catalogo_variedades` | ✅ Implementado | 2026-11-17 |
+| **MEJ-01B (RFC-01B)** | Catálogo de Tipos de Estructura de Naves | Catálogos (`CatalogsModule`) | Nueva tabla `catalogo_estructuras` | ✅ Implementado | 2026-11-18 |
+| **MEJ-01C (RFC-01C)** | Catálogo de Unidades de Medida (Bodega) | Catálogos (`CatalogsModule`) | Nueva tabla `catalogo_unidades` | ✅ Implementado | 2026-11-18 |
 | **MEJ-02 (RFC-02)** | Gestión y Edición de Usuarios del Sistema | Auth (`AuthModule`) | Sin cambios de esquema | ✅ Implementado | 2026-11-17 |
 | **MEJ-03 (RFC-03)** | Auto-sincronización Agroclimática al Arranque | Clima (`WeatherModule`) | Sin cambios de esquema | ✅ Implementado | 2026-11-17 |
 
@@ -32,6 +34,30 @@ Este documento registra todas las **mejoras funcionales, técnicas y de base de 
   - `PATCH` / `PUT /api/catalogos/variedades/:id` — Editar variedad.
   - `DELETE /api/catalogos/variedades/:id` — Eliminación física si no tiene uso, o baja lógica (`activo = false`) si existen ciclos históricos asociados.
   - `POST /api/catalogos/variedades/sembrar` — Carga inicial de variedades base de Santa Laura Ltda. (*Tomate Larga Vida, Tomate Cherry, Tomate Limachino, Pimiento*).
+
+---
+
+### MEJ-01B (RFC-01B): Catálogo de Tipos de Estructura de Naves
+* **Origen / Necesidad:** En el informe EV2 (Tabla 5: `NAVE`), el campo `tipo_estructura` fue definido como texto `VARCHAR(50)`. Para normalizar los tipos de invernadero en la interfaz de configuración del frontend, se creó un catálogo maestro dedicado.
+* **Cambio en Base de Datos:**
+  - Nueva tabla: `catalogo_estructuras` (`id_estructura`, `codigo` único ej. `EST-01`, `nombre` único, `descripcion`, `activo`, `fecha_creacion`).
+  - Migración Prisma: `backend/prisma/migrations/20261118010500_add_catalogo_estructuras_unidades/migration.sql`.
+* **Endpoints Habilitados:**
+  - `POST` / `GET /api/catalogos/estructuras` (incluye campo calculado `navesEnUso`)
+  - `GET` / `PATCH` / `PUT` / `DELETE /api/catalogos/estructuras/:id`
+  - `POST /api/catalogos/estructuras/sembrar`
+
+---
+
+### MEJ-01C (RFC-01C): Catálogo de Unidades de Medida (Bodega e Insumos)
+* **Origen / Necesidad:** En el informe EV2 (Tabla 8: `INSUMO`), el campo `unidad_medida` es `VARCHAR(20)`. Un catálogo de unidades homologadas evita inconsistencias entre `Kg`, `kg`, `Kilogramos`, etc. en el Kardex y cálculo de mermas.
+* **Cambio en Base de Datos:**
+  - Nueva tabla: `catalogo_unidades` (`id_unidad`, `codigo` único ej. `MED-01`, `nombre` único, `simbolo` único, `magnitud`, `activo`, `fecha_creacion`).
+  - Migración Prisma: `backend/prisma/migrations/20261118010500_add_catalogo_estructuras_unidades/migration.sql`.
+* **Endpoints Habilitados:**
+  - `POST` / `GET /api/catalogos/unidades` (incluye campo calculado `insumosEnUso`)
+  - `GET` / `PATCH` / `PUT` / `DELETE /api/catalogos/unidades/:id`
+  - `POST /api/catalogos/unidades/sembrar`
 
 ---
 
